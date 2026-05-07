@@ -243,6 +243,12 @@ jobs:
           name: compiler-scorecard-link-jobs-${{ github.run_number }}
           path: scripts/compiler_nightly/results/
 
+      - name: Download compile job results (for link-scorecard)
+        uses: actions/download-artifact@v8
+        with:
+          name: compiler-scorecard-jobs-${{ github.run_number }}
+          path: scripts/compiler_nightly/results/
+
       - name: Collect link results
         if: always()
         working-directory: scripts/compiler_nightly
