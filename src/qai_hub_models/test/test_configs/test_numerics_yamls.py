@@ -12,7 +12,7 @@ from qai_hub_models.configs.numerics_yaml import (
     QAIHMModelNumerics,
     get_numerics_yaml_path,
 )
-from qai_hub_models.scorecard.results.yaml import ACCURACY_CSV_BASE
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.utils.asset_loaders import load_yaml
 from qai_hub_models.utils.numerics_yaml import (
     create_numerics_struct,
@@ -63,7 +63,7 @@ def test_accuracy_yaml_creation() -> None:
     info = QAIHMModelInfo.from_model(model_id)
     new_struct = create_numerics_struct(
         model_id,
-        pd.read_csv(ACCURACY_CSV_BASE),
+        pd.read_csv(ScorecardArtifact.ACCURACY_CSV.intermediates_path),
         get_chipset_registry(),
         benchmark=info.numerics_benchmark,
     )

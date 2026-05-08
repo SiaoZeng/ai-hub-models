@@ -8,7 +8,6 @@ from __future__ import annotations
 import contextlib
 import itertools
 import math
-import os
 import sys
 import tempfile
 from collections.abc import Callable, Mapping
@@ -32,6 +31,11 @@ from qai_hub_models.scorecard import (
     ScorecardDevice,
     ScorecardProfilePath,
 )
+from qai_hub_models.scorecard.artifacts import (
+    INTERMEDIATES_DIR,
+    ScorecardArtifact,
+    get_async_test_job_cache_artifact,
+)
 from qai_hub_models.scorecard.device import cs_universal
 from qai_hub_models.scorecard.envvars import (
     IgnoreDeviceJobCacheEnvvar,
@@ -41,9 +45,6 @@ from qai_hub_models.scorecard.execution_helpers import (
     get_async_job_cache_name,
 )
 from qai_hub_models.scorecard.results.yaml import (
-    INFERENCE_YAML_BASE,
-    INTERMEDIATES_DIR,
-    PROFILE_YAML_BASE,
     QAIHMModelReleaseAssets,
     ScorecardAssetYaml,
     ToolVersionsByPathYaml,
@@ -78,7 +79,6 @@ from qai_hub_models.utils.qai_hub_helpers import assert_success_and_get_target_m
 from qai_hub_models.utils.testing import (
     get_and_sync_datasets_cache_dir,
     get_hub_val_dataset,
-    get_profile_job_ids_file,
     mock_get_calibration_data,
     mock_on_device_model_call,
     mock_tabulate_fn,
@@ -91,12 +91,7 @@ from qai_hub_models.utils.testing_async_utils import (
     cache_dataset,
     callable_side_effect,
     fetch_async_test_jobs,
-    get_async_test_job_cache_path,
     get_cached_dataset_entries,
-    get_compile_jobs_are_identical_cache_file,
-    get_cpu_accuracy_file,
-    get_dataset_ids_file,
-    get_release_assets_file,
     str_with_async_test_metadata,
     write_accuracy,
 )
@@ -254,7 +249,7 @@ def patch_hub_with_cached_jobs(
         and isinstance(component_names, list)
         and QAIHMModelCodeGen.from_model(model_id).has_multi_graph
     ):
-        compile_cache_path = get_async_test_job_cache_path(hub.JobType.COMPILE)
+        compile_cache_path = get_async_test_job_cache_artifact(hub.JobType.COMPILE).path
         if compile_cache_path.exists():
             compile_yaml_data = load_yaml(compile_cache_path)
             resolved: dict[str, list[str] | None] = {}
@@ -1016,13 +1011,15 @@ def fetch_cached_jobs_if_compile_jobs_are_identical(
         return None
 
     if job_type_to_fetch_from_cache == hub.JobType.INFERENCE:
-        yaml = INFERENCE_YAML_BASE
+        yaml = ScorecardArtifact.INFERENCE_YAML.intermediates_path
     elif job_type_to_fetch_from_cache == hub.JobType.PROFILE:
-        yaml = PROFILE_YAML_BASE
+        yaml = ScorecardArtifact.PROFILE_YAML.intermediates_path
     else:
         assert_never(job_type_to_fetch_from_cache)
 
-    compile_jobs_identical_cache_file = get_compile_jobs_are_identical_cache_file()
+    compile_jobs_identical_cache_file = (
+        ScorecardArtifact.COMPILE_JOBS_IDENTICAL_CACHE.touch()
+    )
     compile_jobs_identical_cache = CompileJobsAreIdenticalCache.from_yaml(
         compile_jobs_identical_cache_file, create_empty_if_no_file=True
     )
@@ -1385,17 +1382,11 @@ def export_test_e2e(
         Default is None.
     """
     # Some scorecards will run without the profiling step.
-    has_cached_profile_jobs = (
-        os.path.exists(get_profile_job_ids_file())
-        and os.stat(get_profile_job_ids_file()).st_size > 0
-    )
+    has_cached_profile_jobs = ScorecardArtifact.PROFILE_YAML.exists()
 
     # Check for cached link jobs (only relevant for AOT runtimes)
-    link_jobs_cache_path = get_async_test_job_cache_path(hub.JobType.LINK)
     has_cached_link_jobs = (
-        scorecard_path.runtime.uses_hub_link
-        and os.path.exists(link_jobs_cache_path)
-        and os.stat(link_jobs_cache_path).st_size > 0
+        scorecard_path.runtime.uses_hub_link and ScorecardArtifact.LINK_YAML.exists()
     )
 
     # Patch previous jobs
@@ -1524,9 +1515,8 @@ def export_test_e2e(
 
         if upload_to_s3:
             assert s3_bucket is not None  # mypy
-            assets_cache_path = get_release_assets_file()
             assets_cache = ScorecardAssetYaml.from_yaml(
-                assets_cache_path, create_empty_if_no_file=True
+                ScorecardArtifact.RELEASE_ASSETS.path, create_empty_if_no_file=True
             )
             if assets_cache.get_asset(
                 model_id,
@@ -1554,7 +1544,7 @@ def export_test_e2e(
                 device if scorecard_path.runtime.is_aot_compiled else cs_universal,
                 scorecard_path,
             )
-            assets_cache.to_yaml(assets_cache_path)
+            assets_cache.to_yaml(ScorecardArtifact.RELEASE_ASSETS.path)
 
 
 def on_device_inference_for_accuracy_validation(
@@ -1607,7 +1597,7 @@ def on_device_inference_for_accuracy_validation(
     for component_name, job in compile_jobs.items():
         hub_val_dataset = get_hub_val_dataset(
             dataset_name,
-            get_dataset_ids_file(),
+            ScorecardArtifact.DATASET_IDS.touch(),
             model,
             apply_channel_transpose=scorecard_path.runtime.channel_last_native_execution,
             num_samples=get_num_eval_samples(dataset_name),
@@ -1962,7 +1952,7 @@ def accuracy_on_dataset_via_evaluate_and_export(
         dataset_name, scorecard_path, model.__class__
     )
 
-    cpu_accuracy = load_yaml(get_cpu_accuracy_file())
+    cpu_accuracy = load_yaml(ScorecardArtifact.CPU_ACCURACY.touch())
     sim_acc = cpu_accuracy.get(_get_sim_cpu_key(model_id, precision), None)
 
     torch_key = _get_torch_cpu_key(model_id)
@@ -2176,7 +2166,7 @@ def torch_accuracy_on_dataset(
         )
     cache_key = _get_torch_cpu_key(model_id)
     append_line_to_file(
-        get_cpu_accuracy_file(),
+        ScorecardArtifact.CPU_ACCURACY.touch(),
         f"{cache_key}: {evaluate_result.torch_accuracy:.3g}",
     )
 
@@ -2235,6 +2225,6 @@ def sim_accuracy_on_dataset(
         )
         cache_key = _get_sim_cpu_key(model_id, precision)
         append_line_to_file(
-            get_cpu_accuracy_file(),
+            ScorecardArtifact.CPU_ACCURACY.touch(),
             f"{cache_key}: {evaluate_result.sim_accuracy:.3g}",
         )

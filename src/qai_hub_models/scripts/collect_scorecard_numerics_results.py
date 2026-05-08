@@ -13,6 +13,7 @@ import pandas as pd
 
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.scorecard.envvars import (
     ArtifactsDirEnvvar,
     DeploymentEnvvar,
@@ -30,7 +31,6 @@ from qai_hub_models.scorecard.results.code_gen import (
     update_model_publish_status,
 )
 from qai_hub_models.scorecard.results.numerics_diff import NumericsDiff
-from qai_hub_models.scorecard.results.yaml import ACCURACY_CSV_BASE
 from qai_hub_models.scorecard.static.list_models import (
     validate_and_split_enabled_models,
 )
@@ -40,13 +40,12 @@ from qai_hub_models.utils.numerics_yaml import (
     create_numerics_yaml,
     get_chipset_registry,
 )
-from qai_hub_models.utils.testing_async_utils import get_accuracy_csv_path
 
 
 def _merge_existing_accuracy_data(
     new_df: pd.DataFrame, models: set[str]
 ) -> pd.DataFrame:
-    old_df = pd.read_csv(ACCURACY_CSV_BASE)
+    old_df = pd.read_csv(ScorecardArtifact.ACCURACY_CSV.intermediates_path)
     old_df = old_df[~old_df.model_id.isin(models)]
     return pd.concat([old_df, new_df])
 
@@ -64,7 +63,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--accuracy-csv-path",
         type=str,
-        default=str(get_accuracy_csv_path()),
+        default=str(ScorecardArtifact.ACCURACY_CSV.path),
     )
     parser.add_argument(
         "--summary-path", type=str, default=os.path.join("build", "numerics_diff.txt")
@@ -168,7 +167,9 @@ def main() -> None:
             {SpecialModelSetting.ALL},
         ):
             accuracy_df = _merge_existing_accuracy_data(accuracy_df, pytorch_models)
-        accuracy_df.to_csv(ACCURACY_CSV_BASE, index=False)
+        accuracy_df.to_csv(
+            ScorecardArtifact.ACCURACY_CSV.intermediates_path, index=False
+        )
 
 
 if __name__ == "__main__":

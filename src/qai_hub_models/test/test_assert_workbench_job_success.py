@@ -14,6 +14,7 @@ import pytest
 from qai_hub.client import api as hub_api
 from qai_hub.hub import _global_client
 
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.scorecard.envvars import DisableWorkbenchJobTimeoutEnvvar
 from qai_hub_models.scorecard.execution_helpers import (
     wait_for_prerequisite_job,
@@ -25,17 +26,6 @@ from qai_hub_models.scorecard.results.yaml import (
     ProfileScorecardJobYaml,
     QuantizeScorecardJobYaml,
 )
-from qai_hub_models.utils.testing_async_utils import (
-    get_compile_job_ids_file,
-    get_inference_job_ids_file,
-    get_link_job_ids_file,
-    get_profile_job_ids_file,
-    get_quantize_job_ids_file,
-)
-
-
-def _not_exists_or_empty(path: str | os.PathLike) -> bool:
-    return not os.path.exists(path) or os.stat(path).st_size == 0
 
 
 def _check_single_job(
@@ -188,51 +178,53 @@ and success is validated all at once in the end using these tests.
 
 
 @pytest.mark.skipif(
-    _not_exists_or_empty(get_quantize_job_ids_file()),
+    not ScorecardArtifact.QUANTIZE_YAML.exists(),
     reason="No quantize jobs file found",
 )
 def test_quantize_jobs_success() -> None:
     job_ids = QuantizeScorecardJobYaml.from_file(
-        get_quantize_job_ids_file()
+        ScorecardArtifact.QUANTIZE_YAML.path
     ).job_id_mapping
     _verify_jobs_successful(job_ids, "quantize")
 
 
 @pytest.mark.skipif(
-    _not_exists_or_empty(get_compile_job_ids_file()),
+    not ScorecardArtifact.COMPILE_YAML.exists(),
     reason="No compile jobs file found",
 )
 def test_compile_jobs_success() -> None:
     job_ids = CompileScorecardJobYaml.from_file(
-        get_compile_job_ids_file()
+        ScorecardArtifact.COMPILE_YAML.path
     ).job_id_mapping
     _verify_jobs_successful(job_ids, "compile")
 
 
 @pytest.mark.skipif(
-    _not_exists_or_empty(get_link_job_ids_file()),
+    not ScorecardArtifact.LINK_YAML.exists(),
     reason="No link jobs file found",
 )
 def test_link_jobs_success() -> None:
-    job_ids = LinkScorecardJobYaml.from_file(get_link_job_ids_file()).job_id_mapping
+    job_ids = LinkScorecardJobYaml.from_file(
+        ScorecardArtifact.LINK_YAML.path
+    ).job_id_mapping
     _verify_jobs_successful(job_ids, "link")
 
 
 @pytest.mark.skipif(
-    _not_exists_or_empty(get_profile_job_ids_file()), reason="No profile jobs found"
+    not ScorecardArtifact.PROFILE_YAML.exists(), reason="No profile jobs found"
 )
 def test_profile_jobs_success() -> None:
     job_ids = ProfileScorecardJobYaml.from_file(
-        get_profile_job_ids_file()
+        ScorecardArtifact.PROFILE_YAML.path
     ).job_id_mapping
     _verify_jobs_successful(job_ids, "profile")
 
 
 @pytest.mark.skipif(
-    _not_exists_or_empty(get_inference_job_ids_file()), reason="No inference jobs found"
+    not ScorecardArtifact.INFERENCE_YAML.exists(), reason="No inference jobs found"
 )
 def test_inference_jobs_success() -> None:
     job_ids = InferenceScorecardJobYaml.from_file(
-        get_inference_job_ids_file()
+        ScorecardArtifact.INFERENCE_YAML.path
     ).job_id_mapping
     _verify_jobs_successful(job_ids, "inference")

@@ -25,17 +25,18 @@ from qai_hub_models.scorecard import (
     ScorecardDevice,
     ScorecardProfilePath,
 )
+from qai_hub_models.scorecard.artifacts import (
+    ScorecardArtifact,
+    get_async_test_job_cache_artifact,
+)
 from qai_hub_models.scorecard.device import cs_universal
 from qai_hub_models.scorecard.envvars import (
-    DEFAULT_AGGREGATED_CSV_NAME,
-    ArtifactsDirEnvvar,
     DisableWorkbenchJobTimeoutEnvvar,
 )
+from qai_hub_models.scorecard.errors import CachedScorecardJobError
 from qai_hub_models.scorecard.execution_helpers import get_async_job_cache_name
 from qai_hub_models.scorecard.results.scorecard_job import ScorecardJob
 from qai_hub_models.scorecard.results.yaml import (
-    COMPILE_YAML_BASE,
-    DEFAULT_TOOL_VERSIONS_YAML_FILE_NAME,
     ScorecardJobYaml,
     get_scorecard_job_yaml,
 )
@@ -46,10 +47,6 @@ from qai_hub_models.utils.onnx.torch_wrapper import extract_onnx_zip
 
 # If a model has many outputs, how many of them to store PSNR for
 MAX_PSNR_VALUES = 10
-
-
-class CachedScorecardJobError(ValueError):
-    """Raised when a scorecard job is missing or failed."""
 
 
 def callable_side_effect(side_effects: Iterator) -> Callable:
@@ -85,73 +82,6 @@ def append_line_to_file(path: os.PathLike, line: str) -> None:
         f.write(line + "\n")
 
 
-def get_artifacts_dir_opt() -> Path:
-    return ArtifactsDirEnvvar.get()
-
-
-def get_artifact_filepath(
-    filename: str, artifacts_dir: os.PathLike | str | None = None, create: bool = True
-) -> Path:
-    artifacts_dir = Path(artifacts_dir or get_artifacts_dir_opt())
-    os.makedirs(artifacts_dir, exist_ok=True)
-    path = artifacts_dir / filename
-    if create:
-        path.touch()
-    return path
-
-
-def get_dataset_ids_file(artifacts_dir: os.PathLike | str | None = None) -> Path:
-    return get_artifact_filepath("dataset-ids.yaml", artifacts_dir)
-
-
-def get_compile_job_ids_file(artifacts_dir: os.PathLike | str | None = None) -> Path:
-    return get_artifact_filepath("compile-jobs.yaml", artifacts_dir)
-
-
-def get_compile_jobs_are_identical_cache_file(
-    artifacts_dir: os.PathLike | str | None = None,
-) -> Path:
-    return get_artifact_filepath("compile-jobs-are-identical-cache.yaml", artifacts_dir)
-
-
-def get_profile_job_ids_file(artifacts_dir: os.PathLike | str | None = None) -> Path:
-    return get_artifact_filepath("profile-jobs.yaml", artifacts_dir)
-
-
-def get_inference_job_ids_file(artifacts_dir: os.PathLike | str | None = None) -> Path:
-    return get_artifact_filepath("inference-jobs.yaml", artifacts_dir)
-
-
-def get_quantize_job_ids_file(artifacts_dir: os.PathLike | str | None = None) -> Path:
-    return get_artifact_filepath("quantize-jobs.yaml", artifacts_dir)
-
-
-def get_link_job_ids_file(artifacts_dir: os.PathLike | str | None = None) -> Path:
-    return get_artifact_filepath("link-jobs.yaml", artifacts_dir)
-
-
-def get_cpu_accuracy_file(artifacts_dir: os.PathLike | str | None = None) -> Path:
-    return get_artifact_filepath("cpu-accuracy.yaml", artifacts_dir)
-
-
-def get_tool_versions_file(
-    artifacts_dir: os.PathLike | str | None = None, create: bool = True
-) -> Path:
-    return get_artifact_filepath(
-        DEFAULT_TOOL_VERSIONS_YAML_FILE_NAME, artifacts_dir, create
-    )
-
-
-def get_environment_file(
-    artifacts_dir: os.PathLike | str | None = None, create: bool = True
-) -> Path:
-    return get_artifact_filepath("environment.env", artifacts_dir, create)
-
-
-def get_release_assets_file(artifacts_dir: os.PathLike | str | None = None) -> Path:
-    return get_artifact_filepath("release-assets.yaml", artifacts_dir)
-
-
 def get_accuracy_metadata_columns() -> list[str]:
     return [
         "dataset_name",
@@ -179,36 +109,6 @@ def get_accuracy_columns() -> list[str]:
     cols.extend(["date", "branch", "chipset"])
     cols.extend(get_accuracy_metadata_columns())
     return cols
-
-
-def get_accuracy_file() -> Path:
-    filepath = get_artifact_filepath("accuracy.csv")
-    if filepath.stat().st_size == 0:
-        append_line_to_file(filepath, ",".join(get_accuracy_columns()))
-    return filepath
-
-
-def get_async_test_job_cache_path(job_type: hub.JobType) -> Path:
-    """
-    Loads the appropriate Scorecard job cache for the type of the given job.
-
-    Parameters;
-        job_type: hub.JobType
-            Job Type
-    """
-    if job_type == hub.JobType.COMPILE:
-        return get_compile_job_ids_file()
-    if job_type == hub.JobType.PROFILE:
-        return get_profile_job_ids_file()
-    if job_type == hub.JobType.INFERENCE:
-        return get_inference_job_ids_file()
-    if job_type == hub.JobType.QUANTIZE:
-        return get_quantize_job_ids_file()
-    if job_type == hub.JobType.LINK:
-        return get_link_job_ids_file()
-    raise NotImplementedError(
-        f"No file for storing test jobs of type {job_type.display_name}"
-    )
 
 
 def str_with_async_test_metadata(
@@ -265,8 +165,8 @@ def assert_success_or_cache_job(
         return  # For models where precision varies per-component, some components may not have jobs (e.g., float components in quantization)
 
     assert job is not None
-    cache_path = get_async_test_job_cache_path(job._job_type)
-    cache = get_scorecard_job_yaml(job._job_type)
+    cache_path = get_async_test_job_cache_artifact(job._job_type).path
+    cache = get_scorecard_job_yaml(job_type=job._job_type)
     cache.set_job_id(
         job.job_id, path, model_id, device, precision, component, graph_name
     )
@@ -407,7 +307,7 @@ def fetch_async_test_job(
         job_yaml = cache_path
     else:
         job_yaml = get_scorecard_job_yaml(
-            job_type, cache_path or get_async_test_job_cache_path(job_type)
+            job_type, cache_path or get_async_test_job_cache_artifact(job_type).path
         )
     scorecard_job: ScorecardJob = job_yaml.get_job(
         path,
@@ -592,7 +492,7 @@ def fetch_async_test_jobs(
     # Parse the YAML cache file once, rather than re-reading it per component.
     if not isinstance(cache_path, ScorecardJobYaml):
         cache_path = get_scorecard_job_yaml(
-            job_type, cache_path or get_async_test_job_cache_path(job_type)
+            job_type, cache_path or get_async_test_job_cache_artifact(job_type).path
         )
 
     def _fetch(
@@ -637,13 +537,13 @@ def fetch_async_test_jobs(
 
 def cache_dataset(model_id: str, dataset_name: str, dataset: hub.Dataset) -> None:
     append_line_to_file(
-        get_dataset_ids_file(),
+        ScorecardArtifact.DATASET_IDS.touch(),
         f"{model_id}_{dataset_name}: {dataset.dataset_id}",
     )
 
 
 def get_cached_dataset(model_id: str, dataset_name: str) -> hub.Dataset | None:
-    dataset_ids = load_yaml(get_dataset_ids_file())
+    dataset_ids = load_yaml(ScorecardArtifact.DATASET_IDS.touch())
     key = f"{model_id}_{dataset_name}"
     if key not in dataset_ids:
         return None
@@ -658,8 +558,8 @@ def get_cached_dataset_entries(
     return None
 
 
-def get_job_date(artifacts_dir: os.PathLike | str | None = None) -> str:
-    date_file = get_artifact_filepath("date.txt", artifacts_dir)
+def get_job_date() -> str:
+    date_file = ScorecardArtifact.DATE.touch()
     if date_file.stat().st_size == 0:
         curr_date = datetime.today().strftime("%Y-%m-%d")
         with open(date_file, "w") as f:
@@ -711,7 +611,11 @@ def write_accuracy(
     line += ","
     if num_samples is not None:
         line += str(num_samples)
-    append_line_to_file(get_accuracy_file(), line)
+
+    accuracy_file = ScorecardArtifact.ACCURACY_CSV.touch()
+    if accuracy_file.stat().st_size == 0:
+        append_line_to_file(accuracy_file, ",".join(get_accuracy_columns()))
+    append_line_to_file(accuracy_file, line)
 
 
 class CompileJobsAreIdenticalCache(BaseQAIHMConfig):
@@ -780,7 +684,7 @@ class CompileJobsAreIdenticalCache(BaseQAIHMConfig):
                 path,
                 device,
                 component_names,
-                COMPILE_YAML_BASE,
+                ScorecardArtifact.COMPILE_YAML.intermediates_path,
             )
 
             current_compile_jobs = fetch_async_test_jobs(
@@ -903,42 +807,3 @@ class CompileJobsAreIdenticalCache(BaseQAIHMConfig):
                     current_model_files, previous_model_files, strict=False
                 )
             )
-
-
-def get_accuracy_csv_path(manual_path: str | None = None) -> Path | None:
-    if manual_path:
-        return Path(manual_path)
-    artifacts_dir = get_artifacts_dir_opt()
-    if artifacts_dir is None:
-        return None
-    for scorecard_file in artifacts_dir.iterdir():
-        if scorecard_file.name.startswith("accuracy") and scorecard_file.name.endswith(
-            ".csv"
-        ):
-            return scorecard_file
-    return None
-
-
-def get_scorecard_csv_path(manual_path: str | None = None) -> Path:
-    if manual_path:
-        return Path(manual_path)
-    artifacts_dir = get_artifacts_dir_opt()
-    assert artifacts_dir is not None
-    for scorecard_file in artifacts_dir.iterdir():
-        if scorecard_file.name.startswith(
-            "scorecard-summary"
-        ) and scorecard_file.name.endswith(".csv"):
-            return scorecard_file
-    raise ValueError("No perf data found.")
-
-
-def get_aggreggated_results_csv_path(manual_path: str | None = None) -> Path:
-    if manual_path:
-        return Path(manual_path)
-    artifacts_dir = get_artifacts_dir_opt()
-    if artifacts_dir is not None:
-        for subpath in artifacts_dir.iterdir():
-            if subpath.name.startswith("Scorecard CSV"):
-                return subpath / DEFAULT_AGGREGATED_CSV_NAME
-        return artifacts_dir / DEFAULT_AGGREGATED_CSV_NAME
-    return Path(f"build/{DEFAULT_AGGREGATED_CSV_NAME}")

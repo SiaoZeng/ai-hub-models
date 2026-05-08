@@ -8,6 +8,7 @@ import argparse
 from pathlib import Path
 
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.scorecard.envvars import (
     ArtifactsDirEnvvar,
     DeploymentEnvvar,
@@ -26,9 +27,6 @@ from qai_hub_models.scorecard.results.yaml import ScorecardAssetYaml
 from qai_hub_models.scorecard.static.list_models import (
     validate_and_split_enabled_models,
 )
-from qai_hub_models.utils.testing_async_utils import (
-    get_release_assets_file,
-)
 from qai_hub_models.utils.testing_export_eval import QAIHMModelReleaseAssets
 
 
@@ -43,7 +41,9 @@ def parse_args() -> argparse.Namespace:
     EnabledDevicesEnvvar.add_arg(parser)
     ArtifactsDirEnvvar.add_arg(parser)
     parser.add_argument(
-        "--release-assets-yaml", type=str, default=str(get_release_assets_file())
+        "--release-assets-yaml",
+        type=str,
+        default=str(ScorecardArtifact.RELEASE_ASSETS.path),
     )
     return parser.parse_args()
 

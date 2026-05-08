@@ -13,15 +13,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.scorecard.envvars import TableauBranchNameEnvvar
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath
 from qai_hub_models.utils.testing_async_utils import (
     get_accuracy_columns,
-    get_accuracy_csv_path,
     get_accuracy_metadata_columns,
     get_accuracy_numerics_columns,
-    get_aggreggated_results_csv_path,
-    get_scorecard_csv_path,
 )
 
 # If a model has multiple components that fail at different point
@@ -299,9 +297,9 @@ def _populate_tflite_compile_failures(scorecard_df: pd.DataFrame) -> pd.DataFram
 
 def main() -> None:
     args = get_parser().parse_args()
-    scorecard_csv = get_scorecard_csv_path(args.scorecard_csv)
-    results_csv = get_aggreggated_results_csv_path(args.results_file)
-    accuracy_csv = get_accuracy_csv_path(args.accuracy_csv)
+    scorecard_csv = Path(args.scorecard_csv or ScorecardArtifact.EXPORT_CSV.path)
+    results_csv = Path(args.results_file or ScorecardArtifact.RESULTS_CSV.touch())
+    accuracy_csv = Path(args.accuracy_csv or ScorecardArtifact.ACCURACY_CSV.path)
 
     scorecard_df = prepare_raw_data(scorecard_csv, accuracy_csv)
     scorecard_df = _populate_tflite_compile_failures(scorecard_df)

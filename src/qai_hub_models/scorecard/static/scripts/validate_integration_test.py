@@ -11,12 +11,8 @@ from copy import deepcopy
 import pandas as pd
 from junitparser import Error, Failure, JUnitXml, TestCase, TestSuite
 
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.scorecard.device import DEFAULT_SCORECARD_DEVICE
-from qai_hub_models.utils.testing_async_utils import (
-    get_accuracy_csv_path,
-    get_aggreggated_results_csv_path,
-    get_scorecard_csv_path,
-)
 
 EXPECTED_MODEL_SETS = {
     "yolov8_det": {
@@ -176,13 +172,9 @@ def main() -> None:
         xml.write(args.junit_xml)
 
     try:
-        scorecard_csv = get_scorecard_csv_path()
-        results_csv = get_aggreggated_results_csv_path()
-        accuracy_csv = get_accuracy_csv_path()
-        assert accuracy_csv is not None
-        scorecard_df = pd.read_csv(scorecard_csv)
-        results_df = pd.read_csv(results_csv)
-        accuracy_df = pd.read_csv(accuracy_csv)
+        scorecard_df = pd.read_csv(ScorecardArtifact.EXPORT_CSV.path)
+        results_df = pd.read_csv(ScorecardArtifact.RESULTS_CSV.path)
+        accuracy_df = pd.read_csv(ScorecardArtifact.ACCURACY_CSV.path)
 
         errors = []
         errors.extend(validate_results_df(results_df))

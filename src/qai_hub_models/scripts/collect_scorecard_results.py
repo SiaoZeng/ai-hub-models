@@ -23,6 +23,7 @@ from qai_hub_models.configs.info_yaml import QAIHMModelInfo
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
 from qai_hub_models.models.common import Precision
 from qai_hub_models.scorecard import ScorecardProfilePath
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.scorecard.device import ScorecardDevice
 from qai_hub_models.scorecard.envvars import (
     ArtifactsDirEnvvar,
@@ -51,13 +52,6 @@ from qai_hub_models.scorecard.results.code_gen import (
 )
 from qai_hub_models.scorecard.results.spreadsheet import ResultsSpreadsheet
 from qai_hub_models.scorecard.results.yaml import (
-    COMPILE_YAML_BASE,
-    ENVIRONMENT_ENV_BASE,
-    INFERENCE_YAML_BASE,
-    LINK_YAML_BASE,
-    PROFILE_YAML_BASE,
-    QUANTIZE_YAML_BASE,
-    TOOL_VERSIONS_BASE,
     CompileScorecardJobYaml,
     InferenceScorecardJobYaml,
     LinkScorecardJobYaml,
@@ -81,15 +75,6 @@ from qai_hub_models.utils.hub_clients import (
     set_default_hub_client,
 )
 from qai_hub_models.utils.path_helpers import MODEL_IDS
-from qai_hub_models.utils.testing_async_utils import (
-    get_compile_job_ids_file,
-    get_environment_file,
-    get_inference_job_ids_file,
-    get_link_job_ids_file,
-    get_profile_job_ids_file,
-    get_quantize_job_ids_file,
-    get_tool_versions_file,
-)
 
 # If the precision is any one of these two values, add it to the branch column
 # to allow tableau to differentiate different types of scorecards
@@ -667,12 +652,13 @@ if __name__ == "__main__":
 
     # If job ids file isn't specified, check the artifacts dir in CI
     # Or the scorecard intermediates if being run locally.
-    jobs_dir = None
-    args.quantize_ids = args.quantize_ids or str(get_quantize_job_ids_file(jobs_dir))
-    args.compile_ids = args.compile_ids or str(get_compile_job_ids_file(jobs_dir))
-    args.link_ids = args.link_ids or str(get_link_job_ids_file(jobs_dir))
-    args.profile_ids = args.profile_ids or str(get_profile_job_ids_file(jobs_dir))
-    args.inference_ids = args.inference_ids or str(get_inference_job_ids_file(jobs_dir))
+    args.quantize_ids = args.quantize_ids or str(ScorecardArtifact.QUANTIZE_YAML.path)
+    args.compile_ids = args.compile_ids or str(ScorecardArtifact.COMPILE_YAML.path)
+    args.link_ids = args.link_ids or str(ScorecardArtifact.LINK_YAML.path)
+    args.profile_ids = args.profile_ids or str(ScorecardArtifact.PROFILE_YAML.path)
+    args.inference_ids = args.inference_ids or str(
+        ScorecardArtifact.INFERENCE_YAML.path
+    )
 
     os.makedirs(args.artifacts_dir, exist_ok=True)
     now_str = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -694,19 +680,23 @@ if __name__ == "__main__":
     if using_prod_hub:
         # Load previous scorecard state
         quantize_job_yamls = QuantizeScorecardJobYaml.from_file(
-            QUANTIZE_YAML_BASE, create_empty_if_no_file=True
+            ScorecardArtifact.QUANTIZE_YAML.intermediates_path,
+            create_empty_if_no_file=True,
         )
         compile_job_yamls = CompileScorecardJobYaml.from_file(
-            COMPILE_YAML_BASE, create_empty_if_no_file=True
+            ScorecardArtifact.COMPILE_YAML.intermediates_path,
+            create_empty_if_no_file=True,
         )
         link_job_yamls = LinkScorecardJobYaml.from_file(
-            LINK_YAML_BASE, create_empty_if_no_file=True
+            ScorecardArtifact.LINK_YAML.intermediates_path, create_empty_if_no_file=True
         )
         profile_job_yamls = ProfileScorecardJobYaml.from_file(
-            PROFILE_YAML_BASE, create_empty_if_no_file=True
+            ScorecardArtifact.PROFILE_YAML.intermediates_path,
+            create_empty_if_no_file=True,
         )
         inference_job_yamls = InferenceScorecardJobYaml.from_file(
-            INFERENCE_YAML_BASE, create_empty_if_no_file=True
+            ScorecardArtifact.INFERENCE_YAML.intermediates_path,
+            create_empty_if_no_file=True,
         )
 
         # Erase jobs for models we're collecting results for, if applicable
@@ -727,20 +717,34 @@ if __name__ == "__main__":
     # Append additional YAMLs
     for quantize_yaml_path in args.quantize_ids.split(",") if args.quantize_ids else []:
         quantize_job_yamls.update(
-            QuantizeScorecardJobYaml.from_file(quantize_yaml_path)
+            QuantizeScorecardJobYaml.from_file(
+                quantize_yaml_path, create_empty_if_no_file=True
+            )
         )
 
     for compile_yaml_path in args.compile_ids.split(",") if args.compile_ids else []:
-        compile_job_yamls.update(CompileScorecardJobYaml.from_file(compile_yaml_path))
+        compile_job_yamls.update(
+            CompileScorecardJobYaml.from_file(
+                compile_yaml_path, create_empty_if_no_file=True
+            )
+        )
     for link_yaml_path in args.link_ids.split(",") if args.link_ids else []:
-        link_job_yamls.update(LinkScorecardJobYaml.from_file(link_yaml_path))
+        link_job_yamls.update(
+            LinkScorecardJobYaml.from_file(link_yaml_path, create_empty_if_no_file=True)
+        )
     for profile_yaml_path in args.profile_ids.split(",") if args.profile_ids else []:
-        profile_job_yamls.update(ProfileScorecardJobYaml.from_file(profile_yaml_path))
+        profile_job_yamls.update(
+            ProfileScorecardJobYaml.from_file(
+                profile_yaml_path, create_empty_if_no_file=True
+            )
+        )
     for inference_yaml_path in (
         args.inference_ids.split(",") if args.inference_ids else []
     ):
         inference_job_yamls.update(
-            InferenceScorecardJobYaml.from_file(inference_yaml_path)
+            InferenceScorecardJobYaml.from_file(
+                inference_yaml_path, create_empty_if_no_file=True
+            )
         )
 
     # Extract Data from Models
@@ -819,9 +823,7 @@ if __name__ == "__main__":
 
     # Write spreadsheet to disk
     if spreadsheet is not None:
-        summary_path = os.path.join(
-            args.artifacts_dir, f"scorecard-summary-{now_str}.csv"
-        )
+        summary_path = os.path.join(args.artifacts_dir, "export-summary.csv")
         spreadsheet.to_csv(summary_path)
         print(f"Spreadsheet written to {os.path.realpath(summary_path)}")
 
@@ -839,25 +841,45 @@ if __name__ == "__main__":
 
     # Write jobs and environment to intermediates folder
     if using_prod_hub:
-        quantize_job_yamls.to_file(QUANTIZE_YAML_BASE)
-        compile_job_yamls.to_file(COMPILE_YAML_BASE)
-        link_job_yamls.to_file(LINK_YAML_BASE)
-        profile_job_yamls.to_file(PROFILE_YAML_BASE)
-        inference_job_yamls.to_file(INFERENCE_YAML_BASE)
-        print(f"Quantize Job IDs written to {QUANTIZE_YAML_BASE}")
-        print(f"Compile Job IDs written to {COMPILE_YAML_BASE}")
-        print(f"Link Job IDs written to {LINK_YAML_BASE}")
-        print(f"Profile Job IDs written to {PROFILE_YAML_BASE}")
-        print(f"Inference Job IDs written to {INFERENCE_YAML_BASE}")
+        quantize_job_yamls.to_file(ScorecardArtifact.QUANTIZE_YAML.intermediates_path)
+        compile_job_yamls.to_file(ScorecardArtifact.COMPILE_YAML.intermediates_path)
+        link_job_yamls.to_file(ScorecardArtifact.LINK_YAML.intermediates_path)
+        profile_job_yamls.to_file(ScorecardArtifact.PROFILE_YAML.intermediates_path)
+        inference_job_yamls.to_file(ScorecardArtifact.INFERENCE_YAML.intermediates_path)
+        print(
+            f"Quantize Job IDs written to {ScorecardArtifact.QUANTIZE_YAML.intermediates_path}"
+        )
+        print(
+            f"Compile Job IDs written to {ScorecardArtifact.COMPILE_YAML.intermediates_path}"
+        )
+        print(
+            f"Link Job IDs written to {ScorecardArtifact.LINK_YAML.intermediates_path}"
+        )
+        print(
+            f"Profile Job IDs written to {ScorecardArtifact.PROFILE_YAML.intermediates_path}"
+        )
+        print(
+            f"Inference Job IDs written to {ScorecardArtifact.INFERENCE_YAML.intermediates_path}"
+        )
 
         try:
-            shutil.copy(get_tool_versions_file(create=False), TOOL_VERSIONS_BASE)
-            print(f"Tool versions written to {TOOL_VERSIONS_BASE}")
+            shutil.copy(
+                ScorecardArtifact.TOOL_VERSIONS.path,
+                ScorecardArtifact.TOOL_VERSIONS.intermediates_path,
+            )
+            print(
+                f"Tool versions written to {ScorecardArtifact.TOOL_VERSIONS.intermediates_path}"
+            )
         except (shutil.SameFileError, FileNotFoundError):
             pass
 
         try:
-            shutil.copy(get_environment_file(create=False), ENVIRONMENT_ENV_BASE)
-            print(f"Test envvars written to to {ENVIRONMENT_ENV_BASE}")
+            shutil.copy(
+                ScorecardArtifact.ENVIRONMENT_FILE.path,
+                ScorecardArtifact.ENVIRONMENT_FILE.intermediates_path,
+            )
+            print(
+                f"Test envvars written to to {ScorecardArtifact.ENVIRONMENT_FILE.intermediates_path}"
+            )
         except (shutil.SameFileError, FileNotFoundError):
             pass

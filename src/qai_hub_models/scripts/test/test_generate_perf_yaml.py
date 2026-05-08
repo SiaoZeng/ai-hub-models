@@ -11,12 +11,10 @@ from qai_hub_models.configs.devices_and_chipsets_yaml import load_similar_device
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
 from qai_hub_models.models.common import Precision
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.scorecard.device import ScorecardDevice
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath
-from qai_hub_models.scorecard.results.yaml import (
-    PROFILE_YAML_BASE,
-    ProfileScorecardJobYaml,
-)
+from qai_hub_models.scorecard.results.yaml import ProfileScorecardJobYaml
 from qai_hub_models.utils.collection_model_helpers import get_components
 from qai_hub_models.utils.hub_clients import deployment_is_prod
 
@@ -60,7 +58,9 @@ def test_generate_perf(hub_test_deployment: str) -> None:
 
 def _build_perf_card(model_id: str) -> QAIHMModelPerf:
     """Build a perf card from the checked-in intermediate job IDs."""
-    job_ids = ProfileScorecardJobYaml.from_file(PROFILE_YAML_BASE)
+    job_ids = ProfileScorecardJobYaml.from_file(
+        ScorecardArtifact.PROFILE_YAML.intermediates_path
+    )
     model_info = QAIHMModelInfo.from_model(model_id)
     component_names = get_components(model_info.id)
 

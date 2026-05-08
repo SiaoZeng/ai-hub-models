@@ -4,11 +4,11 @@
 # ---------------------------------------------------------------------
 import pandas as pd
 
-from qai_hub_models.scorecard.results.yaml import ACCURACY_CSV_BASE
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 
 
 def test_validate_accuracy_csv() -> None:
-    df = pd.read_csv(ACCURACY_CSV_BASE)
+    df = pd.read_csv(ScorecardArtifact.ACCURACY_CSV.intermediates_path)
     assert sorted(df.columns) == [
         "Device Accuracy",
         "PSNR_0",

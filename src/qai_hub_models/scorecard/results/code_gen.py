@@ -9,6 +9,7 @@ import copy
 
 from qai_hub_models.configs._info_yaml_enums import MODEL_STATUS
 from qai_hub_models.configs.code_gen_yaml import QAIHMModelCodeGen
+from qai_hub_models.configs.devices_and_chipsets_yaml import DevicesAndChipsetsYaml
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
 from qai_hub_models.configs.model_disable_reasons import (
     ModelDisableReasons,
@@ -38,7 +39,6 @@ from qai_hub_models.scorecard.results.performance_summary import (
     ModelPerfSummary,
     ProfileScorecardJob,
 )
-from qai_hub_models.utils.device import DevicesAndChipsetsYaml
 from qai_hub_models.utils.numerics_yaml import QAIHMModelNumerics
 from qai_hub_models.utils.testing_export_eval import QAIHMModelReleaseAssets
 

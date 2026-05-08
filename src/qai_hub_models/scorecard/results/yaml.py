@@ -43,20 +43,7 @@ from qai_hub_models.scorecard.results.scorecard_job import (
     ScorecardPathOrNoneTypeVar,
 )
 from qai_hub_models.utils.base_config import BaseQAIHMConfig
-from qai_hub_models.utils.path_helpers import QAIHM_PACKAGE_ROOT
 
-DEFAULT_TOOL_VERSIONS_YAML_FILE_NAME = "tool-versions.yaml"
-INTERMEDIATES_DIR = QAIHM_PACKAGE_ROOT / "scorecard" / "intermediates"
-ENVIRONMENT_ENV_BASE = INTERMEDIATES_DIR / "environment.env"
-QUANTIZE_YAML_BASE = INTERMEDIATES_DIR / "quantize-jobs.yaml"
-COMPILE_YAML_BASE = INTERMEDIATES_DIR / "compile-jobs.yaml"
-LINK_YAML_BASE = INTERMEDIATES_DIR / "link-jobs.yaml"
-PROFILE_YAML_BASE = INTERMEDIATES_DIR / "profile-jobs.yaml"
-INFERENCE_YAML_BASE = INTERMEDIATES_DIR / "inference-jobs.yaml"
-TOOL_VERSIONS_BASE = INTERMEDIATES_DIR / DEFAULT_TOOL_VERSIONS_YAML_FILE_NAME
-ACCURACY_CSV_BASE = INTERMEDIATES_DIR / "accuracy.csv"
-RELEASE_CSV_BASE = INTERMEDIATES_DIR / "release-assets.yaml"
-DATASETS_BASE = INTERMEDIATES_DIR / "dataset-ids.yaml"
 ScorecardJobYamlTypeVar = TypeVar("ScorecardJobYamlTypeVar", bound="ScorecardJobYaml")
 
 
@@ -83,7 +70,7 @@ class ToolVersionsByPathYaml(BaseQAIHMConfig):
 
     @staticmethod
     def from_dir(
-        dirpath: str | os.PathLike, filename: str = DEFAULT_TOOL_VERSIONS_YAML_FILE_NAME
+        dirpath: str | os.PathLike, filename: str = "tool-versions.yaml"
     ) -> ToolVersionsByPathYaml:
         return ToolVersionsByPathYaml.from_yaml(
             Path(dirpath) / filename,
@@ -93,7 +80,7 @@ class ToolVersionsByPathYaml(BaseQAIHMConfig):
     def to_dir(
         self,
         dirpath: str | os.PathLike,
-        filename: str = DEFAULT_TOOL_VERSIONS_YAML_FILE_NAME,
+        filename: str = "tool-versions.yaml",
     ) -> bool:
         return self.to_yaml(Path(dirpath) / filename, write_if_empty=False)
 
@@ -524,29 +511,31 @@ def get_scorecard_job_yaml(
         return (
             CompileScorecardJobYaml()
             if not path
-            else CompileScorecardJobYaml.from_file(path)
+            else CompileScorecardJobYaml.from_file(path, create_empty_if_no_file=True)
         )
     if job_type == hub.JobType.PROFILE:
         return (
             ProfileScorecardJobYaml()
             if not path
-            else ProfileScorecardJobYaml.from_file(path)
+            else ProfileScorecardJobYaml.from_file(path, create_empty_if_no_file=True)
         )
     if job_type == hub.JobType.INFERENCE:
         return (
             InferenceScorecardJobYaml()
             if not path
-            else InferenceScorecardJobYaml.from_file(path)
+            else InferenceScorecardJobYaml.from_file(path, create_empty_if_no_file=True)
         )
     if job_type == hub.JobType.QUANTIZE:
         return (
             QuantizeScorecardJobYaml()
             if not path
-            else QuantizeScorecardJobYaml.from_file(path)
+            else QuantizeScorecardJobYaml.from_file(path, create_empty_if_no_file=True)
         )
     if job_type == hub.JobType.LINK:
         return (
-            LinkScorecardJobYaml() if not path else LinkScorecardJobYaml.from_file(path)
+            LinkScorecardJobYaml()
+            if not path
+            else LinkScorecardJobYaml.from_file(path, create_empty_if_no_file=True)
         )
     raise NotImplementedError(
         f"No file for storing test jobs of type {job_type.display_name}"

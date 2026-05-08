@@ -31,6 +31,7 @@ from qai_hub_models.scorecard import (
     ScorecardDevice,
     ScorecardProfilePath,
 )
+from qai_hub_models.scorecard.errors import CachedScorecardJobError
 from qai_hub_models.scorecard.execution_helpers import (
     get_compile_parameterized_pytest_config,
     get_evaluation_parameterized_pytest_config,
@@ -43,7 +44,6 @@ from qai_hub_models.scorecard.execution_helpers import (
 )
 from qai_hub_models.utils.args import get_model_kwargs
 from qai_hub_models.utils.testing import skip_invalid_runtime_device
-from qai_hub_models.utils.testing_async_utils import CachedScorecardJobError
 from qai_hub_models.utils.testing_export_eval import (
     accuracy_on_dataset_via_evaluate_and_export,
     accuracy_on_sample_inputs_via_export,

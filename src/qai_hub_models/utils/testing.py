@@ -25,6 +25,7 @@ from tabulate import tabulate
 from qai_hub_models.datasets.common import get_folder_name
 from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.scorecard import ScorecardDevice
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact, test_artifacts_dir
 from qai_hub_models.scorecard.envvars import DeploymentEnvvar
 from qai_hub_models.utils.asset_loaders import (
     always_answer_prompts,
@@ -56,16 +57,7 @@ from qai_hub_models.utils.input_spec import (
     is_input_spec_dict,
 )
 from qai_hub_models.utils.quantization import get_calibration_data
-from qai_hub_models.utils.testing_async_utils import (  # noqa: F401
-    append_line_to_file,
-    get_artifact_filepath,
-    get_artifacts_dir_opt,
-    get_compile_job_ids_file,
-    get_dataset_ids_file,
-    get_inference_job_ids_file,
-    get_profile_job_ids_file,
-    get_quantize_job_ids_file,
-)
+from qai_hub_models.utils.testing_async_utils import append_line_to_file
 
 
 def skip_clone_repo_check(func: Callable) -> Callable:
@@ -254,12 +246,12 @@ def get_and_sync_datasets_cache_dir(
         folder_name += "_nt"
     assert issubclass(model_cls, BaseModel)
     dataset_folder_name = get_folder_name(dataset_name, model_cls.get_input_spec())
-    dir_path = get_artifacts_dir_opt() / folder_name / dataset_folder_name
+    dir_path = test_artifacts_dir() / folder_name / dataset_folder_name
     if dir_path.exists():
         return dir_path
     with qaihm_temp_dir() as tmp_dir:
         tmp_path = Path(tmp_dir)
-        dataset_ids_filepath = get_dataset_ids_file()
+        dataset_ids_filepath = ScorecardArtifact.DATASET_IDS.touch()
         dataset_ids = load_yaml(dataset_ids_filepath)
         input_key, gt_key = get_val_dataset_id_keys(
             dataset_folder_name, has_channel_transpose
@@ -345,7 +337,7 @@ def mock_get_calibration_data(
 
     cache_prefix = get_folder_name(cache_prefix_name, component_spec)
     cache_key = cache_prefix + "_train"
-    dataset_ids_file = get_dataset_ids_file()
+    dataset_ids_file = ScorecardArtifact.DATASET_IDS.touch()
     dataset_ids = load_yaml(dataset_ids_file)
     if dataset_ids and cache_key in dataset_ids:
         return hub.get_dataset(dataset_ids[cache_key])

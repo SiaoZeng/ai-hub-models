@@ -301,7 +301,7 @@ jobs:
         if: ${{ !cancelled() && steps.aggregate-results.outcome == 'success' }}
         run: |
           source ${{ env.VENV_PATH }}/bin/activate && python -m qai_hub_models.scripts.analyze_scorecard_failures \
-            ${{ env.QAIHM_TEST_ARTIFACTS_DIR }}/aggregated_scorecard_results.csv \
+            ${{ env.QAIHM_TEST_ARTIFACTS_DIR }}/results.csv \
             --output-file ${{ env.QAIHM_TEST_ARTIFACTS_DIR }}/scorecard_failure_analysis.csv
 
       - name: Copy CSV to Tableau
@@ -317,7 +317,7 @@ jobs:
           export PASSWD='${{ secrets.TETRASERVICE_PASSWORD }}'
           echo '${{ secrets.TETRASERVICE_PASSWORD }}' | sudo -S mount -t cifs //snowcone/edaap_aihub_sc ./tableau-scorecard-mountpoint -o rw,user=tetraservice
           unset PASSWD
-          echo '${{ secrets.TETRASERVICE_PASSWORD }}' | sudo -S cp ${{ env.QAIHM_TEST_ARTIFACTS_DIR }}/aggregated_scorecard_results.csv ./tableau-scorecard-mountpoint/scorecard-accuracy.csv
+          echo '${{ secrets.TETRASERVICE_PASSWORD }}' | sudo -S cp ${{ env.QAIHM_TEST_ARTIFACTS_DIR }}/results.csv ./tableau-scorecard-mountpoint/scorecard-accuracy.csv
           echo '${{ secrets.TETRASERVICE_PASSWORD }}' | sudo -S umount ./tableau-scorecard-mountpoint
 
       - name: Run codegen and precommit
@@ -367,7 +367,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: Scorecard Results CSV (${{ inputs.action_id || inputs.latest_results_branch }})
-          path: ${{ env.QAIHM_TEST_ARTIFACTS_DIR }}/aggregated_scorecard_results.csv
+          path: ${{ env.QAIHM_TEST_ARTIFACTS_DIR }}/results.csv
 
       - name: Upload Failure Analysis CSV
         id: upload-failure-analysis

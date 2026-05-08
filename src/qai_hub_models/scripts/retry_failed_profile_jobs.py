@@ -12,7 +12,7 @@ and right before the collection workflows.
 The script will:
 1. Load the profile jobs YAML file from either:
    - The artifacts directory specified by QAIHM_TEST_ARTIFACTS_DIR (default)
-   - A custom directory specified by the --profile-jobs-dir argument
+   - A custom directory specified by the --artifacts-dir argument
 2. Find jobs with failure reasons that match known flaky reasons
    - By default, only checks jobs that have already completed
    - With --wait-for-jobs, waits for running jobs to complete before checking
@@ -32,6 +32,7 @@ from typing import cast
 import qai_hub as hub
 from pydantic import Field
 
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.scorecard.device import ScorecardDevice
 from qai_hub_models.scorecard.envvars import ArtifactsDirEnvvar, DeploymentEnvvar
 from qai_hub_models.scorecard.results.yaml import ProfileScorecardJobYaml
@@ -40,7 +41,6 @@ from qai_hub_models.utils.hub_clients import (
     get_default_hub_deployment,
     get_scorecard_client_or_raise,
 )
-from qai_hub_models.utils.testing import get_profile_job_ids_file
 
 
 class FlakyJobsYaml(BaseQAIHMConfig):
@@ -229,11 +229,6 @@ def parse_args() -> argparse.Namespace:
     ArtifactsDirEnvvar.add_arg(parser)
     DeploymentEnvvar.add_arg(parser, default=get_default_hub_deployment())
     parser.add_argument(
-        "--profile-jobs-dir",
-        type=str,
-        help="Path to a directory containing the profile-jobs.yaml file. If provided, this will be used instead of the artifacts directory.",
-    )
-    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print actions without actually cloning jobs",
@@ -263,7 +258,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    artifacts_dir = Path(args.artifacts_dir)
     dry_run = args.dry_run
     collect_reasons = args.collect_failure_reasons
     test_mode = args.test_mode
@@ -284,17 +278,10 @@ def main() -> None:
         print("This is intended for testing the fix_flaky_jobs workflow only\n")
 
     # Get the profile jobs YAML file path
-    if args.profile_jobs_dir:
-        custom_dir = Path(args.profile_jobs_dir)
-        profile_jobs_file = get_profile_job_ids_file(custom_dir)
-        if not profile_jobs_file.exists():
-            print(f"Profile jobs file not found at {profile_jobs_file}")
-            return
-    else:
-        profile_jobs_file = get_profile_job_ids_file(artifacts_dir)
-        if not profile_jobs_file.exists():
-            print(f"Profile jobs file not found at {profile_jobs_file}")
-            return
+    profile_jobs_file = ScorecardArtifact.PROFILE_YAML.path
+    if not profile_jobs_file.exists():
+        print(f"Profile jobs file not found at {profile_jobs_file}")
+        return
 
     print(f"Loading profile jobs from: {profile_jobs_file}")
 

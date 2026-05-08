@@ -12,6 +12,7 @@ from pathlib import Path
 
 from qai_hub import UserError
 
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.scorecard.envvars import (
     ArtifactsDirEnvvar,
     DeploymentEnvvar,
@@ -35,11 +36,6 @@ from qai_hub_models.scorecard.static.model_exec import (
 )
 from qai_hub_models.scorecard.static.model_sync import sync_model_assets
 from qai_hub_models.utils.hub_clients import get_scorecard_client_or_raise
-from qai_hub_models.utils.testing import (
-    get_compile_job_ids_file,
-    get_inference_job_ids_file,
-    get_profile_job_ids_file,
-)
 
 
 def parse_args() -> argparse.Namespace:
@@ -98,15 +94,13 @@ if __name__ == "__main__":
     models_path: Path = args.static_models_dir
     models: set[str | SpecialModelSetting] = args.models
     _, model_id_list = validate_and_split_enabled_models(models, models_path)
-    artifacts_dir = Path(args.artifacts_dir)
-    os.makedirs(artifacts_dir, exist_ok=True)
     compile_ids = (
         Path(args.compile_ids)
         if args.compile_ids
-        else get_compile_job_ids_file(artifacts_dir)
+        else ScorecardArtifact.COMPILE_YAML.touch()
     )
-    profile_ids = get_profile_job_ids_file(artifacts_dir)
-    inference_ids = get_inference_job_ids_file(artifacts_dir)
+    profile_ids = ScorecardArtifact.PROFILE_YAML.touch()
+    inference_ids = ScorecardArtifact.INFERENCE_YAML.touch()
     deployment: str = args.deployment
     compile_job_timeout: int | None = args.compile_timeout
     permanent_asset_sync: bool = args.persist_asset_sync
@@ -133,7 +127,9 @@ if __name__ == "__main__":
 
     compile_results = None
     if enable_compile:
-        compile_results = CompileScorecardJobYaml.from_file(compile_ids)
+        compile_results = CompileScorecardJobYaml.from_file(
+            compile_ids, create_empty_if_no_file=True
+        )
         for config in model_configs:
             # Disable client verbosity; compile/profile/inference model will print more succinct summaries instead
             hub = get_scorecard_client_or_raise(deployment, config.restrict_access)
@@ -156,14 +152,18 @@ if __name__ == "__main__":
                 )
             except UserError as e:
                 print(f"Failed to submit compile job for model `{config.id}`: {e}")
-        compile_results.to_file(get_compile_job_ids_file(artifacts_dir))
+        compile_results.to_file(compile_ids)
 
     elif enable_profile or enable_inference:
-        compile_results = CompileScorecardJobYaml.from_file(compile_ids)
+        compile_results = CompileScorecardJobYaml.from_file(
+            compile_ids, create_empty_if_no_file=True
+        )
 
     if enable_profile:
         assert compile_results  # for mypy
-        profile_results = ProfileScorecardJobYaml.from_file(profile_ids)
+        profile_results = ProfileScorecardJobYaml.from_file(
+            profile_ids, create_empty_if_no_file=True
+        )
         for config in model_configs:
             # Disable client verbosity; compile/profile/inference model will print more succinct summaries instead
             hub = get_scorecard_client_or_raise(deployment, config.restrict_access)
@@ -182,11 +182,13 @@ if __name__ == "__main__":
                 )
             except UserError as e:
                 print(f"Failed to submit profile job for model `{config.id}`: {e}")
-        profile_results.to_file(get_profile_job_ids_file(artifacts_dir))
+        profile_results.to_file(profile_ids)
 
     if enable_inference:
         assert compile_results  # for mypy
-        inference_results = InferenceScorecardJobYaml.from_file(inference_ids)
+        inference_results = InferenceScorecardJobYaml.from_file(
+            inference_ids, create_empty_if_no_file=True
+        )
         for config in model_configs:
             # Disable client verbosity; compile/profile/inference model will print more succinct summaries instead
             hub = get_scorecard_client_or_raise(deployment, config.restrict_access)
@@ -207,4 +209,4 @@ if __name__ == "__main__":
                 )
             except UserError as e:
                 print(f"Failed to submit inference job for model `{config.id}`: {e}")
-        inference_results.to_file(get_inference_job_ids_file(artifacts_dir))
+        inference_results.to_file(inference_ids)

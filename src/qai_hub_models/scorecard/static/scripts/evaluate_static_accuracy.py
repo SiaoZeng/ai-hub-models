@@ -14,6 +14,7 @@ import torch
 import torchvision  # noqa: F401
 
 from qai_hub_models.scorecard import ScorecardProfilePath
+from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.scorecard.envvars import (
     ArtifactsDirEnvvar,
     DeploymentEnvvar,
@@ -37,10 +38,7 @@ from qai_hub_models.utils.qai_hub_helpers import (
     download_model_in_memory,
     parse_compile_options,
 )
-from qai_hub_models.utils.testing_async_utils import (
-    get_inference_job_ids_file,
-    write_accuracy,
-)
+from qai_hub_models.utils.testing_async_utils import write_accuracy
 from qai_hub_models.utils.transpose_channel import transpose_channel_last_to_first
 
 
@@ -139,7 +137,7 @@ def main() -> None:
                 args.deployment,
                 get_scorecard_job_yaml(
                     hub.JobType.INFERENCE,
-                    get_inference_job_ids_file(args.artifacts_dir),
+                    ScorecardArtifact.INFERENCE_YAML.path,
                 ),
             )
         except Exception as e:
