@@ -125,18 +125,6 @@ def test_llm_perf(
     compile_job_cache: CompileJobCache,
     llm_perf_config: LLMPerfConfig,
 ) -> None:
-    # The shared run_llm_perf_test fast path (device 2..N) assumes a text-only
-    # LLM: it caches only compile jobs whose names end in `_{i}_of_{num_splits}`
-    # (so vision_encoder is dropped) and rebuilds the genie bundle via
-    # model_cls.prepare_genie_assets, which is a no-op for this VLM. Skip the
-    # second-and-later devices until the helper is made VLM-aware.
-    # Tracked in https://github.com/qcom-ai-hub/tetracode/issues/18953.
-    if compile_job_cache.get(MODEL_ID, precision) is not None:
-        pytest.skip(
-            "run_llm_perf_test fast path is incompatible with VLM collection; "
-            "see tetracode#18953."
-        )
-
     tps, ttft = test.run_llm_perf_test(
         model_id=MODEL_ID,
         export_model_func=export_model,
@@ -144,7 +132,7 @@ def test_llm_perf(
         precision=precision,
         compile_job_cache=compile_job_cache,
         output_dir=test.GENIE_BUNDLES_ROOT,
-        model_cls=Model,  # type: ignore[arg-type]  # VLM collection; see tetracode#18953
+        model_cls=Model,  # type: ignore[arg-type]
         model_asset_version=MODEL_ASSET_VERSION,
         num_splits=NUM_SPLITS,
         export_context_lengths=llm_perf_config.export_context_lengths

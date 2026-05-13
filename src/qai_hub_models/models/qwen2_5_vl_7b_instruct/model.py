@@ -1272,10 +1272,16 @@ class Qwen2_5_VL_7B_Collection(PretrainedCollectionModel):
         # --- HTP backend extension config ---
         hub_device = getattr(self, "_hub_device", None)
         if hub_device is not None:
-            save_htp_config_for_genie_bundle(hub_device, output_dir)
-            metadata.supplementary_files["htp_backend_ext_config.json"] = (
-                "HTP backend extension config for Genie."
-            )
+            device_info: dict[str, str] = {}
+            attrs = hub_device.attributes
+            for attr in [attrs] if isinstance(attrs, str) else attrs:
+                if ":" in attr:
+                    key, value = attr.split(":", 1)
+                    device_info[key] = value
+            if save_htp_config_for_genie_bundle(device_info, output_dir):
+                metadata.supplementary_files["htp_backend_ext_config.json"] = (
+                    "HTP backend extension config for Genie."
+                )
 
         # --- Genie config (text-dec-htp.json equivalent) ---
         # Get context_lengths, image_processor, and llm_config from a text Part's presplit
