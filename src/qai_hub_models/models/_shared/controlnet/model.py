@@ -41,6 +41,7 @@ from qai_hub_models.utils.input_spec import (
     IoType,
     TensorSpec,
 )
+from qai_hub_models.utils.onnx.helpers import ONNXBundle
 
 DEFAULT_H, DEFAULT_W = 512, 512
 
@@ -230,8 +231,9 @@ class ControlUnetQuantizableBase(AIMETOnnxQuantizableMixin, ControlUnetBase):  #
         self,
         sim_model: QuantSimOnnx,
         host_device: torch.device = torch.device("cpu"),
+        onnx_bundle: ONNXBundle | None = None,
     ) -> None:
-        AIMETOnnxQuantizableMixin.__init__(self, sim_model)
+        AIMETOnnxQuantizableMixin.__init__(self, sim_model, onnx_bundle=onnx_bundle)
         # model is None as we don't do anything with the torch model
         ControlUnetBase.__init__(self, None)
         self.host_device = host_device
@@ -257,12 +259,13 @@ class ControlUnetQuantizableBase(AIMETOnnxQuantizableMixin, ControlUnetBase):  #
 
         host_device = torch.device(host_device)
         subfolder = subfolder or cls.default_subfolder
-        onnx_model, aimet_encodings = cls.onnx_from_pretrained(
+        bundle = cls.onnx_from_pretrained(
             checkpoint=checkpoint,
             subfolder=subfolder,
             host_device=host_device,
             torch_to_onnx_options={"opset_version": 20},
         )
+        onnx_model = bundle.load_onnx_model()
 
         quant_sim = QuantSimOnnx(
             model=onnx_model,
@@ -272,9 +275,11 @@ class ControlUnetQuantizableBase(AIMETOnnxQuantizableMixin, ControlUnetBase):  #
             config_file=get_aimet_config_path("default_per_tensor_config_v69"),
             providers=cls.get_ort_providers(host_device),
         )
-        if aimet_encodings is not None:
-            load_encodings_to_sim(quant_sim, aimet_encodings, strict=False)
-        return cls(quant_sim, host_device=host_device)
+        if bundle.aimet_encodings_path:
+            load_encodings_to_sim(
+                quant_sim, str(bundle.aimet_encodings_path), strict=False
+            )
+        return cls(quant_sim, host_device=host_device, onnx_bundle=bundle)
 
     @staticmethod
     def calibration_dataset_name() -> str:
@@ -372,8 +377,9 @@ class ControlNetQuantizableBase(AIMETOnnxQuantizableMixin, ControlNetBase):  # t
         self,
         sim_model: QuantSimOnnx,
         host_device: torch.device = torch.device("cpu"),
+        onnx_bundle: ONNXBundle | None = None,
     ) -> None:
-        AIMETOnnxQuantizableMixin.__init__(self, sim_model)
+        AIMETOnnxQuantizableMixin.__init__(self, sim_model, onnx_bundle=onnx_bundle)
         # model is None as we don't do anything with the torch model
         ControlNetBase.__init__(self, None)
         self.host_device = host_device
@@ -401,12 +407,13 @@ class ControlNetQuantizableBase(AIMETOnnxQuantizableMixin, ControlNetBase):  # t
             subfolder = cls.default_subfolder_hf
         else:
             subfolder = subfolder or cls.default_subfolder
-        onnx_model, aimet_encodings = cls.onnx_from_pretrained(
+        bundle = cls.onnx_from_pretrained(
             checkpoint=checkpoint,
             subfolder=subfolder,
             host_device=host_device,
             torch_to_onnx_options={"opset_version": 20},
         )
+        onnx_model = bundle.load_onnx_model()
 
         quant_sim = QuantSimOnnx(
             model=onnx_model,
@@ -416,9 +423,11 @@ class ControlNetQuantizableBase(AIMETOnnxQuantizableMixin, ControlNetBase):  # t
             config_file=get_aimet_config_path("default_per_tensor_config_v69"),
             providers=cls.get_ort_providers(host_device),
         )
-        if aimet_encodings is not None:
-            load_encodings_to_sim(quant_sim, aimet_encodings, strict=False)
-        return cls(quant_sim, host_device=host_device)
+        if bundle.aimet_encodings_path:
+            load_encodings_to_sim(
+                quant_sim, str(bundle.aimet_encodings_path), strict=False
+            )
+        return cls(quant_sim, host_device=host_device, onnx_bundle=bundle)
 
     @staticmethod
     def calibration_dataset_name() -> str:

@@ -29,6 +29,7 @@ from onnx.helper import (
     tensor_dtype_to_string,
 )
 from packaging.version import parse as parse_version
+from typing_extensions import Self
 
 from qai_hub_models.utils.runtime_torch_wrapper import (
     ModelIODetails,
@@ -56,6 +57,22 @@ class ONNXBundle:
     # The name of the .encodings file in the bundle folder.
     # None if this bundle does not include encodings.
     aimet_encodings_name: str | None = None
+    # If True, bundle_path is a temporary directory that will be deleted
+    # when this ONNXBundle is garbage-collected or used as a context manager.
+    ephemeral: bool = False
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.cleanup()
+
+    def cleanup(self) -> None:
+        if self.ephemeral and self.bundle_path.is_dir():
+            shutil.rmtree(self.bundle_path, ignore_errors=True)
+
+    def __del__(self) -> None:
+        self.cleanup()
 
     @property
     def onnx_graph_path(self) -> Path:
@@ -79,9 +96,15 @@ class ONNXBundle:
             return None
         return self.bundle_path / self.aimet_encodings_name
 
+    def load_onnx_model(self) -> onnx.ModelProto:
+        """Load and return the ONNX ModelProto from this bundle."""
+        return onnx.load(str(self.onnx_graph_path), load_external_data=True)
+
     @staticmethod
     def from_bundle_path(
-        bundle_path: str | os.PathLike, model_name: str | None = None
+        bundle_path: str | os.PathLike,
+        model_name: str | None = None,
+        ephemeral: bool = False,
     ) -> ONNXBundle:
         """
         Creates an ONNX bundle object from the given path.
@@ -93,6 +116,8 @@ class ONNXBundle:
         model_name
             The name of each bundle file: {model_name}.onnx, optional {model_name}.data, optional {model_name}.encodings
             If None, this method will glob the folder to find the file names and raise if more than 1 file is found.
+        ephemeral
+            If True, the bundle directory is deleted when this object is garbage-collected.
 
         Returns
         -------
@@ -126,6 +151,7 @@ class ONNXBundle:
             onnx_weights_name=weights_files[0].name if weights_files else None,
             aimet_encodings_name=encodings_files[0].name if encodings_files else None,
             qairt_bin_name=qairt_bin_files[0].name if qairt_bin_files else None,
+            ephemeral=ephemeral,
         )
 
     def move(

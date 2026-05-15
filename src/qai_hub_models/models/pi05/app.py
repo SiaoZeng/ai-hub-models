@@ -4,14 +4,35 @@
 # ---------------------------------------------------------------------
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
+import numpy as np
 import torch
 from lerobot.configs.types import FeatureType
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.policies.pi05 import PI05Policy
+from lerobot.policies.pi05.configuration_pi05 import PI05Config
+from qai_hub.client import DatasetEntries
 
+from qai_hub_models.models.pi05.model import (
+    DEFAULT_CHECKPOINT,
+    NUM_ACTION_STEPS,
+    NUM_CAMERAS,
+    Pi05ActionExpert,
+    Pi05PaliGemmaBackbone,
+    Pi05PaliGemmaTokenEmbed,
+    Pi05PaliGemmaVision,
+    load_checkpoint,
+)
 from qai_hub_models.models.protocols import ExecutableModelProtocol
+from qai_hub_models.utils.asset_loaders import ASSET_CONFIG
+from qai_hub_models.utils.base_model import PretrainedCollectionModel
+from qai_hub_models.utils.image_processing import resize_pad
+from qai_hub_models.utils.inference import OnDeviceModel
+from qai_hub_models.utils.input_spec import InputSpec
+from qai_hub_models.utils.qai_hub_helpers import make_hub_dataset_entries
 
 
 @dataclass
@@ -61,6 +82,37 @@ class Pi05AppConfig:
         )
 
 
+def _unbatch(tensor: torch.Tensor) -> list[torch.Tensor | np.ndarray]:
+    """Split [B, ...] into list of B tensors each [1, ...]."""
+    return list(torch.unbind(tensor.unsqueeze(1)))
+
+
+class BatchedOnDeviceModel:
+    """
+    Wraps OnDeviceModel to present a torch-module-like interface.
+
+    Accepts batched tensors as positional args (like a torch module),
+    internally unbatches them into per-sample lists for OnDeviceModel,
+    and returns the result as a tensor or tuple of tensors.
+    """
+
+    def __init__(self, model: OnDeviceModel) -> None:
+        self.model = model
+
+    def __call__(self, *args: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, ...]:
+        return self.model(*[_unbatch(t) for t in args])
+
+
+def resize_and_normalize(image: torch.Tensor) -> torch.Tensor:
+    """Resize with padding to 224x224 and normalize to [-1, 1]."""
+    if image.ndim == 3:
+        image = image.unsqueeze(0)
+    image, _, _ = resize_pad(
+        image, (224, 224), vertical_float="top", horizontal_float="left"
+    )
+    return image * 2.0 - 1.0
+
+
 class Pi05App(torch.nn.Module):
     """
     Assemble Pi05Collection parts to reproduce the core computation of
@@ -87,12 +139,10 @@ class Pi05App(torch.nn.Module):
     def __init__(
         self,
         config: Pi05AppConfig,
-        vit: ExecutableModelProtocol,
+        vision_encoder: ExecutableModelProtocol,
         token_emb: ExecutableModelProtocol,
-        backbone0_6: ExecutableModelProtocol,
-        backbone6_12: ExecutableModelProtocol,
-        backbone12_18: ExecutableModelProtocol,
         action_expert: ExecutableModelProtocol,
+        backbone: ExecutableModelProtocol,
     ) -> None:
         """
         Initialize Pi05App with model components.
@@ -101,28 +151,36 @@ class Pi05App(torch.nn.Module):
         ----------
         config
             Pi05AppConfig containing model configuration.
-        vit
+        vision_encoder
             Vision encoder component.
         token_emb
             Token embedding component.
-        backbone0_6
-            PaliGemma backbone layers 0-6.
-        backbone6_12
-            PaliGemma backbone layers 6-12.
-        backbone12_18
-            PaliGemma backbone layers 12-18.
         action_expert
             Action expert component for denoising.
+        backbone
+            Full backbone (layers 0-18).
         """
         super().__init__()
 
-        # Shortcuts to model components.
-        self.vit = vit
-        self.token_emb = token_emb
-        self.backbone0_6 = backbone0_6
-        self.backbone6_12 = backbone6_12
-        self.backbone12_18 = backbone12_18
-        self.action_expert = action_expert
+        # When components are OnDeviceModel instances, wrap them so that
+        # call sites can pass batched tensors directly (like a torch module).
+        self._on_device = isinstance(vision_encoder, OnDeviceModel)
+        self.vision_encoder = vision_encoder
+        self.token_emb = (
+            BatchedOnDeviceModel(token_emb)
+            if isinstance(token_emb, OnDeviceModel)
+            else token_emb
+        )
+        self.action_expert = (
+            BatchedOnDeviceModel(action_expert)
+            if isinstance(action_expert, OnDeviceModel)
+            else action_expert
+        )
+        self.backbone = (
+            BatchedOnDeviceModel(backbone)
+            if isinstance(backbone, OnDeviceModel)
+            else backbone
+        )
 
         # Cache a few config bits from the provided flow config. This removes
         # the hard dependency on a policy object while keeping the exact
@@ -136,43 +194,9 @@ class Pi05App(torch.nn.Module):
         self.use_rtc: bool = bool(config.use_rtc)
 
     def _resize_and_normalize_image(self, image: torch.Tensor) -> torch.Tensor:
-        """
-        Resize with padding to 224x224 and normalize to [-1, 1].
-
-        Parameters
-        ----------
-        image
-            Tensor [B, C, H, W] with values in [0, 1].
-
-        Returns
-        -------
-        normalized_image : torch.Tensor
-            Tensor [B, C, 224, 224] normalized to [-1, 1].
-        """
         if image.ndim != 4:
             raise ValueError(f"[B,C,H,W] expected, got {image.shape}")
-
-        _, _, cur_h, cur_w = image.shape
-        tgt_h, tgt_w = 224, 224
-
-        ratio = max(cur_w / tgt_w, cur_h / tgt_h)
-        rsz_h = int(cur_h / ratio)
-        rsz_w = int(cur_w / ratio)
-
-        image = torch.nn.functional.interpolate(
-            image,
-            size=(rsz_h, rsz_w),
-            mode="bilinear",
-            align_corners=False,
-        )
-        pad_h = max(0, tgt_h - rsz_h)
-        pad_w = max(0, tgt_w - rsz_w)
-
-        # Pad (left, right, top, bottom): pad left/top.
-        image = torch.nn.functional.pad(image, (pad_w, 0, pad_h, 0), value=0.0)
-
-        # Normalize from [0, 1] to [-1, 1] as expected by SigLIP.
-        return image * 2.0 - 1.0
+        return resize_and_normalize(image)
 
     def populate_prefix(
         self,
@@ -228,10 +252,43 @@ class Pi05App(torch.nn.Module):
         proc_imgs = [self._resize_and_normalize_image(x) for x in img_ls]
 
         # Vision encodings (each returns [B, S_img, D]).
-        img_embeds = [self.vit(x) for x in proc_imgs]
+        if self._on_device:
+            bsize = proc_imgs[0].shape[0]
+            num_cams = len(proc_imgs)
+            all_imgs: list[torch.Tensor | np.ndarray] = []
+            for x in proc_imgs:
+                all_imgs.extend(_unbatch(x))
+            combined = self.vision_encoder(all_imgs)
+            assert isinstance(combined, torch.Tensor)
+            img_embeds = [
+                combined[i * bsize : (i + 1) * bsize] for i in range(num_cams)
+            ]
+        else:
+            img_embeds = [self.vision_encoder(x) for x in proc_imgs]
 
         # Token embedding packs images + language and produces prefix
         # embeddings/masks and RoPE tensors.
+        # On-device path needs padding to NUM_CAMERAS (fixed input spec).
+        if self._on_device:
+            padded_embeds: list[torch.Tensor] = list(img_embeds)
+            if len(padded_embeds) < NUM_CAMERAS:
+                base = img_embeds[0]
+                padded_embeds.extend(
+                    torch.zeros_like(base)
+                    for _ in range(NUM_CAMERAS - len(padded_embeds))
+                )
+            te_out = self.token_emb(
+                lang_tokens,
+                lang_mask.to(dtype=torch.float32),
+                *padded_embeds,
+            )
+        else:
+            te_out = self.token_emb(
+                lang_tokens,
+                lang_mask.to(dtype=torch.float32),
+                *img_embeds,
+            )
+        assert isinstance(te_out, tuple)
         (
             prefix_emb,
             prefix_att_2d,
@@ -240,31 +297,14 @@ class Pi05App(torch.nn.Module):
             suffix_sin,
             suffix_cos,
             full_att_4d,
-        ) = self.token_emb(
-            lang_tokens,
-            lang_mask.to(dtype=torch.float32),
-            *img_embeds,
-        )
+        ) = te_out
 
         # Run PaliGemma backbone to fill per-layer KV caches for the
-        # prefix. outX returns (hidden_state, keys..., values...).
-        out0 = self.backbone0_6(prefix_emb, prefix_att_2d, prefix_sin, prefix_cos)
-        hs0, *rest0 = out0
-        n0 = len(rest0) // 2
-        k_list0, v_list0 = rest0[:n0], rest0[n0:]
-
-        out1 = self.backbone6_12(hs0, prefix_att_2d, prefix_sin, prefix_cos)
-        hs1, *rest1 = out1
-        n1 = len(rest1) // 2
-        k_list1, v_list1 = rest1[:n1], rest1[n1:]
-
-        rest2 = self.backbone12_18(hs1, prefix_att_2d, prefix_sin, prefix_cos)
-        n2 = len(rest2) // 2
-        k_list2, v_list2 = rest2[:n2], rest2[n2:]
-
-        # Concatenate caches across all 18 layers.
-        k_all = list(k_list0) + list(k_list1) + list(k_list2)
-        v_all = list(v_list0) + list(v_list1) + list(v_list2)
+        # prefix.
+        rest_full = self.backbone(prefix_emb, prefix_att_2d, prefix_sin, prefix_cos)
+        n_full = len(rest_full) // 2
+        k_all = list(rest_full[:n_full])
+        v_all = list(rest_full[n_full:])
 
         return suffix_sin, suffix_cos, k_all, v_all, full_att_4d
 
@@ -312,6 +352,21 @@ class Pi05App(torch.nn.Module):
         updated_actions : torch.Tensor
             Tensor [B, Tcfg, Dcfg] of updated actions x_{t+dt}.
         """
+        if self._on_device:
+            # Positional args in input_spec order: full_att_4d, rope_emb_sin,
+            # rope_emb_cos, x_t, time_step, key_cache_l0..17, value_cache_l0..17
+            result = self.action_expert(
+                full_att_4d,
+                suffix_sin,
+                suffix_cos,
+                x_t.to(torch.float32),
+                time_step,
+                *[k.to(torch.float32) for k in k_all],
+                *[v.to(torch.float32) for v in v_all],
+            )
+            assert isinstance(result, torch.Tensor)
+            return result
+
         action_kwargs: dict[str, torch.Tensor] = {
             "rope_emb_sin": suffix_sin,
             "rope_emb_cos": suffix_cos,
@@ -327,13 +382,13 @@ class Pi05App(torch.nn.Module):
         if self.use_rtc:
             if prev_chunk is None:
                 raise ValueError("prev_chunk must be provided when use_rtc is True.")
-            return self.action_expert(
+            return self.action_expert(  # type: ignore[call-arg, return-value]
                 prev_chunk=prev_chunk.to(torch.float32),
                 **action_kwargs,
             )
 
         # Expert returns x_{t+dt} after an internal Euler step.
-        return self.action_expert(**action_kwargs)
+        return self.action_expert(**action_kwargs)  # type: ignore[return-value]
 
     @torch.no_grad()
     def predict_action_chunk(
@@ -467,3 +522,323 @@ class Pi05App(torch.nn.Module):
             t_cur = t_cur + dt
 
         return x_t
+
+    # TODO: #19258: Pi0.5 calibration data should be available as a dataset
+
+    @staticmethod
+    def calibration_dataset_name() -> str:
+        return "libero"
+
+    @classmethod
+    def get_calibration_data(
+        cls,
+        collection_model: PretrainedCollectionModel,
+        component_name: str,
+        input_specs: dict[str, InputSpec] | None = None,
+        num_samples: int | None = None,
+    ) -> DatasetEntries:
+        if component_name == "token_emb":
+            raise NotImplementedError("token_emb is not quantized")
+
+        if num_samples is None:
+            num_samples = 100
+
+        if component_name == "vision_encoder":
+            return cls._calibration_data_vision_encoder(num_samples)
+        if component_name == "backbone":
+            return cls._calibration_data_backbone(num_samples)
+        if component_name == "action_expert":
+            return cls._calibration_data_action_expert(num_samples)
+        raise ValueError(
+            f"Unknown component_name={component_name!r}. "
+            "Expected one of: vision_encoder, token_emb, backbone, action_expert."
+        )
+
+    @classmethod
+    def _calibration_data_vision_encoder(cls, num_samples: int) -> DatasetEntries:
+        cache_path = ASSET_CONFIG.get_local_store_dataset_path(
+            "libero_vision_calib", "v1", f"data_n{num_samples}.pt"
+        )
+        if cache_path.exists():
+            data = torch.load(cache_path, weights_only=True)
+        else:
+            dataset = LeRobotDataset("HuggingFaceVLA/libero")
+            first_sample = dataset[0]
+            image_keys = sorted(
+                k for k in first_sample if k.startswith("observation.images.")
+            )
+
+            images: list[torch.Tensor] = []
+            for idx in range(min(num_samples, len(dataset))):
+                sample = dataset[idx] if idx > 0 else first_sample
+                img = sample[image_keys[0]]
+                if img.ndim == 3:
+                    img = img.unsqueeze(0)
+                img = resize_and_normalize(img.to(torch.float32))
+                images.append(img.squeeze(0))
+
+            data = torch.stack(images[:num_samples])
+            os.makedirs(cache_path.parent, exist_ok=True)
+            torch.save(data, cache_path)
+
+        return make_hub_dataset_entries(
+            (_unbatch(data),),
+            ["image"],
+        )
+
+    @classmethod
+    def _calibration_data_backbone(cls, num_samples: int) -> DatasetEntries:
+        cache_path = ASSET_CONFIG.get_local_store_dataset_path(
+            "libero_backbone_calib", "v1", f"data_n{num_samples}.pt"
+        )
+        if cache_path.exists():
+            data = torch.load(cache_path, weights_only=True)
+        else:
+            # Circular import: demo.py → pi05.__init__ → app.py
+            from qai_hub_models.models.pi05.demo import (
+                _build_preprocessed_batch,
+                _to_device_tree,
+            )
+
+            dataset = LeRobotDataset("HuggingFaceVLA/libero")
+            policy: PI05Policy = load_checkpoint(DEFAULT_CHECKPOINT)
+            pi05_config: PI05Config = policy.config
+
+            vit = Pi05PaliGemmaVision(policy).cpu().eval()
+            token_emb = Pi05PaliGemmaTokenEmbed(policy).cpu().eval()
+
+            image_keys = sorted(
+                k
+                for k, v in policy.model.config.input_features.items()
+                if v.type == FeatureType.VISUAL and "empty" not in k
+            )
+
+            hidden_states = []
+            att_masks = []
+            rope_sins = []
+            rope_coss = []
+
+            n = min(num_samples, len(dataset))
+            for idx in range(n):
+                raw_sample = dataset[idx]
+                raw_batch: dict = {}
+                for k, v in raw_sample.items():
+                    if isinstance(v, torch.Tensor):
+                        raw_batch[k] = v.unsqueeze(0)
+                    elif isinstance(v, str):
+                        raw_batch[k] = [v]
+                    else:
+                        raw_batch[k] = v
+
+                batch, _ = _build_preprocessed_batch(
+                    cfg=pi05_config,
+                    raw_batch=raw_batch,
+                    batch_size=1,
+                    dataset_stats=dataset.meta.stats,
+                )
+                batch = _to_device_tree(batch, "cpu")
+
+                lang_tokens = batch["observation.language.tokens"]
+                lang_mask = batch["observation.language.attention_mask"].to(
+                    torch.float32
+                )
+
+                with torch.no_grad():
+                    img_embeds = []
+                    for key in image_keys:
+                        img = batch[key]
+                        if img.ndim != 4:
+                            continue
+                        img = resize_and_normalize(img)
+                        img_embeds.append(vit(img))
+
+                    (
+                        prefix_emb,
+                        prefix_att_2d,
+                        prefix_sin,
+                        prefix_cos,
+                        _suffix_sin,
+                        _suffix_cos,
+                        _full_att_4d,
+                    ) = token_emb(lang_tokens, lang_mask, *img_embeds)
+
+                hidden_states.append(prefix_emb[0])
+                att_masks.append(prefix_att_2d[0])
+                rope_sins.append(prefix_sin[0])
+                rope_coss.append(prefix_cos[0])
+
+            data = {
+                "hidden_state": torch.stack(hidden_states),
+                "prefix_att_2d_masks": torch.stack(att_masks),
+                "rope_emb_sin": torch.stack(rope_sins),
+                "rope_emb_cos": torch.stack(rope_coss),
+            }
+            os.makedirs(cache_path.parent, exist_ok=True)
+            torch.save(data, cache_path)
+
+        return make_hub_dataset_entries(
+            (
+                _unbatch(data["hidden_state"]),
+                _unbatch(data["prefix_att_2d_masks"]),
+                _unbatch(data["rope_emb_sin"]),
+                _unbatch(data["rope_emb_cos"]),
+            ),
+            ["hidden_state", "prefix_att_2d_mask", "rope_emb_sin", "rope_emb_cos"],
+        )
+
+    @classmethod
+    def _calibration_data_action_expert(cls, num_samples: int) -> DatasetEntries:
+        cache_path = ASSET_CONFIG.get_local_store_dataset_path(
+            "libero_action_expert_calib", "v1", f"data_n{num_samples}.pt"
+        )
+        prefixes: list[dict[str, torch.Tensor]]
+        steps: list[tuple[int, torch.Tensor, torch.Tensor]]
+        if cache_path.exists():
+            raw = torch.load(cache_path, weights_only=True)
+            prefixes = raw["prefixes"]
+            steps = raw["steps"]
+        else:
+            # Circular import: demo.py → pi05.__init__ → app.py
+            from qai_hub_models.models.pi05.demo import (
+                _build_preprocessed_batch,
+                _to_device_tree,
+            )
+
+            dataset = LeRobotDataset("HuggingFaceVLA/libero")
+            policy: PI05Policy = load_checkpoint(DEFAULT_CHECKPOINT)
+            pi05_config: PI05Config = policy.config
+
+            vit = Pi05PaliGemmaVision(policy).cpu().eval()
+            token_emb = Pi05PaliGemmaTokenEmbed(policy).cpu().eval()
+            backbone_full = Pi05PaliGemmaBackbone(policy).cpu().eval()
+            action_expert = Pi05ActionExpert(policy).cpu().eval()
+
+            image_keys = sorted(
+                k
+                for k, v in policy.model.config.input_features.items()
+                if v.type == FeatureType.VISUAL and "empty" not in k
+            )
+
+            num_steps = int(getattr(pi05_config, "num_inference_steps", 10))
+            state_dim = 32
+
+            prefixes = []
+            steps = []
+
+            n = min(num_samples, len(dataset))
+            for idx in range(n):
+                raw_sample = dataset[idx]
+                raw_batch: dict = {}
+                for k, v in raw_sample.items():
+                    if isinstance(v, torch.Tensor):
+                        raw_batch[k] = v.unsqueeze(0)
+                    elif isinstance(v, str):
+                        raw_batch[k] = [v]
+                    else:
+                        raw_batch[k] = v
+
+                batch, _ = _build_preprocessed_batch(
+                    cfg=pi05_config,
+                    raw_batch=raw_batch,
+                    batch_size=1,
+                    dataset_stats=dataset.meta.stats,
+                )
+                batch = _to_device_tree(batch, "cpu")
+
+                lang_tokens = batch["observation.language.tokens"]
+                lang_mask = batch["observation.language.attention_mask"].to(
+                    torch.float32
+                )
+
+                with torch.no_grad():
+                    img_embeds = []
+                    for key in image_keys:
+                        img = batch[key]
+                        if img.ndim != 4:
+                            continue
+                        img = resize_and_normalize(img)
+                        img_embeds.append(vit(img))
+
+                    (
+                        prefix_emb,
+                        prefix_att_2d,
+                        prefix_sin,
+                        prefix_cos,
+                        suffix_sin,
+                        suffix_cos,
+                        full_att_4d,
+                    ) = token_emb(lang_tokens, lang_mask, *img_embeds)
+
+                    rest_full = backbone_full(
+                        prefix_emb, prefix_att_2d, prefix_sin, prefix_cos
+                    )
+                    n_full = len(rest_full) // 2
+                    k_caches = list(rest_full[:n_full])
+                    v_caches = list(rest_full[n_full:])
+
+                prefix: dict[str, torch.Tensor] = {
+                    "full_att_4d": full_att_4d[0],
+                    "rope_emb_sin": suffix_sin[0],
+                    "rope_emb_cos": suffix_cos[0],
+                }
+                for i in range(len(k_caches)):
+                    prefix[f"key_cache_l{i}"] = k_caches[i][0]
+                    prefix[f"value_cache_l{i}"] = v_caches[i][0]
+                ep_idx = len(prefixes)
+                prefixes.append(prefix)
+
+                x_t = torch.randn(1, NUM_ACTION_STEPS, state_dim)
+                dt = -1.0 / float(num_steps)
+                t_cur = 1.0
+                with torch.no_grad():
+                    for _ in range(num_steps):
+                        time_step = torch.tensor(t_cur)
+                        steps.append((ep_idx, x_t[0].clone(), time_step))
+
+                        kv_kwargs: dict[str, torch.Tensor] = {}
+                        for i in range(len(k_caches)):
+                            kv_kwargs[f"key_cache_l{i}"] = k_caches[i]
+                            kv_kwargs[f"value_cache_l{i}"] = v_caches[i]
+
+                        v_t = action_expert._compute_update(
+                            full_att_4d=full_att_4d,
+                            rope_emb_sin=suffix_sin,
+                            rope_emb_cos=suffix_cos,
+                            x_t=x_t,
+                            time_step=torch.tensor([t_cur]),
+                            **kv_kwargs,
+                        )
+                        x_t = x_t + dt * v_t
+                        t_cur += dt
+
+            os.makedirs(cache_path.parent, exist_ok=True)
+            torch.save({"prefixes": prefixes, "steps": steps}, cache_path)
+
+        input_names = [
+            "full_att_4d",
+            "rope_emb_sin",
+            "rope_emb_cos",
+            "x_t",
+            "time_step",
+        ]
+        input_names.extend(f"key_cache_l{i}" for i in range(18))
+        input_names.extend(f"value_cache_l{i}" for i in range(18))
+
+        tensors_per_input: list[list[torch.Tensor | np.ndarray]] = [
+            [] for _ in input_names
+        ]
+        for ep_idx, x_t, time_step in steps:
+            prefix = prefixes[ep_idx]
+            tensors_per_input[0].append(prefix["full_att_4d"].unsqueeze(0))
+            tensors_per_input[1].append(prefix["rope_emb_sin"].unsqueeze(0))
+            tensors_per_input[2].append(prefix["rope_emb_cos"].unsqueeze(0))
+            tensors_per_input[3].append(x_t.unsqueeze(0))
+            tensors_per_input[4].append(time_step.unsqueeze(0))
+            for i in range(18):
+                tensors_per_input[5 + i].append(prefix[f"key_cache_l{i}"].unsqueeze(0))
+            for i in range(18):
+                tensors_per_input[23 + i].append(
+                    prefix[f"value_cache_l{i}"].unsqueeze(0)
+                )
+
+        return make_hub_dataset_entries(tuple(tensors_per_input), input_names)

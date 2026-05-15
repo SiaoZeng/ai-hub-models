@@ -10,5 +10,5 @@ from qai_hub_models.models.pi05.model import (  # noqa: F401
     MODEL_ID,
 )
 from qai_hub_models.models.pi05.model import (  # noqa: F401
-    Pi05Collection as Model,
+    Pi05CollectionQuantized as Model,
 )

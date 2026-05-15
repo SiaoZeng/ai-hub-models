@@ -65,13 +65,16 @@ def _clean_old_failure_reasons(
 
         # Delete precisions that are no longer valid
         if precision not in code_gen_config.supported_precisions:
+            runtimes_to_remove = []
             for runtime, reasons in list(reasons_by_runtime.items()):
                 if clean_general:
                     reasons.scorecard_failure = None
                 if clean_accuracy:
                     reasons.scorecard_accuracy_failure = None
                 if not reasons.has_failure:
-                    reasons_by_runtime.pop(runtime)
+                    runtimes_to_remove.append(runtime)
+            for runtime in runtimes_to_remove:
+                reasons_by_runtime.pop(runtime)
 
         if not reasons_by_runtime:
             passing_precisions.append(precision)

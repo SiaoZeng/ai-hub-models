@@ -43,7 +43,7 @@ from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, qaihm_temp_d
 from qai_hub_models.utils.base_model import Precision
 from qai_hub_models.utils.dataset_util import DataLoader, dataset_entries_to_dataloader
 from qai_hub_models.utils.input_spec import InputSpec
-from qai_hub_models.utils.onnx.helpers import mock_torch_onnx_inference
+from qai_hub_models.utils.onnx.helpers import ONNXBundle, mock_torch_onnx_inference
 from qai_hub_models.utils.runtime_torch_wrapper import kwargs_to_dict
 
 DEFAULT_SEQ_MSE_NUM_SAMPLES = 20
@@ -92,15 +92,23 @@ def ensure_min_aimet_onnx_version(
         )
 
 
-def ensure_max_aimet_onnx_version(
-    expected_version: str, model_id: str | None = None
-) -> None:
-    ensure_aimet_onnx_installed(expected_version, model_id)
-    if version.Version(aimet_onnx.__version__) < version.Version(expected_version):
-        raise RuntimeError(
-            f"Installed AIMET-ONNX version not supported. Expected=<{expected_version}, got {aimet_onnx.__version__!s}\n"
-            f"Please run `pip install transformers=={expected_version}`"
-        )
+def aimet_quant_types(precision: Precision) -> tuple[Any, Any]:
+    """Return (param_quantize_type, activation_quantize_type) for the given precision."""
+    import aimet_onnx
+
+    _PARAM_MAP = {
+        Precision.w8a16: aimet_onnx.int8,
+        Precision.w8a8: aimet_onnx.int8,
+        Precision.w4a16: aimet_onnx.int4,
+    }
+    _ACT_MAP = {
+        Precision.w8a16: aimet_onnx.int16,
+        Precision.w8a8: aimet_onnx.int8,
+        Precision.w4a16: aimet_onnx.int16,
+    }
+    return _PARAM_MAP.get(precision, aimet_onnx.int8), _ACT_MAP.get(
+        precision, aimet_onnx.int8
+    )
 
 
 @contextmanager
@@ -137,13 +145,47 @@ class AIMETOnnxQuantizableMixin(PretrainedHubModelProtocol):
     def __init__(
         self,
         quant_sim: QuantSimOnnx | None,
+        onnx_bundle: ONNXBundle | None = None,
     ) -> None:
-        self.quant_sim = quant_sim
-        if self.quant_sim is not None:
-            self.input_names = [i.name for i in self.quant_sim.session.get_inputs()]
-            self.output_names = [
-                output.name for output in self.quant_sim.session.get_outputs()
-            ]
+        """
+        Parameters
+        ----------
+        quant_sim
+            AIMET QuantizationSimModel used for inference and calibration.
+            May be ``None`` if the subclass overrides :meth:`make_quant_sim`
+            for lazy construction on first access.
+        onnx_bundle
+            Optional on-disk ONNX bundle (model + encodings) from
+            ``onnx_from_pretrained``.  When set,
+            ``convert_to_onnx_and_aimet_encodings`` reuses these files
+            directly instead of calling ``quant_sim.export()``, which has
+            an aimet-onnx bug that produces an ONNX graph with 0 inputs.
+        """
+        self._quant_sim = quant_sim
+        self._onnx_bundle = onnx_bundle
+
+    @property
+    def quant_sim(self) -> QuantSimOnnx | None:
+        if self._quant_sim is None:
+            self._quant_sim = self.make_quant_sim()
+        return self._quant_sim
+
+    @quant_sim.setter
+    def quant_sim(self, value: QuantSimOnnx | None) -> None:
+        self._quant_sim = value
+
+    @quant_sim.deleter
+    def quant_sim(self) -> None:
+        self._quant_sim = None
+
+    def make_quant_sim(self) -> QuantSimOnnx | None:
+        """Override to enable lazy QuantSimOnnx construction.
+
+        Called on first access to ``self.quant_sim`` when ``_quant_sim``
+        is ``None``.  Default returns ``None`` (eager-only, same as
+        current behavior for models that pass ``quant_sim`` directly).
+        """
+        return None
 
     def convert_to_torchscript(
         self, input_spec: InputSpec | None = None, check_trace: bool = True
@@ -475,11 +517,20 @@ class AIMETOnnxQuantizableMixin(PretrainedHubModelProtocol):
             Path(output_dir) / f"{model_name}.aimet"
 
         and the existing directory is forcefully removed.
+
+        When an ``_onnx_bundle`` with encodings is available (set during
+        ``from_pretrained`` from a local or cached checkpoint), the bundle
+        files are used directly instead of calling ``quant_sim.export()``.
         """
         if model_name is None:
             model_name = self.__class__.__name__
 
         output_dir = Path(output_dir)
+
+        # If we already have on-disk ONNX + encodings (local checkpoint or
+        # S3 cache), use them directly instead of re-exporting via quant_sim.
+        if self._onnx_bundle and self._onnx_bundle.aimet_encodings_path:
+            return self._convert_from_bundle(output_dir, model_name, return_zip)
 
         if return_zip:
             # Ensure output_dir exists and define the zip path.
@@ -528,6 +579,39 @@ class AIMETOnnxQuantizableMixin(PretrainedHubModelProtocol):
         )
         assert self.quant_sim is not None
         self.quant_sim.export(str(export_dir), "model")
+        return str(export_dir)
+
+    def _convert_from_bundle(
+        self,
+        output_dir: Path,
+        model_name: str,
+        return_zip: bool,
+    ) -> str:
+        """Use pre-existing ONNXBundle files instead of quant_sim.export()."""
+        assert self._onnx_bundle is not None
+        os.makedirs(output_dir, exist_ok=True)
+
+        if return_zip:
+            zip_path = output_dir / f"{model_name}.aimet.zip"
+            base_dir = Path(f"{model_name}.aimet")
+            print(f"Exporting quantized {self.__class__.__name__} to {zip_path}")
+            zip_aimet_model(
+                str(zip_path),
+                base_dir,
+                str(self._onnx_bundle.onnx_graph_path),
+                str(self._onnx_bundle.aimet_encodings_path),
+                str(self._onnx_bundle.onnx_weights_path)
+                if self._onnx_bundle.onnx_weights_path
+                else "",
+            )
+            return str(zip_path)
+
+        export_dir = output_dir / f"{model_name}.aimet"
+        shutil.rmtree(export_dir, ignore_errors=True)
+        print(
+            f"Exporting quantized {self.__class__.__name__} to directory {export_dir}"
+        )
+        self._onnx_bundle.move(export_dir, "model", copy=True)
         return str(export_dir)
 
     def get_hub_quantize_options(

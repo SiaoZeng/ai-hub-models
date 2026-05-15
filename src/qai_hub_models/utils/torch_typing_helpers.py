@@ -15,10 +15,10 @@ class TypedModuleList(nn.ModuleList, Generic[T]):
     """Identical to nn.ModuleList with valid typings for indexing."""
 
     def __iter__(self) -> Iterator[T]:
-        return super().__iter__()  # type: ignore[return-value]
+        return super().__iter__()  # type: ignore[return-value,unused-ignore]
 
     def append(self, module: T) -> "TypedModuleList[T]":
-        return super().append(module)
+        return super().append(module)  # type: ignore[return-value,unused-ignore]
 
     @overload
     def __getitem__(self, idx: slice) -> "TypedModuleList[T]": ...

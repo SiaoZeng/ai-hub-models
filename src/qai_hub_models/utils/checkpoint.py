@@ -8,19 +8,20 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import warnings
 from enum import Enum, unique
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
-import onnx
 import torch
 from typing_extensions import Self
 
 from qai_hub_models.models.common import Precision
-from qai_hub_models.utils.asset_loaders import qaihm_temp_dir
+from qai_hub_models.utils.asset_loaders import LOCAL_STORE_DEFAULT_PATH
 from qai_hub_models.utils.input_spec import make_torch_inputs
 from qai_hub_models.utils.onnx.helpers import (
+    ONNXBundle,
     safe_torch_onnx_export,
 )
 
@@ -303,9 +304,10 @@ class FromPretrainedMixin:
         subfolder: str = "",
         host_device: torch.device | str = torch.device("cpu"),
         torch_to_onnx_options: dict | None = None,
-    ) -> tuple[onnx.ModelProto, str | None]:
+    ) -> ONNXBundle:
         """
-        Load the checkpoint into ONNX, possibly with AIMET encodings if the checkpoint is already quantized.
+        Load the checkpoint into an ONNXBundle, possibly with AIMET encodings
+        if the checkpoint is already quantized.
 
         Parameters
         ----------
@@ -328,10 +330,9 @@ class FromPretrainedMixin:
 
         Returns
         -------
-        onnx_model : onnx.ModelProto
-            The loaded ONNX model.
-        aimet_encodings_path : str | None
-            Path to AIMET encodings if available, otherwise None.
+        ONNXBundle
+            Bundle containing paths to the ONNX model and optional encodings/weights.
+            Use ``bundle.load_onnx_model()`` to obtain the ``onnx.ModelProto``.
         """
         subfolder_hf = subfolder or cls.default_subfolder_hf
         subfolder_local = subfolder or cls.default_subfolder
@@ -344,49 +345,42 @@ class FromPretrainedMixin:
             CheckpointType.DEFAULT,
             CheckpointType.AIMET_ONNX_EXPORT,
         )
-        aimet_encodings = None
 
         if is_quantized_src:
             if ckpt_type == CheckpointType.DEFAULT:
-                onnx_path, aimet_encodings = cls.get_calibrated_aimet_model()
-            else:
-                # AIMET-exported directory
-                subfolder_path = Path(checkpoint) / subfolder
-                onnx_path = str(subfolder_path / "model.onnx")
-                aimet_encodings = str(subfolder_path / "model.encodings")
-            onnx_model = onnx.load(onnx_path)
+                onnx_path, _ = cls.get_calibrated_aimet_model()
+                return ONNXBundle.from_bundle_path(Path(onnx_path).parent)
+            subfolder_path = Path(checkpoint) / subfolder_local
+            return ONNXBundle.from_bundle_path(subfolder_path)
 
-        else:
-            cp = checkpoint
-            # torch.nn.Module has no notion of DEFAULT_UNQUANTIZED
-            if ckpt_type == CheckpointType.DEFAULT_UNQUANTIZED:
-                cp = "DEFAULT"
-            fp_model = cls.torch_from_pretrained(
-                checkpoint=cp,
-                # Use subfolder_hf to fetch from HF repo
-                subfolder=subfolder_hf,
-                host_device=host_device,
-            )
+        cp = checkpoint
+        # torch.nn.Module has no notion of DEFAULT_UNQUANTIZED
+        if ckpt_type == CheckpointType.DEFAULT_UNQUANTIZED:
+            cp = "DEFAULT"
+        fp_model = cls.torch_from_pretrained(
+            checkpoint=cp,
+            subfolder=subfolder_hf,
+            host_device=host_device,
+        )
 
-            input_spec = cls.get_input_spec()  # type: ignore[attr-defined]
+        input_spec = cls.get_input_spec()  # type: ignore[attr-defined]
 
-            example_input = tuple(make_torch_inputs(input_spec))
-            example_input = tuple([t.to(host_device) for t in example_input])
+        example_input = tuple(make_torch_inputs(input_spec))
+        example_input = tuple([t.to(host_device) for t in example_input])
 
-            torch_to_onnx_options = torch_to_onnx_options or {}
-            with qaihm_temp_dir() as tmpdir:
-                out_onnx = os.path.join(tmpdir, "model.onnx")
-                safe_torch_onnx_export(
-                    fp_model,
-                    example_input,
-                    out_onnx,
-                    input_names=list(input_spec.keys()),
-                    output_names=cls.get_output_names(),  # type: ignore[attr-defined]
-                    **torch_to_onnx_options,
-                )
-                onnx_model = onnx.load(out_onnx)
-
-        return onnx_model, aimet_encodings
+        torch_to_onnx_options = torch_to_onnx_options or {}
+        tmp_base = Path(LOCAL_STORE_DEFAULT_PATH) / "tmp"
+        tmp_base.mkdir(parents=True, exist_ok=True)
+        tmpdir = tempfile.mkdtemp(dir=tmp_base)
+        safe_torch_onnx_export(
+            fp_model,
+            example_input,
+            os.path.join(tmpdir, "model.onnx"),
+            input_names=list(input_spec.keys()),
+            output_names=cls.get_output_names(),  # type: ignore[attr-defined]
+            **torch_to_onnx_options,
+        )
+        return ONNXBundle.from_bundle_path(tmpdir, ephemeral=True)
 
     @classmethod
     def from_pretrained(

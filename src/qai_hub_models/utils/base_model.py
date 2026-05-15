@@ -35,6 +35,7 @@ from qai_hub_models.models.protocols import (
     HubModelProtocol,
     PretrainedHubModelProtocol,
 )
+from qai_hub_models.utils.checkpoint import CheckpointSpec
 from qai_hub_models.utils.export_result import (
     ComponentGroup,
     MultiGraphComponentGroup,
@@ -1034,6 +1035,50 @@ class BasePrecompiledModel(HubModel, FromPrecompiledProtocol):
             metadata.supplementary_files will be populated with the files written by this function.
         """
         return
+
+
+def _get_from_pretrained_params(
+    model_cls: type[BaseModel],
+) -> dict[str, inspect.Parameter] | None:
+    """Return non-self params of from_pretrained, or None if it accepts **kwargs."""
+    sig = inspect.signature(model_cls.from_pretrained)
+    if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+        return None
+    return {
+        name: param
+        for name, param in sig.parameters.items()
+        if name not in {"self", "cls"}
+        and param.kind
+        not in [inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD]
+    }
+
+
+class IndependentComponentFromPretrainedMixin:
+    """Mixin that builds a collection by calling each component's from_pretrained independently."""
+
+    component_classes: dict[str, type[BaseModel]]
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        checkpoint: CheckpointSpec = "DEFAULT",
+        host_device: torch.device | str = torch.device("cpu"),
+        **kwargs: Any,
+    ) -> Self:
+        base_kwargs: dict[str, Any] = {
+            "checkpoint": checkpoint,
+            "host_device": host_device,
+            **kwargs,
+        }
+        components = []
+        for component_cls in cls.component_classes.values():
+            accepted = _get_from_pretrained_params(component_cls)
+            if accepted is None:
+                supported = base_kwargs
+            else:
+                supported = {k: v for k, v in base_kwargs.items() if k in accepted}
+            components.append(component_cls.from_pretrained(**supported))
+        return cls(*components)
 
 
 class PretrainedCollectionModel(CollectionModel[BaseModel], FromPretrainedProtocol):

@@ -677,4 +677,5 @@ DEFAULT_EXPORT_DEVICE = (
 CANARY_DEVICES = {
     DEFAULT_EXPORT_DEVICE,
     "Snapdragon X Elite CRD",
+    "Dragonwing IQ-9075 EVK",
 }

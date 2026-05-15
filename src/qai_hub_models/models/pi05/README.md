@@ -17,6 +17,24 @@ Install the package via pip:
 # NOTE: 3.10 <= PYTHON_VERSION < 3.14 is supported.
 pip install "qai-hub-models[pi05]"
 ```
+For pi05, some additional functionality can be faster or is available
+only with a GPU on the host machine.
+
+- 🟢 Exporting the model for on-device deployment (GPU not required)
+- 🟡 Running the demo (GPU recommended for speed, but not required)
+- 🟡 Running evaluation (GPU recommended for speed, but not required)
+- 🔴 Quantizing the model (GPU required)
+
+If you are quantizing your own variant of pi05, a dedicated CUDA enabled
+GPU (40 GB VRAM for 3B models to 80 GB VRAM for 8B models) is recommended. A GPU
+can also increase the speed of evaluation and demo of your quantized model
+significantly but it not strictly required.
+
+Install the GPU package via pip:
+```bash
+# NOTE: 3.10 <= PYTHON_VERSION < 3.14 is supported.
+pip install "qai-hub-models[pi05]" onnxruntime-gpu==1.23.2 https://github.com/quic/aimet/releases/download/2.26.0/aimet_onnx-2.26.0+cu121-cp310-cp310-manylinux_2_34_x86_64.whl -f https://download.pytorch.org/whl/torch_stable.html
+```
 
 ### 2. Configure Qualcomm® AI Hub Workbench
 Sign-in to [Qualcomm® AI Hub Workbench](https://workbench.aihub.qualcomm.com/) with your
@@ -44,7 +62,7 @@ models](../../../#getting-started) for more usage instructions.
 To run the model on Qualcomm® devices, you must export the model for use with an edge runtime such as
 TensorFlow Lite, ONNX Runtime, or Qualcomm AI Engine Direct. Use the following command to export the model:
 ```bash
-python -m qai_hub_models.models.pi05.export --device "Samsung Galaxy S25 (Family)"
+python -m qai_hub_models.models.pi05.export --device "Dragonwing IQ-9075 EVK"
 ```
 Additional options are documented with the `--help` option.
 

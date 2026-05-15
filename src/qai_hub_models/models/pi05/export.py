@@ -76,7 +76,7 @@ def compile_model(
 
         model_compile_options = component.get_hub_compile_options(
             target_runtime,
-            Precision.float,
+            Precision.mixed,
             extra_options,
             device,
             f"{MODEL_ID}_{component_name.lower()}",
@@ -250,7 +250,7 @@ def download_model(
 def export_model(
     device: hub.Device,
     components: list[str] | None = None,
-    precision: Precision = Precision.float,
+    precision: Precision = Precision.mixed,
     skip_profiling: bool = False,
     skip_inferencing: bool = False,
     skip_downloading: bool = False,
@@ -328,7 +328,7 @@ def export_model(
 
     output_path = Path(output_dir or Path.cwd() / "export_assets")
     assert precision in [
-        Precision.float,
+        Precision.mixed,
     ], f"Precision {precision!s} is not supported by {model_name}"
     component_arg = components
     components = components or Model.component_class_names
@@ -508,7 +508,7 @@ def main() -> None:
     if not check_unpublished_model_warning():
         return
     supported_precision_runtimes: dict[Precision, list[TargetRuntime]] = {
-        Precision.float: [
+        Precision.mixed: [
             TargetRuntime.QNN_CONTEXT_BINARY,
             TargetRuntime.PRECOMPILED_QNN_ONNX,
         ],
@@ -518,7 +518,7 @@ def main() -> None:
         model_cls=Model,
         export_fn=export_model,
         supported_precision_runtimes=supported_precision_runtimes,
-        default_export_device="Samsung Galaxy S25 (Family)",
+        default_export_device="Dragonwing IQ-9075 EVK",
     )
     args = parser.parse_args()
     export_model(**vars(args))

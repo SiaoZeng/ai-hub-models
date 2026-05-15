@@ -83,6 +83,9 @@ allow-dict-calls-with-keyword-arguments = true
 [lint.flake8-bugbear]
 extend-immutable-calls = ["torch.device", "os.path.join"]
 
+[lint.isort]
+known-third-party = ["aimet_onnx", "aimet_common"]
+
 [lint.pyupgrade]
 keep-runtime-typing = true
 

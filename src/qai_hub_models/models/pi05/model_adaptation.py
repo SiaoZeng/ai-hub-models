@@ -2,9 +2,15 @@
 # Copyright (c) 2025 Qualcomm Technologies, Inc. and/or its subsidiaries.
 # SPDX-License-Identifier: BSD-3-Clause
 # ---------------------------------------------------------------------
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import torch
 from torch import nn
-from transformers.models.gemma.modeling_gemma import GemmaMLP
+
+if TYPE_CHECKING:
+    from transformers.models.gemma.modeling_gemma import GemmaMLP
 
 
 def apply_rope_direct(
@@ -36,11 +42,167 @@ def apply_rope_direct(
     return torch.cat([part1, part2], dim=-1)
 
 
-def adapt_model() -> None:
+class SHAGemmaExpertAttention(torch.nn.Module):
     """
-    Entry method to apply all necessary adaptations for on-device
-    deployment.
+    Split-head attention replacement for GemmaAttention in expert layers.
+
+    Replaces multi-head Q/K/V projections with per-head nn.Linear modules
+    and computes attention one head at a time, reducing peak memory for
+    on-device deployment.
     """
+
+    def __init__(
+        self,
+        attn_module: torch.nn.Module,
+        num_att_heads: int,
+        num_kv_heads: int,
+        head_dim: int,
+    ) -> None:
+        super().__init__()
+        self.num_att_heads = num_att_heads
+        self.num_kv_heads = num_kv_heads
+        self.head_dim = head_dim
+        self.num_kv_groups = num_att_heads // num_kv_heads
+
+        q_proj = attn_module.q_proj
+        k_proj = attn_module.k_proj
+        v_proj = attn_module.v_proj
+        assert isinstance(q_proj, nn.Linear)
+        assert isinstance(k_proj, nn.Linear)
+        assert isinstance(v_proj, nn.Linear)
+        # Derive hidden_size from actual weights (expert hidden dim may
+        # differ from num_att_heads * head_dim).
+        hidden_size = q_proj.in_features
+        device = q_proj.weight.device
+        dtype = q_proj.weight.dtype
+
+        # Per-head Q projections
+        self.q_proj_sha = nn.ModuleList(
+            [
+                nn.Linear(hidden_size, head_dim, bias=False, device=device, dtype=dtype)
+                for _ in range(num_att_heads)
+            ]
+        )
+        # Per-KV-head K/V projections
+        self.k_proj_sha = nn.ModuleList(
+            [
+                nn.Linear(hidden_size, head_dim, bias=False, device=device, dtype=dtype)
+                for _ in range(num_kv_heads)
+            ]
+        )
+        self.v_proj_sha = nn.ModuleList(
+            [
+                nn.Linear(hidden_size, head_dim, bias=False, device=device, dtype=dtype)
+                for _ in range(num_kv_heads)
+            ]
+        )
+
+        # Keep o_proj as single projection
+        o_proj = attn_module.o_proj
+        assert isinstance(o_proj, nn.Linear)
+        self.o_proj: nn.Linear = o_proj
+
+        # Copy weight slices from original projections
+        with torch.no_grad():
+            for i in range(num_att_heads):
+                q_sha = self.q_proj_sha[i]
+                assert isinstance(q_sha, nn.Linear)
+                q_sha.weight.copy_(q_proj.weight[i * head_dim : (i + 1) * head_dim])
+            for i in range(num_kv_heads):
+                k_sha = self.k_proj_sha[i]
+                v_sha = self.v_proj_sha[i]
+                assert isinstance(k_sha, nn.Linear)
+                assert isinstance(v_sha, nn.Linear)
+                k_sha.weight.copy_(k_proj.weight[i * head_dim : (i + 1) * head_dim])
+                v_sha.weight.copy_(v_proj.weight[i * head_dim : (i + 1) * head_dim])
+
+    def forward(
+        self,
+        normed: torch.Tensor,
+        rope_emb_sin: torch.Tensor,
+        rope_emb_cos: torch.Tensor,
+        k_cache: torch.Tensor,
+        v_cache: torch.Tensor,
+        full_att_4d: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute split-head attention for all heads.
+
+        Parameters
+        ----------
+        normed
+            [B, Ls, D] layer-normed hidden states.
+        rope_emb_sin
+            [B, Ls, 1, D/2] RoPE sine embeddings for suffix.
+        rope_emb_cos
+            [B, Ls, 1, D/2] RoPE cosine embeddings for suffix.
+        k_cache
+            [B, Lp, H_kv, D] prefix key cache (already RoPE-applied).
+        v_cache
+            [B, Lp, H_kv, D] prefix value cache.
+        full_att_4d
+            [B, 1, Ls, Lp+Ls] additive mask (0 allowed, -1e4 blocked).
+
+        Returns
+        -------
+        output : torch.Tensor
+            [B, Ls, hidden_size] attention output after o_proj.
+        """
+        bsize, suffix_len, _ = normed.shape
+
+        # Per-head Q projections: each [B, Ls, 1, head_dim]
+        q_list = [q(normed).unsqueeze(2) for q in self.q_proj_sha]
+
+        # Per-KV-head K/V projections: each [B, Ls, 1, head_dim]
+        k_list = [k(normed).unsqueeze(2) for k in self.k_proj_sha]
+        v_list = [v(normed).unsqueeze(2) for v in self.v_proj_sha]
+
+        # Apply RoPE per-head (H=1) to avoid materializing the full multi-head
+        # tensor, which exceeds on-device memory at inference time.
+        q_list = [apply_rope_direct(q, rope_emb_sin, rope_emb_cos) for q in q_list]
+        k_list = [apply_rope_direct(k, rope_emb_sin, rope_emb_cos) for k in k_list]
+
+        # Split prefix KV cache per KV head and concat with suffix
+        k_full = [
+            torch.cat([k_cache[:, :, i : i + 1, :], k_list[i]], dim=1)
+            for i in range(self.num_kv_heads)
+        ]
+        v_full = [
+            torch.cat([v_cache[:, :, i : i + 1, :], v_list[i]], dim=1)
+            for i in range(self.num_kv_heads)
+        ]
+
+        # GQA expansion: repeat each KV head for its group of Q heads
+        k_full = [k for k in k_full for _ in range(self.num_kv_groups)]
+        v_full = [v for v in v_full for _ in range(self.num_kv_groups)]
+
+        # Per-head attention
+        scale = self.head_dim**-0.5
+        att_outputs: list[torch.Tensor] = []
+        for q, k, v in zip(q_list, k_full, v_full, strict=False):
+            # q: [B, Ls, 1, D] -> [B, 1, Ls, D]
+            q_mat = q.to(torch.float32).transpose(1, 2)
+            # k: [B, Lt, 1, D] -> [B, 1, Lt, D]
+            k_mat = k.to(torch.float32).transpose(1, 2)
+
+            att = torch.matmul(q_mat, k_mat.transpose(2, 3))
+            att *= scale
+            att = att + full_att_4d.to(att.dtype)
+            probs = torch.nn.functional.softmax(att, dim=-1)
+
+            # v: [B, Lt, 1, D] -> [B, 1, Lt, D]
+            v_mat = v.permute(0, 2, 1, 3)
+            out = torch.matmul(probs.to(v_mat.dtype), v_mat)  # [B, 1, Ls, D]
+            att_outputs.append(out)
+
+        # Concat heads: list of [B, 1, Ls, D] -> [B, H, Ls, D]
+        att_output = torch.cat(att_outputs, dim=1)
+        att_output = att_output.permute(0, 2, 1, 3)  # [B, Ls, H, D]
+        att_output = att_output.reshape(
+            bsize, suffix_len, self.num_att_heads * self.head_dim
+        )
+
+        return self.o_proj(att_output)
 
 
 class GemmaMLPSplitLinear(torch.nn.Module):

@@ -15,3 +15,4 @@ extend = "../ruff.toml"
 
 [lint.isort]
 known-first-party = ["qai_hub_models"]
+known-third-party = ["aimet_onnx", "aimet_common"]

@@ -15,10 +15,10 @@ import qai_hub as hub
 import torch
 from qai_hub.client import SourceModel
 
-import qai_hub_models.models.llama_v3_2_1b_instruct2 as _model_module
+import qai_hub_models.models.pi05 as _model_module
 from qai_hub_models.models.common import Precision, TargetRuntime
-from qai_hub_models.models.llama_v3_2_1b_instruct2 import MODEL_ID, Model
-from qai_hub_models.models.llama_v3_2_1b_instruct2.export import (
+from qai_hub_models.models.pi05 import MODEL_ID, Model
+from qai_hub_models.models.pi05.export import (
     compile_model,
     export_model,
     inference_model,
@@ -61,11 +61,9 @@ from qai_hub_models.utils.validation import perform_runtime_model_validation
 #   Certain supported pairs may be excluded from this list if they are not enabled for testing.
 #   For example, models that allow JIT (on-device) compile will not test AOT runtimes; we assume that if it works on JIT it will work on AOT.
 ENABLED_PRECISION_RUNTIMES: dict[Precision, list[TargetRuntime]] = {
-    Precision.w4: [
-        TargetRuntime.GENIE,
-    ],
-    Precision.w4a16: [
-        TargetRuntime.GENIE,
+    Precision.mixed: [
+        TargetRuntime.QNN_CONTEXT_BINARY,
+        TargetRuntime.PRECOMPILED_QNN_ONNX,
     ],
 }
 
@@ -75,16 +73,14 @@ ENABLED_PRECISION_RUNTIMES: dict[Precision, list[TargetRuntime]] = {
 #   Certain supported pairs may be excluded from this list if they are not enabled for testing.
 #   For example, models that allow JIT (on-device) compile will not test AOT runtimes; we assume that if it works on JIT it will work on AOT.
 PASSING_PRECISION_RUNTIMES: dict[Precision, list[TargetRuntime]] = {
-    Precision.w4: [
-        TargetRuntime.GENIE,
-    ],
-    Precision.w4a16: [
-        TargetRuntime.GENIE,
+    Precision.mixed: [
+        TargetRuntime.QNN_CONTEXT_BINARY,
+        TargetRuntime.PRECOMPILED_QNN_ONNX,
     ],
 }
 
 
-EVAL_DEVICE = ScorecardDevice.get("Samsung Galaxy S25 (Family)")
+EVAL_DEVICE = ScorecardDevice.get("Dragonwing IQ-9075 EVK")
 HAS_EVAL_DATASET = len(Model.eval_datasets()) > 0
 
 
@@ -117,7 +113,7 @@ def test_compile(
         compile_via_export(
             compile_model,
             MODEL_ID,
-            Model.from_pretrained(checkpoint=f"DEFAULT_{str(precision).upper()}"),
+            Model.from_pretrained(),
             precision,
             scorecard_path,
             device,
@@ -146,7 +142,7 @@ def test_link(
         link_via_export(
             link_model,
             MODEL_ID,
-            Model.from_pretrained(checkpoint=f"DEFAULT_{str(precision).upper()}"),
+            Model.from_pretrained(),
             precision,
             scorecard_path,
             device,
@@ -174,7 +170,7 @@ def test_profile(
         profile_via_export(
             profile_model,
             MODEL_ID,
-            Model.from_pretrained(checkpoint=f"DEFAULT_{str(precision).upper()}"),
+            Model.from_pretrained(),
             precision,
             scorecard_path,
             device,
@@ -213,7 +209,7 @@ def test_inference(
             inference_via_export(
                 inference_model,
                 MODEL_ID,
-                Model.from_pretrained(checkpoint=f"DEFAULT_{str(precision).upper()}"),
+                Model.from_pretrained(),
                 precision,
                 scorecard_path,
                 device,
@@ -278,7 +274,7 @@ def test_val_accuracy(
         accuracy_on_sample_inputs_via_export(
             export_model,
             MODEL_ID,
-            Model.from_pretrained(checkpoint=f"DEFAULT_{str(precision).upper()}"),
+            Model.from_pretrained(),
             precision,
             scorecard_path,
             device,

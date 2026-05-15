@@ -8,28 +8,49 @@ from __future__ import annotations
 import math
 from functools import lru_cache
 from pathlib import Path
+from typing import Any, cast
 
+import numpy as np
+import onnxruntime
 import torch
+from aimet_onnx.common.defs import QuantScheme
+from aimet_onnx.quantsim import QuantizationSimModel as QuantSimOnnx
 from lerobot.policies.pi05.configuration_pi05 import PI05Config
 from lerobot.policies.pi05.modeling_pi05 import (
     PaliGemmaWithExpertModel,
     PI05Policy,
     PI05Pytorch,
 )
+from onnxsim import simplify
 from qai_hub.client import Device
 from transformers.models.gemma.modeling_gemma import GemmaDecoderLayer, GemmaMLP
+from typing_extensions import Self
 
+from qai_hub_models.models._shared.llm._utils import (
+    _set_matmul_second_input_to_8b,
+    _set_tensors_to_output_8b_sym,
+)
+from qai_hub_models.models.common import Precision
 from qai_hub_models.models.pi05.model_adaptation import (
     GemmaMLPSplitLinear,
+    SHAGemmaExpertAttention,
     apply_rope_direct,
 )
+from qai_hub_models.utils.aimet.aimet_dummy_model import zip_aimet_model
+from qai_hub_models.utils.aimet.config_loader import get_aimet_config_path
+from qai_hub_models.utils.aimet.encodings import apply_propagate_memory_encodings
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,
+    IndependentComponentFromPretrainedMixin,
     PretrainedCollectionModel,
     TargetRuntime,
 )
-from qai_hub_models.utils.checkpoint import CheckpointSpec, FromPretrainedMixin
+from qai_hub_models.utils.checkpoint import (
+    CheckpointSpec,
+    CheckpointType,
+    FromPretrainedMixin,
+)
 from qai_hub_models.utils.input_spec import (
     ColorFormat,
     ImageMetadata,
@@ -38,13 +59,19 @@ from qai_hub_models.utils.input_spec import (
     TensorSpec,
     make_torch_inputs,
 )
+from qai_hub_models.utils.onnx.helpers import ONNXBundle, mock_torch_onnx_inference
 from qai_hub_models.utils.qai_hub_helpers import (
     ensure_hexagon_version,
     export_torch_to_onnx_zip,
 )
+from qai_hub_models.utils.quantization_aimet_onnx import (
+    AIMETOnnxQuantizableMixin,
+    aimet_quant_types,
+)
 
 MODEL_ID = __name__.split(".")[-2]
-MODEL_ASSET_VERSION = 1
+MODEL_ASSET_VERSION = 2
+_PI05_AIMET_CONFIG = str(Path(__file__).parent / "aimet_config.json")
 
 MAX_TOKEN_LENGTH = 200  # 48 for pi0, 200 for pi05
 NUM_ACTION_STEPS = 50
@@ -57,7 +84,9 @@ DEFAULT_CHECKPOINT = "lerobot/pi05_libero_finetuned"
 
 @lru_cache(maxsize=1)  # Cache only the most recent checkpoint
 def load_checkpoint(checkpoint: CheckpointSpec) -> PI05Policy:
-    if checkpoint == "DEFAULT":
+    if checkpoint == "DEFAULT" or Path(str(checkpoint)).is_dir():
+        # Local directories are AIMET quantization checkpoints, not
+        # LeRobot models.  Always load the base policy from HuggingFace.
         checkpoint = DEFAULT_CHECKPOINT
     # Use str to be hashable.
     print(f"Loading checkpoint: {checkpoint}")
@@ -129,7 +158,7 @@ class LoadPolicyMixin(FromPretrainedMixin):
         host_device: torch.device | str = torch.device("cpu"),
         adapt_torch_model_options: dict | None = None,
     ) -> PI05Policy:
-        return load_checkpoint(str(checkpoint))
+        return load_checkpoint(str(checkpoint)).to(host_device)
 
     def convert_to_hub_source_model(
         self,
@@ -157,10 +186,10 @@ class LoadPolicyMixin(FromPretrainedMixin):
         self, target_runtime: TargetRuntime, device: Device
     ) -> None | str:
         return ensure_hexagon_version(
-            min_version=79,
+            min_version=73,
             target_runtime=target_runtime,
             device=device,
-            model_name="Pi0",
+            model_name="Pi05",
         )
 
 
@@ -219,6 +248,153 @@ class Pi05PaliGemmaVision(LoadPolicyMixin, BaseModel):
         return ["img_embed"]
 
 
+class _Pi05CachedExportMixin:
+    """Mixin that overrides convert_to_hub_source_model to route through
+    BaseModel's version (which dispatches via prepare_compile_zoo_model_to_hub)
+    instead of LoadPolicyMixin's version (which tries to trace the model
+    directly).
+
+    Also propagates AIMET encodings through memory ops (Transpose, Reshape,
+    etc.) during export, mirroring what LLM models do in _adapt_aimet_encodings.
+    This ensures ops like Transpose that have is_output_quantized=False still
+    carry encodings through to downstream consumers (e.g. MatMul on HTP).
+    """
+
+    def convert_to_hub_source_model(
+        self,
+        target_runtime: TargetRuntime,
+        output_path: str | Path,
+        input_spec: InputSpec | None = None,
+        check_trace: bool = True,
+        external_onnx_weights: bool = False,
+        output_names: list[str] | None = None,
+    ) -> str | None:
+        return BaseModel.convert_to_hub_source_model(
+            self,  # type: ignore[arg-type]
+            target_runtime,
+            output_path,
+            input_spec,
+            check_trace,
+            external_onnx_weights,
+            output_names,
+        )
+
+    def convert_to_onnx_and_aimet_encodings(
+        self,
+        output_dir: str | Path,
+        model_name: str | None = None,
+        return_zip: bool = True,
+    ) -> str:
+        result = super().convert_to_onnx_and_aimet_encodings(  # type: ignore[misc]
+            output_dir, model_name, return_zip=False
+        )
+        export_dir = Path(result)
+        bundle = ONNXBundle.from_bundle_path(export_dir)
+        apply_propagate_memory_encodings(bundle)
+        if return_zip:
+            model_name = model_name or self.__class__.__name__
+            zip_path = Path(output_dir) / f"{model_name}.aimet.zip"
+            base_dir = Path(f"{model_name}.aimet")
+            data_path = bundle.onnx_weights_path
+            zip_aimet_model(
+                str(zip_path),
+                base_dir,
+                str(bundle.onnx_graph_path),
+                str(bundle.aimet_encodings_path),
+                str(data_path) if data_path else "",
+            )
+            return str(zip_path)
+        return result
+
+    def save_calibrated_checkpoint(self, output_checkpoint: str) -> None:
+        super().save_calibrated_checkpoint(output_checkpoint)  # type: ignore[misc]
+        default_subfolder = getattr(self.__class__, "default_subfolder", "")
+        export_dir = Path(output_checkpoint)
+        if default_subfolder:
+            export_dir = export_dir / default_subfolder
+        apply_propagate_memory_encodings(ONNXBundle.from_bundle_path(export_dir))
+
+
+class Pi05PaliGemmaVisionQuantizable(  # type: ignore[misc]
+    _Pi05CachedExportMixin, AIMETOnnxQuantizableMixin, Pi05PaliGemmaVision
+):
+    """Exportable PaliGemma Vision encoder that can be quantized by AIMET-ONNX."""
+
+    model_id = MODEL_ID
+    model_asset_version = MODEL_ASSET_VERSION
+    default_subfolder = "vision_encoder"
+
+    def __init__(
+        self,
+        sim_model: QuantSimOnnx | None,
+        host_device: torch.device = torch.device("cpu"),
+        onnx_bundle: ONNXBundle | None = None,
+        precision: Precision = Precision.w8a16,
+    ) -> None:
+        AIMETOnnxQuantizableMixin.__init__(self, sim_model, onnx_bundle=onnx_bundle)
+        BaseModel.__init__(self, None)
+        self.host_device = host_device
+        self._precision = precision
+
+    def make_quant_sim(self) -> QuantSimOnnx | None:
+        if self._onnx_bundle is None:
+            return None
+        param_type, act_type = aimet_quant_types(self._precision)
+
+        onnx_model = self._onnx_bundle.load_onnx_model()
+        onnx_model, _ = simplify(onnx_model, skipped_optimizers=["fuse_qkv"])
+
+        return QuantSimOnnx(
+            model=onnx_model,
+            quant_scheme=QuantScheme.min_max,
+            param_type=param_type,
+            activation_type=act_type,
+            config_file=get_aimet_config_path("default_config"),
+            providers=AIMETOnnxQuantizableMixin.get_ort_providers(self.host_device),
+        )
+
+    @classmethod
+    def torch_from_pretrained(
+        cls,
+        checkpoint: CheckpointSpec = "DEFAULT",
+        subfolder: str = "",
+        host_device: torch.device | str = torch.device("cpu"),
+        adapt_torch_model_options: dict | None = None,
+    ) -> torch.nn.Module:
+        policy = load_checkpoint(str(checkpoint))
+        return Pi05PaliGemmaVision(policy).to(host_device).eval()
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        checkpoint: CheckpointSpec = "DEFAULT",
+        subfolder: str = "",
+        host_device: torch.device | str = torch.device("cpu"),
+        precision: Precision = Precision.w8a16,
+        torch_from_pretrained_kwargs: dict[str, Any] | None = None,
+        cls_kwargs: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> Self:
+        host_device = torch.device(host_device)
+        subfolder = subfolder or cls.default_subfolder
+        bundle = cls.onnx_from_pretrained(
+            checkpoint=checkpoint,
+            subfolder=subfolder,
+            host_device=host_device,
+            torch_to_onnx_options={"opset_version": 20},
+        )
+        return cls(
+            None, host_device=host_device, onnx_bundle=bundle, precision=precision
+        )
+
+    def forward(self, image: torch.Tensor) -> torch.Tensor:
+        return cast(torch.Tensor, AIMETOnnxQuantizableMixin.forward(self, image))
+
+    @staticmethod
+    def component_precision() -> Precision:
+        return Precision.w8a16
+
+
 class Pi05PaliGemmaTokenEmbed(LoadPolicyMixin, BaseModel):
     """
     Token embeding step. Separate it out because it has large embedding /
@@ -246,6 +422,10 @@ class Pi05PaliGemmaTokenEmbed(LoadPolicyMixin, BaseModel):
         attention logits as:
           masked = attn + full_attn_4d
     """
+
+    @staticmethod
+    def component_precision() -> Precision:
+        return Precision.float
 
     def __init__(self, model: PI05Policy) -> None:
         assert isinstance(model, PI05Policy)
@@ -332,6 +512,10 @@ class Pi05PaliGemmaTokenEmbed(LoadPolicyMixin, BaseModel):
         lang_mask_f = lang_mask.to(dtype=torch.float32)
 
         # Collect up to NUM_CAMERAS image streams; pad missing with zeros.
+        # Ensure img_embeds are on the same device as lang_emb (quantsim
+        # returns CPU tensors from ONNX Runtime).
+        img_embeds = tuple(e.to(lang_emb.device) for e in img_embeds)
+
         if len(img_embeds) == 0:
             raise ValueError("At least one image embedding is required.")
         if len(img_embeds) > NUM_CAMERAS:
@@ -453,6 +637,20 @@ class Pi05PaliGemmaTokenEmbed(LoadPolicyMixin, BaseModel):
 
         return spec
 
+    def _sample_inputs_impl(
+        self, input_spec: InputSpec | None = None, **kwargs: Any
+    ) -> dict[str, list[Any]]:
+        if not input_spec:
+            input_spec = self.get_input_spec()
+        inputs = make_torch_inputs(input_spec)
+        result: dict[str, list[Any]] = {}
+        for i, name in enumerate(input_spec.keys()):
+            arr = inputs[i].numpy()
+            if name == "lang_mask":
+                arr = np.ones_like(arr)
+            result[name] = [arr]
+        return result
+
     @staticmethod
     def get_output_names() -> list[str]:
         return [
@@ -538,6 +736,19 @@ class Pi05ActionExpert(LoadPolicyMixin, BaseModel):
                 cached.to(torch.float32),
                 persistent=False,
             )
+
+            # Replace multi-head attention with split-head attention
+            # in each expert layer for better on-device performance.
+            pg_we = flow_model.paligemma_with_expert
+            assert isinstance(pg_we, PaliGemmaWithExpertModel)
+            pal_cfg = pg_we.paligemma.config.text_config
+            for layer in pg_we.gemma_expert.model.layers:
+                layer.self_attn = SHAGemmaExpertAttention(
+                    layer.self_attn,
+                    pal_cfg.num_attention_heads,
+                    pal_cfg.num_key_value_heads,
+                    pal_cfg.head_dim,
+                )
 
         self.num_integration_steps = int(num_integration_steps)
 
@@ -669,11 +880,6 @@ class Pi05ActionExpert(LoadPolicyMixin, BaseModel):
         pg_we = flow.paligemma_with_expert
         assert isinstance(pg_we, PaliGemmaWithExpertModel)
         gemma_layers = pg_we.gemma_expert.model.layers
-        pal_cfg = pg_we.paligemma.config.text_config
-
-        num_att_heads = pal_cfg.num_attention_heads
-        num_kv_heads = pal_cfg.num_key_value_heads
-        head_dim = pal_cfg.head_dim
 
         # Build suffix embeddings. Masks are not needed because the caller
         # supplies full_att_4d that already encodes allowed attention.
@@ -685,79 +891,23 @@ class Pi05ActionExpert(LoadPolicyMixin, BaseModel):
         full_att_4d = full_att_4d.to(device)
 
         suffix_embs = flow.action_in_proj(x_t)
-        bsize = suffix_embs.shape[0]
-        suffix_len = suffix_embs.shape[1]
 
-        # Iterate expert layers, attending over prefix K/V + suffix K/V.
+        # Iterate expert layers with split-head attention.
         hidden_suffix = suffix_embs.to(torch.float32)
-        key: torch.Tensor
-        val: torch.Tensor
 
         for layer_idx, layer in enumerate(gemma_layers):
-            # Suffix stream projections (Q/K/V).
-            # Use adaptive RMSNorm with adarms_cond if available.
             normed, gate = layer.input_layernorm(hidden_suffix, adarms_cond)
-            in_shape = normed.shape[:-1]
-            hid_shape = (*in_shape, -1, head_dim)
 
-            q_state = layer.self_attn.q_proj(normed).view(hid_shape)
-            k_state = layer.self_attn.k_proj(normed).view(hid_shape)
-            v_state = layer.self_attn.v_proj(normed).view(hid_shape)
-
-            # Apply RoPE to suffix Q/K using provided sin/cos (suffix only).
-            q_state = apply_rope_direct(q_state, rope_emb_sin, rope_emb_cos)
-            k_state = apply_rope_direct(k_state, rope_emb_sin, rope_emb_cos)
-
-            # Concatenate prefix cache (already RoPE-applied) with suffix.
-            key = torch.cat([k_caches[layer_idx].to(device), k_state], dim=1)
-            val = torch.cat([v_caches[layer_idx].to(device), v_state], dim=1)
-
-            # Expand K/V heads to attention heads.
-            groups = num_att_heads // num_kv_heads
-            key_exp = (
-                key[:, :, :, None, :]
-                .expand(
-                    bsize,
-                    key.shape[1],
-                    num_kv_heads,
-                    groups,
-                    head_dim,
-                )
-                .reshape(bsize, key.shape[1], num_kv_heads * groups, head_dim)
-            )
-            val_exp = (
-                val[:, :, :, None, :]
-                .expand(
-                    bsize,
-                    val.shape[1],
-                    num_kv_heads,
-                    groups,
-                    head_dim,
-                )
-                .reshape(bsize, val.shape[1], num_kv_heads * groups, head_dim)
+            # Split-head attention via SHAGemmaExpertAttention.
+            out_emb = layer.self_attn(
+                normed,
+                rope_emb_sin,
+                rope_emb_cos,
+                k_caches[layer_idx].to(device),
+                v_caches[layer_idx].to(device),
+                full_att_4d,
             )
 
-            # Eager attention in float32.
-            q_mat = q_state.to(torch.float32).transpose(1, 2)  # [B,H,Ls,D]
-            k_mat = key_exp.to(torch.float32).transpose(1, 2)  # [B,H,Lt,D]
-
-            att_weights = torch.matmul(q_mat, k_mat.transpose(2, 3))
-            att_weights *= head_dim**-0.5
-
-            # Additive masking: 0 for allowed, -1e4 for blocked.
-            masked = att_weights + full_att_4d.to(att_weights.dtype)
-
-            probs = torch.nn.functional.softmax(masked, dim=-1)
-            probs = probs.to(val_exp.dtype)
-
-            # [B,H,Ls,Lt] x [B,Lt,H,D] -> [B,H,Ls,D]
-            att_output = torch.matmul(probs, val_exp.permute(0, 2, 1, 3))
-            att_output = att_output.permute(0, 2, 1, 3)  # [B,Ls,H,D]
-            att_output = att_output.reshape(bsize, suffix_len, num_att_heads, head_dim)
-            att_output = att_output.reshape(bsize, suffix_len, num_att_heads * head_dim)
-
-            # Project back and gated residual path for suffix stream.
-            out_emb = layer.self_attn.o_proj(att_output)
             if gate is None:
                 out_emb = out_emb + hidden_suffix
             else:
@@ -1139,6 +1289,7 @@ class Pi05PaliGemmaBackboneBase(LoadPolicyMixin, BaseModel):
 
         # Replace large MLPs with chunked versions to limit per-linear
         # dims to max_mlp_dim (e.g., split 16384 into 4096 chunks).
+
         for lyr in self.target_layers:
             if isinstance(lyr.mlp, GemmaMLP):
                 lyr.mlp = GemmaMLPSplitLinear(lyr.mlp, max_mlp_dim=max_mlp_dim)
@@ -1180,7 +1331,6 @@ class Pi05PaliGemmaBackboneBase(LoadPolicyMixin, BaseModel):
         else:
             att_mask_2d = prefix_att_2d_masks
         # att_mask_2d: [B, L, L], additive (0 allowed, -1e4 blocked)
-
         for layer in self.target_layers:
             assert isinstance(layer, GemmaDecoderLayer)
             # Input norm
@@ -1285,7 +1435,7 @@ class Pi05PaliGemmaBackboneBase(LoadPolicyMixin, BaseModel):
                 io_type=IoType.TENSOR,
             ),
             prefix_att_2d_masks=TensorSpec(
-                shape=(batch_size, src_len, src_len),
+                shape=(batch_size, 1, src_len, src_len),
                 dtype="float32",
                 io_type=IoType.TENSOR,
             ),
@@ -1317,26 +1467,377 @@ class Pi05PaliGemmaBackboneBase(LoadPolicyMixin, BaseModel):
         return names
 
 
-class Pi05PaliGemmaBackboneLayer0_6(Pi05PaliGemmaBackboneBase):
+class Pi05PaliGemmaBackbone(Pi05PaliGemmaBackboneBase):
     def __init__(self, policy: PI05Policy) -> None:
-        super().__init__(policy, layer_range=(0, 6))
+        super().__init__(policy, layer_range=(0, 18), return_hidden_state=False)
 
 
-class Pi05PaliGemmaBackboneLayer6_12(Pi05PaliGemmaBackboneBase):
-    def __init__(self, policy: PI05Policy) -> None:
-        super().__init__(policy, layer_range=(6, 12))
+class Pi05PaliGemmaBackboneQuantizable(  # type: ignore[misc]
+    _Pi05CachedExportMixin, AIMETOnnxQuantizableMixin, Pi05PaliGemmaBackbone
+):
+    """Exportable PaliGemma full backbone that can be quantized by AIMET-ONNX."""
+
+    default_subfolder = "backbone"
+    model_id = MODEL_ID
+    model_asset_version = MODEL_ASSET_VERSION
+
+    @staticmethod
+    def component_precision() -> Precision:
+        return Precision.w4a16
+
+    def __init__(
+        self,
+        sim_model: QuantSimOnnx | None,
+        host_device: torch.device = torch.device("cpu"),
+        onnx_bundle: ONNXBundle | None = None,
+        precision: Precision = Precision.w4a16,
+    ) -> None:
+        AIMETOnnxQuantizableMixin.__init__(self, sim_model, onnx_bundle=onnx_bundle)
+        BaseModel.__init__(self, None)
+        self.host_device = host_device
+        self._precision = precision
+
+    def make_quant_sim(self) -> QuantSimOnnx | None:
+        if self._onnx_bundle is None:
+            return None
+        param_type, act_type = aimet_quant_types(self._precision)
+
+        onnx_model = self._onnx_bundle.load_onnx_model()
+        quant_sim = QuantSimOnnx(
+            model=onnx_model,
+            quant_scheme=QuantScheme.min_max,
+            param_type=param_type,
+            activation_type=act_type,
+            config_file=_PI05_AIMET_CONFIG,
+            providers=AIMETOnnxQuantizableMixin.get_ort_providers(self.host_device),
+        )
+        _set_matmul_second_input_to_8b(quant_sim)
+        return quant_sim
+
+    @classmethod
+    def torch_from_pretrained(
+        cls,
+        checkpoint: CheckpointSpec = "DEFAULT",
+        subfolder: str = "",
+        host_device: torch.device | str = torch.device("cpu"),
+        adapt_torch_model_options: dict | None = None,
+    ) -> torch.nn.Module:
+        policy = load_checkpoint(str(checkpoint))
+        return Pi05PaliGemmaBackbone(policy).to(host_device).eval()
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        checkpoint: CheckpointSpec = "DEFAULT",
+        subfolder: str = "",
+        host_device: torch.device | str = torch.device("cpu"),
+        precision: Precision = Precision.w4a16,
+        torch_from_pretrained_kwargs: dict[str, Any] | None = None,
+        cls_kwargs: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> Self:
+        host_device = torch.device(host_device)
+        subfolder = subfolder or cls.default_subfolder
+        bundle = cls.onnx_from_pretrained(
+            checkpoint=checkpoint,
+            subfolder=subfolder,
+            host_device=host_device,
+            torch_to_onnx_options={"opset_version": 20},
+        )
+        return cls(
+            None, host_device=host_device, onnx_bundle=bundle, precision=precision
+        )
+
+    def forward(
+        self,
+        hidden_state: torch.Tensor,
+        prefix_att_2d_masks: torch.Tensor,
+        rope_emb_sin: torch.Tensor,
+        rope_emb_cos: torch.Tensor,
+    ) -> tuple[torch.Tensor, ...]:
+        return cast(
+            tuple[torch.Tensor, ...],
+            AIMETOnnxQuantizableMixin.forward(
+                self, hidden_state, prefix_att_2d_masks, rope_emb_sin, rope_emb_cos
+            ),
+        )
+
+    def _get_output_names_for_instance(self) -> list[str]:
+        return Pi05PaliGemmaBackboneBase.get_output_names((0, 18))
+
+    @staticmethod
+    def get_output_names() -> list[str]:
+        return Pi05PaliGemmaBackboneBase.get_output_names((0, 18))
 
 
-class Pi05PaliGemmaBackboneLayer12_18(Pi05PaliGemmaBackboneBase):
-    def __init__(self, policy: PI05Policy) -> None:
-        super().__init__(policy, layer_range=(12, 18), return_hidden_state=False)
+class Pi05ActionExpertQuantizable(
+    _Pi05CachedExportMixin, AIMETOnnxQuantizableMixin, Pi05ActionExpert
+):
+    """Exportable Pi05 action expert that can be quantized by AIMET-ONNX."""
+
+    model_id = MODEL_ID
+    model_asset_version = MODEL_ASSET_VERSION
+    default_subfolder = "action_expert"
+
+    @staticmethod
+    def component_precision() -> Precision:
+        return Precision.w8a16
+
+    def __init__(
+        self,
+        sim_model: QuantSimOnnx | None,
+        host_device: torch.device = torch.device("cpu"),
+        onnx_bundle: ONNXBundle | None = None,
+        precision: Precision = Precision.w8a16,
+    ) -> None:
+        AIMETOnnxQuantizableMixin.__init__(self, sim_model, onnx_bundle=onnx_bundle)
+        BaseModel.__init__(self, None)
+        self.host_device = host_device
+        self._precision = precision
+
+    def make_quant_sim(self) -> QuantSimOnnx | None:
+        if self._onnx_bundle is None:
+            return None
+        param_type, act_type = aimet_quant_types(self._precision)
+
+        onnx_model = self._onnx_bundle.load_onnx_model()
+        quant_sim = QuantSimOnnx(
+            model=onnx_model,
+            quant_scheme=QuantScheme.min_max,
+            param_type=param_type,
+            activation_type=act_type,
+            config_file=_PI05_AIMET_CONFIG,
+            providers=AIMETOnnxQuantizableMixin.get_ort_providers(self.host_device),
+        )
+        kv_inputs = [
+            t.name
+            for t in onnx_model.graph.input
+            if "key_cache" in t.name or "value_cache" in t.name
+        ]
+        _set_tensors_to_output_8b_sym(quant_sim, kv_inputs)
+        _set_matmul_second_input_to_8b(quant_sim)
+        return quant_sim
+
+    @classmethod
+    def torch_from_pretrained(
+        cls,
+        checkpoint: CheckpointSpec = "DEFAULT",
+        subfolder: str = "",
+        host_device: torch.device | str = torch.device("cpu"),
+        adapt_torch_model_options: dict | None = None,
+    ) -> torch.nn.Module:
+        policy = load_checkpoint(str(checkpoint))
+        return Pi05ActionExpert(policy).to(host_device).eval()
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        checkpoint: CheckpointSpec = "DEFAULT",
+        subfolder: str = "",
+        host_device: torch.device | str = torch.device("cpu"),
+        precision: Precision = Precision.w8a16,
+        torch_from_pretrained_kwargs: dict[str, Any] | None = None,
+        cls_kwargs: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> Self:
+        host_device = torch.device(host_device)
+        ckpt_type = CheckpointType.from_checkpoint(checkpoint, subfolder="")
+        if ckpt_type == CheckpointType.AIMET_ONNX_EXPORT:
+            bundle = ONNXBundle.from_bundle_path(Path(str(checkpoint)))
+        else:
+            subfolder = subfolder or cls.default_subfolder
+            bundle = cls.onnx_from_pretrained(
+                checkpoint=checkpoint,
+                subfolder=subfolder,
+                host_device=host_device,
+                torch_to_onnx_options={"opset_version": 20},
+            )
+        return cls(
+            None, host_device=host_device, onnx_bundle=bundle, precision=precision
+        )
+
+    def convert_to_hub_source_model(
+        self,
+        target_runtime: TargetRuntime,
+        output_path: str | Path,
+        input_spec: InputSpec | None = None,
+        check_trace: bool = True,
+        external_onnx_weights: bool = False,
+        output_names: list[str] | None = None,
+    ) -> str | None:
+        if self._quant_sim is None and self._onnx_bundle is not None:
+            class_name = self.__class__.__name__
+            out_dir = Path(output_path) / f"{class_name}.aimet"
+            if (out_dir / "model.onnx").exists():
+                return str(out_dir)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            self._onnx_bundle.move(
+                dst_folder=str(out_dir),
+                dst_model_name=class_name,
+                copy=True,
+            )
+            return str(out_dir)
+        return _Pi05CachedExportMixin.convert_to_hub_source_model(
+            self,
+            target_runtime,
+            output_path,
+            input_spec,
+            check_trace,
+            external_onnx_weights,
+            output_names,
+        )
+
+    def forward(
+        self,
+        full_att_4d: torch.Tensor,
+        rope_emb_sin: torch.Tensor,
+        rope_emb_cos: torch.Tensor,
+        x_t: torch.Tensor,
+        time_step: torch.Tensor,
+        key_cache_l0: torch.Tensor,
+        key_cache_l1: torch.Tensor,
+        key_cache_l2: torch.Tensor,
+        key_cache_l3: torch.Tensor,
+        key_cache_l4: torch.Tensor,
+        key_cache_l5: torch.Tensor,
+        key_cache_l6: torch.Tensor,
+        key_cache_l7: torch.Tensor,
+        key_cache_l8: torch.Tensor,
+        key_cache_l9: torch.Tensor,
+        key_cache_l10: torch.Tensor,
+        key_cache_l11: torch.Tensor,
+        key_cache_l12: torch.Tensor,
+        key_cache_l13: torch.Tensor,
+        key_cache_l14: torch.Tensor,
+        key_cache_l15: torch.Tensor,
+        key_cache_l16: torch.Tensor,
+        key_cache_l17: torch.Tensor,
+        value_cache_l0: torch.Tensor,
+        value_cache_l1: torch.Tensor,
+        value_cache_l2: torch.Tensor,
+        value_cache_l3: torch.Tensor,
+        value_cache_l4: torch.Tensor,
+        value_cache_l5: torch.Tensor,
+        value_cache_l6: torch.Tensor,
+        value_cache_l7: torch.Tensor,
+        value_cache_l8: torch.Tensor,
+        value_cache_l9: torch.Tensor,
+        value_cache_l10: torch.Tensor,
+        value_cache_l11: torch.Tensor,
+        value_cache_l12: torch.Tensor,
+        value_cache_l13: torch.Tensor,
+        value_cache_l14: torch.Tensor,
+        value_cache_l15: torch.Tensor,
+        value_cache_l16: torch.Tensor,
+        value_cache_l17: torch.Tensor,
+    ) -> torch.Tensor:
+        if self._quant_sim is None and self._onnx_bundle is not None:
+            if not hasattr(self, "_ort_session"):
+                self._ort_session = onnxruntime.InferenceSession(
+                    str(self._onnx_bundle.onnx_graph_path),
+                    providers=["CPUExecutionProvider"],
+                )
+            return cast(
+                torch.Tensor,
+                mock_torch_onnx_inference(
+                    self._ort_session,
+                    full_att_4d,
+                    rope_emb_sin,
+                    rope_emb_cos,
+                    x_t,
+                    time_step,
+                    key_cache_l0,
+                    key_cache_l1,
+                    key_cache_l2,
+                    key_cache_l3,
+                    key_cache_l4,
+                    key_cache_l5,
+                    key_cache_l6,
+                    key_cache_l7,
+                    key_cache_l8,
+                    key_cache_l9,
+                    key_cache_l10,
+                    key_cache_l11,
+                    key_cache_l12,
+                    key_cache_l13,
+                    key_cache_l14,
+                    key_cache_l15,
+                    key_cache_l16,
+                    key_cache_l17,
+                    value_cache_l0,
+                    value_cache_l1,
+                    value_cache_l2,
+                    value_cache_l3,
+                    value_cache_l4,
+                    value_cache_l5,
+                    value_cache_l6,
+                    value_cache_l7,
+                    value_cache_l8,
+                    value_cache_l9,
+                    value_cache_l10,
+                    value_cache_l11,
+                    value_cache_l12,
+                    value_cache_l13,
+                    value_cache_l14,
+                    value_cache_l15,
+                    value_cache_l16,
+                    value_cache_l17,
+                ),
+            )
+        return cast(
+            torch.Tensor,
+            AIMETOnnxQuantizableMixin.forward(
+                self,
+                full_att_4d,
+                rope_emb_sin,
+                rope_emb_cos,
+                x_t,
+                time_step,
+                key_cache_l0,
+                key_cache_l1,
+                key_cache_l2,
+                key_cache_l3,
+                key_cache_l4,
+                key_cache_l5,
+                key_cache_l6,
+                key_cache_l7,
+                key_cache_l8,
+                key_cache_l9,
+                key_cache_l10,
+                key_cache_l11,
+                key_cache_l12,
+                key_cache_l13,
+                key_cache_l14,
+                key_cache_l15,
+                key_cache_l16,
+                key_cache_l17,
+                value_cache_l0,
+                value_cache_l1,
+                value_cache_l2,
+                value_cache_l3,
+                value_cache_l4,
+                value_cache_l5,
+                value_cache_l6,
+                value_cache_l7,
+                value_cache_l8,
+                value_cache_l9,
+                value_cache_l10,
+                value_cache_l11,
+                value_cache_l12,
+                value_cache_l13,
+                value_cache_l14,
+                value_cache_l15,
+                value_cache_l16,
+                value_cache_l17,
+            ),
+        )
 
 
-@CollectionModel.add_component(Pi05PaliGemmaVision, "vit")
+@CollectionModel.add_component(Pi05PaliGemmaVisionQuantizable, "vision_encoder")
 @CollectionModel.add_component(Pi05PaliGemmaTokenEmbed, "token_emb")
-@CollectionModel.add_component(Pi05ActionExpert, "action_expert")
-@CollectionModel.add_component(Pi05PaliGemmaBackboneLayer0_6, "backbone0_6")
-@CollectionModel.add_component(Pi05PaliGemmaBackboneLayer6_12, "backbone6_12")
-@CollectionModel.add_component(Pi05PaliGemmaBackboneLayer12_18, "backbone12_18")
-class Pi05Collection(PretrainedCollectionModel):
+@CollectionModel.add_component(Pi05ActionExpertQuantizable, "action_expert")
+@CollectionModel.add_component(Pi05PaliGemmaBackboneQuantizable, "backbone")
+class Pi05CollectionQuantized(
+    IndependentComponentFromPretrainedMixin, PretrainedCollectionModel
+):
     pass

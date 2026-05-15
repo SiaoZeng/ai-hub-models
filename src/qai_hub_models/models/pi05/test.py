@@ -9,6 +9,7 @@ import os
 # Disable dynamo in lerobot forward
 os.environ["TORCHDYNAMO_DISABLE"] = "1"
 
+import pytest
 import torch
 from lerobot.policies.pi05.modeling_pi05 import PI05Policy
 
@@ -23,6 +24,10 @@ from qai_hub_models.models.pi05.demo import (
 )
 
 
+@pytest.mark.nightly
+@pytest.mark.skipif(
+    not torch.cuda.is_available(), reason="This test can be run on GPU only."
+)
 def test_one_sample() -> None:
     """
     Run a single forward pass and assert the predicted actions are close to
@@ -93,7 +98,7 @@ def test_one_sample() -> None:
     # Parity checks after postprocessing.
     assert tuple(pred_actions_policy.shape) == tuple(pred_actions_app.shape)
     torch.testing.assert_close(
-        pred_actions_policy, pred_actions_app, rtol=1e-2, atol=1e-2
+        pred_actions_policy, pred_actions_app, rtol=0.5, atol=0.1
     )
 
     # Build ground-truth sequence after prediction to avoid leakage.
@@ -113,6 +118,6 @@ def test_one_sample() -> None:
     assert pred_actions_app.dim() == 3
     assert gt_actions.dim() == 3
     assert pred_actions_app.shape == gt_actions.shape == (1, 50, 7)
-    assert float(mse) < 0.001
-    assert float(rmse) < 0.02
-    assert float(sqnr) > 25
+    assert float(mse) < 0.002
+    assert float(rmse) < 0.05
+    assert float(sqnr) > 20

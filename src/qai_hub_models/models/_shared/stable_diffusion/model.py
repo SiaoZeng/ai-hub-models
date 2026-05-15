@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import inspect
 from typing import TYPE_CHECKING, Any, cast
 
 from tokenizers import Tokenizer
@@ -43,6 +42,7 @@ from qai_hub_models.models._shared.stable_diffusion.model_adaptation import (
 from qai_hub_models.utils.aimet.config_loader import get_aimet_config_path
 from qai_hub_models.utils.base_model import (
     BaseModel,
+    IndependentComponentFromPretrainedMixin,
     PretrainedCollectionModel,
     TargetRuntime,
 )
@@ -53,6 +53,7 @@ from qai_hub_models.utils.checkpoint import (
     hf_repo_exists,
 )
 from qai_hub_models.utils.input_spec import InputSpec, TensorSpec
+from qai_hub_models.utils.onnx.helpers import ONNXBundle
 from qai_hub_models.utils.qai_hub_helpers import ensure_hexagon_version
 
 
@@ -99,8 +100,9 @@ class TextEncoderQuantizableBase(AIMETOnnxQuantizableMixin, TextEncoderBase):
         self,
         sim_model: QuantSimOnnx,
         host_device: torch.device = torch.device("cpu"),
+        onnx_bundle: ONNXBundle | None = None,
     ) -> None:
-        AIMETOnnxQuantizableMixin.__init__(self, sim_model)
+        AIMETOnnxQuantizableMixin.__init__(self, sim_model, onnx_bundle=onnx_bundle)
         TextEncoderBase.__init__(self, None)
         self.host_device = host_device
 
@@ -128,12 +130,13 @@ class TextEncoderQuantizableBase(AIMETOnnxQuantizableMixin, TextEncoderBase):
 
         host_device = torch.device(host_device)
         subfolder = subfolder or cls.default_subfolder
-        onnx_model, aimet_encodings = cls.onnx_from_pretrained(
+        bundle = cls.onnx_from_pretrained(
             checkpoint=checkpoint,
             subfolder=subfolder,
             host_device=host_device,
             torch_to_onnx_options={"opset_version": 20},
         )
+        onnx_model = bundle.load_onnx_model()
 
         # Model-specific onnx transformations
         num_erf = utils.count_op_type(onnx_model, "Erf")
@@ -157,9 +160,11 @@ class TextEncoderQuantizableBase(AIMETOnnxQuantizableMixin, TextEncoderBase):
             config_file=get_aimet_config_path("default_per_tensor_config_v69"),
             providers=cls.get_ort_providers(host_device),
         )
-        if aimet_encodings:
-            load_encodings_to_sim(quant_sim, aimet_encodings, strict=False)
-        return cls(quant_sim, host_device=host_device)
+        if bundle.aimet_encodings_path:
+            load_encodings_to_sim(
+                quant_sim, str(bundle.aimet_encodings_path), strict=False
+            )
+        return cls(quant_sim, host_device=host_device, onnx_bundle=bundle)
 
     @staticmethod
     def calibration_dataset_name() -> str:
@@ -237,8 +242,9 @@ class UnetQuantizableBase(AIMETOnnxQuantizableMixin, UnetBase):
         self,
         sim_model: QuantSimOnnx,
         host_device: torch.device = torch.device("cpu"),
+        onnx_bundle: ONNXBundle | None = None,
     ) -> None:
-        AIMETOnnxQuantizableMixin.__init__(self, sim_model)
+        AIMETOnnxQuantizableMixin.__init__(self, sim_model, onnx_bundle=onnx_bundle)
         # model is None as we don't do anything with the torch model
         UnetBase.__init__(self, None)
         self.host_device = host_device
@@ -272,12 +278,13 @@ class UnetQuantizableBase(AIMETOnnxQuantizableMixin, UnetBase):
 
         host_device = torch.device(host_device)
         subfolder = subfolder or cls.default_subfolder
-        onnx_model, aimet_encodings = cls.onnx_from_pretrained(
+        bundle = cls.onnx_from_pretrained(
             checkpoint=checkpoint,
             subfolder=subfolder,
             host_device=host_device,
             torch_to_onnx_options={"opset_version": 20},
         )
+        onnx_model = bundle.load_onnx_model()
 
         # Don't run simplify on Unet which hangs
         # TODO (#12356): onnxsim cannot handle >2GB model
@@ -290,9 +297,11 @@ class UnetQuantizableBase(AIMETOnnxQuantizableMixin, UnetBase):
             config_file=get_aimet_config_path("default_per_tensor_config_v69"),
             providers=cls.get_ort_providers(host_device),
         )
-        if aimet_encodings is not None:
-            load_encodings_to_sim(quant_sim, aimet_encodings, strict=False)
-        return cls(quant_sim, host_device=host_device)
+        if bundle.aimet_encodings_path:
+            load_encodings_to_sim(
+                quant_sim, str(bundle.aimet_encodings_path), strict=False
+            )
+        return cls(quant_sim, host_device=host_device, onnx_bundle=bundle)
 
     @staticmethod
     def calibration_dataset_name() -> str:
@@ -349,8 +358,9 @@ class VaeDecoderQuantizableBase(AIMETOnnxQuantizableMixin, VaeDecoderBase):
         self,
         sim_model: QuantSimOnnx,
         host_device: torch.device = torch.device("cpu"),
+        onnx_bundle: ONNXBundle | None = None,
     ) -> None:
-        AIMETOnnxQuantizableMixin.__init__(self, sim_model)
+        AIMETOnnxQuantizableMixin.__init__(self, sim_model, onnx_bundle=onnx_bundle)
         VaeDecoderBase.__init__(self, None)
         self.host_device = host_device
 
@@ -375,12 +385,13 @@ class VaeDecoderQuantizableBase(AIMETOnnxQuantizableMixin, VaeDecoderBase):
 
         host_device = torch.device(host_device)
         subfolder = subfolder or cls.default_subfolder
-        onnx_model, aimet_encodings = cls.onnx_from_pretrained(
+        bundle = cls.onnx_from_pretrained(
             checkpoint=checkpoint,
             subfolder=subfolder,
             host_device=host_device,
             torch_to_onnx_options={"opset_version": 20},
         )
+        onnx_model = bundle.load_onnx_model()
 
         if checkpoint != "DEFAULT":
             onnx_model, _ = simplify(onnx_model, skipped_optimizers=["fuse_qkv"])
@@ -393,9 +404,11 @@ class VaeDecoderQuantizableBase(AIMETOnnxQuantizableMixin, VaeDecoderBase):
             config_file=get_aimet_config_path("default_per_tensor_config_v69"),
             providers=cls.get_ort_providers(host_device),
         )
-        if aimet_encodings:
-            load_encodings_to_sim(quant_sim, aimet_encodings, strict=False)
-        return cls(quant_sim, host_device=host_device)
+        if bundle.aimet_encodings_path:
+            load_encodings_to_sim(
+                quant_sim, str(bundle.aimet_encodings_path), strict=False
+            )
+        return cls(quant_sim, host_device=host_device, onnx_bundle=bundle)
 
     def forward(self, latent: torch.Tensor) -> torch.Tensor:
         return cast(torch.Tensor, AIMETOnnxQuantizableMixin.forward(self, latent))
@@ -458,42 +471,14 @@ def make_scheduler(
     return scheduler_cls.from_config(cfg)
 
 
-class StableDiffusionBase(PretrainedCollectionModel):
+class StableDiffusionBase(
+    IndependentComponentFromPretrainedMixin, PretrainedCollectionModel
+):
     """Put glue modules here to aid app/demo code."""
 
     guidance_scale: float = 7.5
     default_num_steps: int = 20
     hf_repo_id: str = ""
-
-    @classmethod
-    def from_pretrained(
-        cls,
-        checkpoint: CheckpointSpec = "DEFAULT",
-        host_device: torch.device | str = torch.device("cpu"),
-        **kwargs: Any,
-    ) -> Self:
-        """
-        Instantiate the collection by calling from_pretrained on each
-        registered component, passing only the kwargs each component accepts.
-        """
-        base_kwargs: dict[str, Any] = {
-            "checkpoint": checkpoint,
-            "host_device": host_device,
-            **kwargs,
-        }
-        components = []
-        for component_cls in cls.component_classes.values():
-            sig = inspect.signature(component_cls.from_pretrained)
-            if any(
-                p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-            ):
-                supported = base_kwargs
-            else:
-                supported = {
-                    k: v for k, v in base_kwargs.items() if k in sig.parameters
-                }
-            components.append(component_cls.from_pretrained(**supported))
-        return cls(*components)
 
     @staticmethod
     def make_tokenizer() -> Tokenizer:

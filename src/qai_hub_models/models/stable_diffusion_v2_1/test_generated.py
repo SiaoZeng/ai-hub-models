@@ -328,13 +328,21 @@ def cached_torch_trace_for_export() -> Generator[pytest.MonkeyPatch, None, None]
             output_path: str | Path,
             input_spec: InputSpec | None = None,
             check_trace: bool = True,
+            external_onnx_weights: bool = False,
+            output_names: list[str] | None = None,
         ) -> SourceModel | hub.Model:
             source_model_format = self.preferred_hub_source_model_format(target_runtime)
             model_key = str(self) + str(input_spec) + str(source_model_format)
             model = model_cache.get(model_key)
             if not model:
                 source_model = convert_to_hub_source_model(
-                    self, target_runtime, output_path, input_spec, check_trace
+                    self,
+                    target_runtime,
+                    output_path,
+                    input_spec,
+                    check_trace,
+                    external_onnx_weights,
+                    output_names,
                 )
                 assert source_model is not None
                 model = hub.upload_model(source_model)

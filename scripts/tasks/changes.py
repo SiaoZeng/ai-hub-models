@@ -19,7 +19,7 @@ from .constants import (
 )
 from .github import on_github
 from .plan import Task
-from .util import get_is_hub_quantized, new_cd, run, run_and_get_output
+from .util import new_cd, run, run_and_get_output
 
 REPRESENTATIVE_EXPORT_MODELS = [
     "sinet",
@@ -320,13 +320,6 @@ def get_all_models() -> list[str]:
                 if model not in model_names:
                     raise ValueError(f"Unknown model selected: {model}")
             model_names = allowed_models
-
-    if os.environ.get("QAIHM_TEST_PRECISIONS", "default").lower() != "default":
-        cleaned_models: set[str] = set()
-        for model in model_names:
-            if model not in static_models and get_is_hub_quantized(model):
-                cleaned_models.add(model)
-        model_names = cleaned_models
 
     if user_specified_models_list:
         return [
