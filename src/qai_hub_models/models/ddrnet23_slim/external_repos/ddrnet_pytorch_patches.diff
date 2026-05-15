@@ -1,0 +1,23 @@
+# Strips wildcard __init__.py imports that pull in unavailable dependencies.
+#
+diff --git a/lib/models/__init__.py b/lib/models/__init__.py
+index 3416752..e69de29 100644
+--- a/lib/models/__init__.py
++++ b/lib/models/__init__.py
+@@ -1,15 +0,0 @@
+-# ------------------------------------------------------------------------------
+-# Copyright (c) Microsoft
+-# Licensed under the MIT License.
+-# Written by Ke Sun (sunk@mail.ustc.edu.cn)
+-# ------------------------------------------------------------------------------
+-
+-from __future__ import absolute_import
+-from __future__ import division
+-from __future__ import print_function
+-
+-import models.seg_hrnet
+-import models.seg_hrnet_ocr
+-import models.ddrnet_23_slim
+-import models.ddrnet_23
+-import models.ddrnet_39
+\ No newline at end of file

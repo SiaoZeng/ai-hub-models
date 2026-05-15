@@ -5,17 +5,14 @@
 
 from __future__ import annotations
 
-import os
-import sys
-
 import torch
 from typing_extensions import Self
 
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    load_yaml,
+from qai_hub_models.models.track_anything.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.track_anything.external_repos.track_anything.tracker.model.network import (
+    XMem,
 )
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_yaml
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,
@@ -33,18 +30,6 @@ from qai_hub_models.utils.input_spec import (
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 3
 
-
-TRACKANYTHING_SOURCE_REPOSITORY = "https://github.com/gaomingqi/Track-Anything.git"
-TRACKANYTHING_SOURCE_REPO_COMMIT = "e6e159273790974e04eeea6673f1f93c035005fc"
-"""
-Remove torch.prod not supported on QNN
-Interpolate with area mode is not exportable, changed mode to bilinear
-Change 5D to 4D for sigmoid and tanh op to run on NPU
-"""
-TRACKANYTHING_SOURCE_PATCHES = [
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "patches", "patches.diff"))
-]
-
 XMEM_MODEL = CachedWebModelAsset(
     "https://github.com/hkchengrex/XMem/releases/download/v1.0/XMem-s012.pth",
     MODEL_ID,
@@ -52,16 +37,9 @@ XMEM_MODEL = CachedWebModelAsset(
     "XMem-s012.pth",
 )
 
-with SourceAsRoot(
-    TRACKANYTHING_SOURCE_REPOSITORY,
-    TRACKANYTHING_SOURCE_REPO_COMMIT,
-    MODEL_ID,
-    MODEL_ASSET_VERSION,
-    source_repo_patches=TRACKANYTHING_SOURCE_PATCHES,
-) as repo_path:
-    sys.path.append(repo_path + "/tracker")
-    from tracker.inference.memory_manager import MemoryManager  # noqa: F401
-    from tracker.model.network import XMem
+TRACKER_CONFIG_PATH = str(
+    EXTERNAL_REPO_PATHS["track_anything"] / "tracker" / "config" / "config.yaml"
+)
 
 
 class TrackAnything(BaseModel):
@@ -71,7 +49,7 @@ class TrackAnything(BaseModel):
 
     @classmethod
     def from_pretrained(cls) -> Self:
-        config = load_yaml(repo_path + "/tracker/config/config.yaml")
+        config = load_yaml(TRACKER_CONFIG_PATH)
         model = XMem(config, XMEM_MODEL.fetch()).eval()
         return cls(model)
 
@@ -399,7 +377,7 @@ class TrackAnythingWrapper(PretrainedCollectionModel):
 
     @classmethod
     def from_pretrained(cls) -> Self:
-        config = load_yaml(repo_path + "/tracker/config/config.yaml")
+        config = load_yaml(TRACKER_CONFIG_PATH)
         model = XMem(config, XMEM_MODEL.fetch()).eval()
         EncodeKeyWithShrinkage = TrackAnythingEncodeKeyWithShrinkage(model)
         EncodeValue = TrackAnythingEncodeValue(model)

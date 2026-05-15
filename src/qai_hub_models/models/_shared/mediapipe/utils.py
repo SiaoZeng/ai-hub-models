@@ -3,22 +3,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # ---------------------------------------------------------------------
 
-from functools import partial
-
 import torch
 
-from qai_hub_models.utils.asset_loaders import SourceAsRoot
 from qai_hub_models.utils.bounding_box_processing import box_xywh_to_xyxy
-
-# ContextManager for running code with MediaPipePyTorch in python path and the
-# root directory of MediaPipePyTorch set as cwd
-MediaPipePyTorchAsRoot = partial(
-    SourceAsRoot,
-    "https://github.com/zmurez/MediaPipePyTorch",
-    "65f2549ba35cd61dfd29f402f6c21882a32fabb1",
-    "mediapipe_pytorch",
-    1,
-)
 
 
 def decode_preds_from_anchors(

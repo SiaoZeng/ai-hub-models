@@ -1,0 +1,15 @@
+# Replaces .data.size() with .shape for ONNX tracing compatibility.
+#
+diff --git a/models/SINet.py b/models/SINet.py
+index 59bb246..8cb33e4 100644
+--- a/models/SINet.py
++++ b/models/SINet.py
+@@ -11,7 +11,7 @@ import torch.nn.functional as F
+ BN_moment = 0.1
+ 
+ def channel_shuffle(x, groups):
+-    batchsize, num_channels, height, width = x.data.size()
++    batchsize, num_channels, height, width = x.shape
+ 
+     channels_per_group = num_channels // groups
+ 

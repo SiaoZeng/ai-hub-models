@@ -2,6 +2,11 @@ has_on_target_demo: true
 disabled_paths: {}
 global_requirements_incompatible: true
 pip_pre_build_reqs: dm_control==1.0.36 --no-deps
+external_repos:
+  act:
+    repo_url: https://github.com/tonyzhaozh/act.git
+    commit_sha: 742c753c0d4a5d87076c8f69e5628c79a8cc5488
+    patches_filename: act_patches.diff
 readme_install_system_deps: |
   #### Linux
   ```bash

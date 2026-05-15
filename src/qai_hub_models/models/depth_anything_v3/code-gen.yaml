@@ -1,1 +1,6 @@
 has_on_target_demo: true
+external_repos:
+  depth_anything_3:
+    repo_url: https://github.com/ByteDance-Seed/Depth-Anything-3.git
+    commit_sha: a7927ef76f99be61925d3a0f8a671cba8bc44f05
+    patches_filename: depth_anything_3_patches.diff

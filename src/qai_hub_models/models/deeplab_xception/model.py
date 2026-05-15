@@ -10,12 +10,14 @@ from torch import nn
 from typing_extensions import Self
 
 from qai_hub_models.models._shared.deeplab.model import DeepLabV3Model
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    find_replace_in_repo,
-    load_torch,
+from qai_hub_models.models.deeplab_xception.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.deeplab_xception.external_repos.segmentron.segmentron.config import (
+    cfg,
 )
+from qai_hub_models.models.deeplab_xception.external_repos.segmentron.segmentron.models.model_zoo import (
+    get_segmentation_model,
+)
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
 from qai_hub_models.utils.input_spec import (
     ColorFormat,
     ImageMetadata,
@@ -24,8 +26,6 @@ from qai_hub_models.utils.input_spec import (
     TensorSpec,
 )
 
-SOURCE_REPO = "https://github.com/LikeLy-Journey/SegmenTron"
-COMMIT_HASH = "4bc605eedde7d680314f63d329277b73f83b1c5f"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
 DEFAULT_WEIGHTS = CachedWebModelAsset(
@@ -47,38 +47,31 @@ class DeeplabXception(DeepLabV3Model):
         cls, weights_url: str | CachedWebModelAsset = DEFAULT_WEIGHTS
     ) -> Self:
         weights = load_torch(weights_url)
-        with SourceAsRoot(
-            SOURCE_REPO, COMMIT_HASH, MODEL_ID, MODEL_ASSET_VERSION
-        ) as repo_path:
-            find_replace_in_repo(
-                repo_path,
-                "segmentron/models/__init__.py",
-                "from .ccnet import CCNet",
-                "",
+
+        if weights_url == DEFAULT_WEIGHTS:
+            config_file = str(
+                EXTERNAL_REPO_PATHS["segmentron"]
+                / "configs"
+                / "pascal_voc_deeplabv3_plus.yaml"
             )
-            from segmentron.config import cfg
-            from segmentron.models.model_zoo import get_segmentation_model
+        else:
+            raise ValueError("Unrecognized weights")
 
-            if weights_url == DEFAULT_WEIGHTS:
-                config_file = "configs/pascal_voc_deeplabv3_plus.yaml"
-            else:
-                raise ValueError("Unrecognized weights")
+        cfg.update_from_file(config_file)
+        model = get_segmentation_model()
+        model.load_state_dict(weights)
+        instance = cls(model).eval()
+        if (
+            hasattr(instance.model, "encoder")
+            and hasattr(instance.model.encoder, "named_modules")
+            and hasattr(cfg.MODEL, "BN_EPS_FOR_ENCODER")
+            and cfg.MODEL.BN_EPS_FOR_ENCODER
+        ):
+            for _name, module in instance.model.encoder.named_modules():
+                if isinstance(module, (nn.BatchNorm2d, nn.SyncBatchNorm)):
+                    module.eps = cfg.MODEL.BN_EPS_FOR_ENCODER
 
-            cfg.update_from_file(config_file)
-            model = get_segmentation_model()
-            model.load_state_dict(weights)
-            instance = cls(model).eval()
-            if (
-                hasattr(instance.model, "encoder")
-                and hasattr(instance.model.encoder, "named_modules")
-                and hasattr(cfg.MODEL, "BN_EPS_FOR_ENCODER")
-                and cfg.MODEL.BN_EPS_FOR_ENCODER
-            ):
-                for _name, module in instance.model.encoder.named_modules():
-                    if isinstance(module, (nn.BatchNorm2d, nn.SyncBatchNorm)):
-                        module.eps = cfg.MODEL.BN_EPS_FOR_ENCODER
-
-            return instance
+        return instance
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
         """

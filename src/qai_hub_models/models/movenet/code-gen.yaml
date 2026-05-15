@@ -15,3 +15,8 @@ disabled_paths:
       scorecard_accuracy_failure: Torch and On-device accuracy diff (-56.400 mAP) above threshold (10.0 mAP)
     tflite:
       scorecard_accuracy_failure: Torch and On-device accuracy diff (-56.400 mAP) above threshold (10.0 mAP)
+external_repos:
+  movenet_pytorch:
+    repo_url: https://github.com/lee-man/movenet-pytorch/
+    commit_sha: d7262410af2776afe66d3f7a2282b64becb82601
+    patches_filename: movenet_pytorch_patches.diff

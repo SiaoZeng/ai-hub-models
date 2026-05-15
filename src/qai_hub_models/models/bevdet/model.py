@@ -5,10 +5,6 @@
 
 from __future__ import annotations
 
-import os
-from importlib.util import module_from_spec, spec_from_file_location
-from pathlib import Path
-
 import torch
 from mmengine.config import Config
 from mmengine.model import BaseModule
@@ -20,6 +16,19 @@ from qai_hub_models.evaluators.nuscenes_evaluator import (
     NuscenesObjectDetectionEvaluator,
 )
 from qai_hub_models.extern.mmdet import patch_mmdet_no_build_deps
+from qai_hub_models.models.bevdet.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.bevdet.external_repos.bevdet.mmdet3d.core.bbox.coders.centerpoint_bbox_coders import (
+    CenterPointBBoxCoder,
+)
+from qai_hub_models.models.bevdet.external_repos.bevdet.mmdet3d.models.backbones.resnet import (
+    CustomResNet,
+)
+from qai_hub_models.models.bevdet.external_repos.bevdet.mmdet3d.models.necks.fpn import (
+    CustomFPN,
+)
+from qai_hub_models.models.bevdet.external_repos.bevdet.mmdet3d.models.necks.lss_fpn import (
+    FPN_LSS,
+)
 from qai_hub_models.models.bevdet.model_patches import (
     CenterHead,
     LSSViewTransformerOptimized,
@@ -27,7 +36,6 @@ from qai_hub_models.models.bevdet.model_patches import (
 from qai_hub_models.models.common import Precision, SampleInputsType, TargetRuntime
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    SourceAsRoot,
     load_torch,
 )
 from qai_hub_models.utils.base_model import BaseModel
@@ -57,24 +65,11 @@ POST_TRANS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "post_trans.pt"
 )
 
-BEVDET_SOURCE_REPOSITORY = "https://github.com/HuangJunJie2017/BEVDet.git"
-BEVDET_SOURCE_REPO_COMMIT = "26144be7c11c2972a8930d6ddd6471b8ea900d13"
-
 # Checkpoint is sourced from
 # https://github.com/HuangJunJie2017/BEVDet/tree/dev3.0?tab=readme-ov-file#:~:text=30.7-,baidu,-baidu
 BEVDET_CKPT = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "bevdet-r50.pth"
 )
-"""
-Changes in patch file include;
-    - To make functional on AI_HUB
-        - Changed dependencies to work with newer MMCV / MMDET
-"""
-BEVDET_SOURCE_PATCHES = [
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches/bevdet_patch.diff")
-    )
-]
 
 
 class BEVDet(BaseModel):
@@ -121,68 +116,42 @@ class BEVDet(BaseModel):
     @classmethod
     def from_pretrained(cls, ckpt: str | None = None) -> Self:
         ckpt = str(BEVDET_CKPT.fetch()) if ckpt is None else ckpt
-        with SourceAsRoot(
-            BEVDET_SOURCE_REPOSITORY,
-            BEVDET_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-            source_repo_patches=BEVDET_SOURCE_PATCHES,
-        ):
-            cfg = Config.fromfile("./configs/bevdet/bevdet-r50.py")
-            cfg.model.train_cfg = None
 
-            def load_module(class_name: str, path: str) -> type:
-                module_spec = spec_from_file_location(class_name, location=Path(path))
-                if module_spec is None or module_spec.loader is None:
-                    raise ValueError(f"Module spec not found for path {path}")
+        config_path = (
+            EXTERNAL_REPO_PATHS["bevdet"] / "configs" / "bevdet" / "bevdet-r50.py"
+        )
+        cfg = Config.fromfile(config_path)
+        cfg.model.train_cfg = None
 
-                module = module_from_spec(module_spec)
-                module_spec.loader.exec_module(module)
-                return getattr(module, class_name)
+        cfg.model.pts_bbox_head.bbox_coder.pop("type")
+        cfg.model.img_neck.pop("type")
+        cfg.model.img_bev_encoder_backbone.pop("type")
+        cfg.model.img_bev_encoder_neck.pop("type")
 
-            # Since source repository doesn't support the latest mmcv version
-            # loading the classes directly from the file
-            CustomFPN = load_module("CustomFPN", "mmdet3d/models/necks/fpn.py")
-            FPN_LSS = load_module("FPN_LSS", "mmdet3d/models/necks/lss_fpn.py")
-            CustomResNet = load_module(
-                "CustomResNet", "mmdet3d/models/backbones/resnet.py"
-            )
-            CenterPointBBoxCoder = load_module(
-                "CenterPointBBoxCoder",
-                "mmdet3d/core/bbox/coders/centerpoint_bbox_coders.py",
-            )
+        img_backbone = MODELS.build(cfg.model.img_backbone)
+        img_neck = CustomFPN(**cfg.model.img_neck)
+        img_view_transformer = LSSViewTransformerOptimized(
+            **cfg.model.img_view_transformer
+        )
+        img_bev_encoder_backbone = CustomResNet(**cfg.model.img_bev_encoder_backbone)
+        img_bev_encoder_neck = FPN_LSS(**cfg.model.img_bev_encoder_neck)
+        pts_test_cfg = cfg.model.test_cfg["pts"] if cfg.model.test_cfg else None
+        cfg.model.pts_bbox_head.update(test_cfg=pts_test_cfg)
+        pts_bbox_head = CenterHead(**cfg.model.pts_bbox_head)
+        bbox_coder = CenterPointBBoxCoder(**cfg.model.pts_bbox_head.bbox_coder)
 
-            cfg.model.pts_bbox_head.bbox_coder.pop("type")
-            cfg.model.img_neck.pop("type")
-            cfg.model.img_bev_encoder_backbone.pop("type")
-            cfg.model.img_bev_encoder_neck.pop("type")
+        model = cls(
+            img_backbone,
+            img_neck,
+            img_view_transformer,
+            img_bev_encoder_backbone,
+            img_bev_encoder_neck,
+            pts_bbox_head,
+            bbox_coder,
+        )
 
-            img_backbone = MODELS.build(cfg.model.img_backbone)
-            img_neck = CustomFPN(**cfg.model.img_neck)
-            img_view_transformer = LSSViewTransformerOptimized(
-                **cfg.model.img_view_transformer
-            )
-            img_bev_encoder_backbone = CustomResNet(
-                **cfg.model.img_bev_encoder_backbone
-            )
-            img_bev_encoder_neck = FPN_LSS(**cfg.model.img_bev_encoder_neck)
-            pts_test_cfg = cfg.model.test_cfg["pts"] if cfg.model.test_cfg else None
-            cfg.model.pts_bbox_head.update(test_cfg=pts_test_cfg)
-            pts_bbox_head = CenterHead(**cfg.model.pts_bbox_head)
-            bbox_coder = CenterPointBBoxCoder(**cfg.model.pts_bbox_head.bbox_coder)
-
-            model = cls(
-                img_backbone,
-                img_neck,
-                img_view_transformer,
-                img_bev_encoder_backbone,
-                img_bev_encoder_neck,
-                pts_bbox_head,
-                bbox_coder,
-            )
-
-            load_checkpoint(model, ckpt, map_location="cpu")
-            model.eval()
+        load_checkpoint(model, ckpt, map_location="cpu")
+        model.eval()
         return model
 
     def forward(

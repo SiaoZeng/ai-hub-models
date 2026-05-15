@@ -12,16 +12,16 @@ from typing_extensions import Self
 
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.mpigaze_evaluator import MPIIGazeEvaluator
+from qai_hub_models.models.eyegaze.external_repos.gaze_estimation.models.eyenet import (
+    EyeNet,
+)
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    SourceAsRoot,
     load_torch,
 )
 from qai_hub_models.utils.base_model import BaseModel, Precision, TargetRuntime
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
-SOURCE_REPO = "https://github.com/david-wb/gaze-estimation"
-COMMIT_HASH = "249691893a37944a03e4ad4a3448083b6f63af10"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
 DEFAULT_WEIGHTS = "default"
@@ -44,15 +44,13 @@ class EyeGaze(BaseModel):
         if weights_name == DEFAULT_WEIGHTS:
             weights_file = DEFAULT_WEIGHTS_FILE
         checkpoint = load_torch(weights_file)
-        with SourceAsRoot(SOURCE_REPO, COMMIT_HASH, MODEL_ID, MODEL_ASSET_VERSION):
-            from models.eyenet import EyeNet
 
-            nstack = checkpoint["nstack"]
-            nfeatures = checkpoint["nfeatures"]
-            nlandmarks = checkpoint["nlandmarks"]
-            eyenet = EyeNet(nstack=nstack, nfeatures=nfeatures, nlandmarks=nlandmarks)
-            eyenet.load_state_dict(checkpoint["model_state_dict"])
-            return cls(eyenet)
+        nstack = checkpoint["nstack"]
+        nfeatures = checkpoint["nfeatures"]
+        nlandmarks = checkpoint["nlandmarks"]
+        eyenet = EyeNet(nstack=nstack, nfeatures=nfeatures, nlandmarks=nlandmarks)
+        eyenet.load_state_dict(checkpoint["model_state_dict"])
+        return cls(eyenet)
 
     def forward(
         self, image: torch.Tensor

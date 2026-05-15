@@ -1,1 +1,6 @@
 disabled_paths: {}
+external_repos:
+  simple_bev:
+    repo_url: https://github.com/aharley/simple_bev
+    commit_sha: be46f0ef71960c233341852f3d9bc3677558ab6d
+    patches_filename: simple_bev_patches.diff

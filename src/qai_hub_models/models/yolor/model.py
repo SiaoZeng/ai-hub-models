@@ -11,14 +11,10 @@ from typing_extensions import Self
 
 from qai_hub_models.models._shared.yolo.model import Yolo
 from qai_hub_models.models._shared.yolo.utils import detect_postprocess
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    load_torch,
-)
+from qai_hub_models.models.yolor.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.yolor.external_repos.yolor.models.models import Darknet
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
 
-YOLOR_SOURCE_REPOSITORY = "https://github.com/WongKinYiu/yolor.git"
-YOLOR_SOURCE_REPO_COMMIT = "3ca250ae2247ca13911fa498cbe8e2c9b6bab5b0"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
 DEFAULT_WEIGHTS = CachedWebModelAsset.from_asset_store(
@@ -40,20 +36,13 @@ class YoloR(Yolo):
         ckpt: str | CachedWebModelAsset = DEFAULT_WEIGHTS,
         include_postprocessing: bool = True,
     ) -> Self:
-        with SourceAsRoot(
-            YOLOR_SOURCE_REPOSITORY,
-            YOLOR_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ):
-            torch.manual_seed(42)
-            from models.models import Darknet
-
-            cfg = "cfg/yolor_p6.cfg"
-            image_size = 1280
-            model = Darknet(cfg, image_size)
-            checkpoint = load_torch(ckpt)
-            model.load_state_dict(checkpoint["model"])
+        torch.manual_seed(42)
+        repo_dir = EXTERNAL_REPO_PATHS["yolor"]
+        cfg = str(repo_dir / "cfg" / "yolor_p6.cfg")
+        image_size = 1280
+        model = Darknet(cfg, image_size)
+        checkpoint = load_torch(ckpt)
+        model.load_state_dict(checkpoint["model"])
         return cls(model, include_postprocessing)
 
     def forward(

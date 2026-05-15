@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from typing import Any
 
 import torch
@@ -19,9 +18,12 @@ from qai_hub_models.evaluators.posenet_mobilenet_evaluator import (
     PosenetMobilenetEvaluator,
 )
 from qai_hub_models.models.common import Precision, SampleInputsType
+from qai_hub_models.models.posenet_mobilenet.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.posenet_mobilenet.external_repos.posenet_pytorch import (
+    posenet,
+)
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    SourceAsRoot,
     load_numpy,
 )
 from qai_hub_models.utils.base_model import BaseModel
@@ -35,8 +37,6 @@ from qai_hub_models.utils.input_spec import (
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 2
-SOURCE_REPOSITORY = "https://github.com/rwightman/posenet-pytorch"
-COMMIT_HASH = "6f7376d47683553b99d6b67734bc8b368dbcda73"
 SAMPLE_INPUTS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "posenet_inputs.npy"
 )
@@ -44,6 +44,8 @@ DEFAULT_MODEL_WEIGHTS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "mobilenet_v1_101.pth"
 )
 OUTPUT_STRIDE = 16
+
+_POSENET_REPO_ROOT = EXTERNAL_REPO_PATHS["posenet_pytorch"]
 
 
 class PosenetMobilenet(BaseModel):
@@ -56,25 +58,17 @@ class PosenetMobilenet(BaseModel):
         cls,
         model_id: int = 101,
     ) -> Self:
-        with SourceAsRoot(
-            SOURCE_REPOSITORY,
-            COMMIT_HASH,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ) as repo_path:
-            # Built in weights downloading is sometimes flaky.
-            # Download default weights from Qualcomm AWS
-            ckpt_path = Path(repo_path) / "_models" / DEFAULT_MODEL_WEIGHTS.path.name
-            if not ckpt_path.exists():
-                DEFAULT_MODEL_WEIGHTS.fetch()
-                os.makedirs(ckpt_path.parent, exist_ok=True)
-                os.symlink(DEFAULT_MODEL_WEIGHTS.path, ckpt_path)
+        # Built in weights downloading is sometimes flaky.
+        # Download default weights from Qualcomm AWS
+        ckpt_path = _POSENET_REPO_ROOT / "_models" / DEFAULT_MODEL_WEIGHTS.path.name
+        if not ckpt_path.exists():
+            DEFAULT_MODEL_WEIGHTS.fetch()
+            os.makedirs(ckpt_path.parent, exist_ok=True)
+            os.symlink(DEFAULT_MODEL_WEIGHTS.path, ckpt_path)
 
-            import posenet
+        model = posenet.load_model(model_id)
 
-            model = posenet.load_model(model_id)
-
-            return cls(model)
+        return cls(model)
 
     # Caution: adding typehints to this method's parameter or return will trigger a
     # bug in torch that leads to the following exception:

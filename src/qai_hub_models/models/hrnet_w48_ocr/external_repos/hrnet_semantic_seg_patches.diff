@@ -1,0 +1,153 @@
+# Fixes deprecated numpy dtype aliases (np.int, np.float) and converts to relative imports.
+#
+diff --git a/lib/datasets/base_dataset.py b/lib/datasets/base_dataset.py
+index b7f5469..8d59a53 100644
+--- a/lib/datasets/base_dataset.py
++++ b/lib/datasets/base_dataset.py
+@@ -79,14 +79,14 @@ class BaseDataset(data.Dataset):
+ 
+     def multi_scale_aug(self, image, label=None,
+                         rand_scale=1, rand_crop=True):
+-        long_size = np.int(self.base_size * rand_scale + 0.5)
++        long_size = int(self.base_size * rand_scale + 0.5)
+         h, w = image.shape[:2]
+         if h > w:
+             new_h = long_size
+-            new_w = np.int(w * long_size / h + 0.5)
++            new_w = int(w * long_size / h + 0.5)
+         else:
+             new_w = long_size
+-            new_h = np.int(h * long_size / w + 0.5)
++            new_h = int(h * long_size / w + 0.5)
+ 
+         image = cv2.resize(image, (new_w, new_h),
+                            interpolation=cv2.INTER_LINEAR)
+@@ -105,10 +105,10 @@ class BaseDataset(data.Dataset):
+         h, w = image.shape[:2]
+         if h < w:
+             new_h = short_length
+-            new_w = np.int(w * short_length / h + 0.5)
++            new_w = int(w * short_length / h + 0.5)
+         else:
+             new_w = short_length
+-            new_h = np.int(h * short_length / w + 0.5)        
++            new_h = int(h * short_length / w + 0.5)        
+         image = cv2.resize(image, (new_w, new_h),
+                            interpolation=cv2.INTER_LINEAR)
+         pad_w, pad_h = 0, 0
+@@ -222,8 +222,8 @@ class BaseDataset(data.Dataset):
+         batch, _, ori_height, ori_width = image.size()
+         assert batch == 1, "only supporting batchsize 1."
+         image = image.numpy()[0].transpose((1, 2, 0)).copy()
+-        stride_h = np.int(self.crop_size[0] * 2.0 / 3.0)
+-        stride_w = np.int(self.crop_size[1] * 2.0 / 3.0)
++        stride_h = int(self.crop_size[0] * 2.0 / 3.0)
++        stride_w = int(self.crop_size[1] * 2.0 / 3.0)
+         final_pred = torch.zeros([1, self.num_classes,
+                                   ori_height, ori_width]).cuda()
+         padvalue = -1.0 * np.array(self.mean) / np.array(self.std)
+@@ -246,9 +246,9 @@ class BaseDataset(data.Dataset):
+                     new_img = self.pad_image(new_img, height, width,
+                                              self.crop_size, padvalue)
+                 new_h, new_w = new_img.shape[:-1]
+-                rows = np.int(np.ceil(1.0 * (new_h -
++                rows = int(np.ceil(1.0 * (new_h -
+                                              self.crop_size[0]) / stride_h)) + 1
+-                cols = np.int(np.ceil(1.0 * (new_w -
++                cols = int(np.ceil(1.0 * (new_w -
+                                              self.crop_size[1]) / stride_w)) + 1
+                 preds = torch.zeros([1, self.num_classes,
+                                      new_h, new_w]).cuda()
+diff --git a/lib/datasets/cityscapes.py b/lib/datasets/cityscapes.py
+index dec23d2..bd34ff1 100644
+--- a/lib/datasets/cityscapes.py
++++ b/lib/datasets/cityscapes.py
+@@ -127,8 +127,8 @@ class Cityscapes(BaseDataset):
+         batch, _, ori_height, ori_width = image.size()
+         assert batch == 1, "only supporting batchsize 1."
+         image = image.numpy()[0].transpose((1,2,0)).copy()
+-        stride_h = np.int(self.crop_size[0] * 1.0)
+-        stride_w = np.int(self.crop_size[1] * 1.0)
++        stride_h = int(self.crop_size[0] * 1.0)
++        stride_w = int(self.crop_size[1] * 1.0)
+         final_pred = torch.zeros([1, self.num_classes,
+                                     ori_height,ori_width]).cuda()
+         for scale in scales:
+@@ -145,9 +145,9 @@ class Cityscapes(BaseDataset):
+                 preds = preds[:, :, 0:height, 0:width]
+             else:
+                 new_h, new_w = new_img.shape[:-1]
+-                rows = np.int(np.ceil(1.0 * (new_h - 
++                rows = int(np.ceil(1.0 * (new_h - 
+                                 self.crop_size[0]) / stride_h)) + 1
+-                cols = np.int(np.ceil(1.0 * (new_w - 
++                cols = int(np.ceil(1.0 * (new_w - 
+                                 self.crop_size[1]) / stride_w)) + 1
+                 preds = torch.zeros([1, self.num_classes,
+                                            new_h,new_w]).cuda()
+diff --git a/lib/models/__init__.py b/lib/models/__init__.py
+index b383ba5..f20f0a7 100644
+--- a/lib/models/__init__.py
++++ b/lib/models/__init__.py
+@@ -8,5 +8,5 @@ from __future__ import absolute_import
+ from __future__ import division
+ from __future__ import print_function
+ 
+-import models.seg_hrnet
+-import models.seg_hrnet_ocr
+\ No newline at end of file
++import lib.models.seg_hrnet
++import lib.models.seg_hrnet_ocr
+\ No newline at end of file
+diff --git a/lib/models/hrnet.py b/lib/models/hrnet.py
+index 6981eb0..7444300 100644
+--- a/lib/models/hrnet.py
++++ b/lib/models/hrnet.py
+@@ -347,7 +347,7 @@ class HighResolutionNet(nn.Module):
+         self.stage4, pre_stage_channels = self._make_stage(
+             self.stage4_cfg, num_channels, multi_scale_output=True)
+         
+-        last_inp_channels = np.int(np.sum(pre_stage_channels))
++        last_inp_channels = int(np.sum(pre_stage_channels))
+ 
+         self.last_layer = nn.Sequential(
+             nn.Conv2d(
+diff --git a/lib/models/seg_hrnet.py b/lib/models/seg_hrnet.py
+index e396178..d83b69c 100644
+--- a/lib/models/seg_hrnet.py
++++ b/lib/models/seg_hrnet.py
+@@ -312,7 +312,7 @@ class HighResolutionNet(nn.Module):
+         self.stage4, pre_stage_channels = self._make_stage(
+             self.stage4_cfg, num_channels, multi_scale_output=True)
+         
+-        last_inp_channels = np.int(np.sum(pre_stage_channels))
++        last_inp_channels = int(np.sum(pre_stage_channels))
+ 
+         self.last_layer = nn.Sequential(
+             nn.Conv2d(
+diff --git a/lib/models/seg_hrnet_ocr.py b/lib/models/seg_hrnet_ocr.py
+index da19d23..52f31db 100644
+--- a/lib/models/seg_hrnet_ocr.py
++++ b/lib/models/seg_hrnet_ocr.py
+@@ -468,7 +468,7 @@ class HighResolutionNet(nn.Module):
+         self.stage4, pre_stage_channels = self._make_stage(
+             self.stage4_cfg, num_channels, multi_scale_output=True)
+ 
+-        last_inp_channels = np.int(np.sum(pre_stage_channels))
++        last_inp_channels = int(np.sum(pre_stage_channels))
+         ocr_mid_channels = config.MODEL.OCR.MID_CHANNELS
+         ocr_key_channels = config.MODEL.OCR.KEY_CHANNELS
+ 
+diff --git a/lib/utils/utils.py b/lib/utils/utils.py
+index f8d0c4e..38918fd 100644
+--- a/lib/utils/utils.py
++++ b/lib/utils/utils.py
+@@ -111,7 +111,7 @@ def get_confusion_matrix(label, pred, size, num_class, ignore=-1):
+     output = pred.cpu().numpy().transpose(0, 2, 3, 1)
+     seg_pred = np.asarray(np.argmax(output, axis=3), dtype=np.uint8)
+     seg_gt = np.asarray(
+-    label.cpu().numpy()[:, :size[-2], :size[-1]], dtype=np.int)
++    label.cpu().numpy()[:, :size[-2], :size[-1]], dtype=int)
+ 
+     ignore_index = seg_gt != ignore
+     seg_gt = seg_gt[ignore_index]

@@ -5,19 +5,20 @@
 
 from __future__ import annotations
 
-import os
-import sys
-
 import torch
+from omegaconf import DictConfig
 from safetensors.torch import load_file
 from typing_extensions import Self
 
 from qai_hub_models.models._shared.depth_estimation.model import DepthEstimationModel
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    find_replace_in_repo,
+from qai_hub_models.models.depth_anything_v3.external_repos.depth_anything_3.src.depth_anything_3.cfg import (
+    create_object,
+    load_config,
 )
+from qai_hub_models.models.depth_anything_v3.external_repos.depth_anything_3.src.depth_anything_3.registry import (
+    MODEL_REGISTRY,
+)
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.image_processing import normalize_image_torchvision
 from qai_hub_models.utils.input_spec import (
     ColorFormat,
@@ -29,8 +30,6 @@ from qai_hub_models.utils.input_spec import (
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
-SOURCE_REPOSITORY = "https://github.com/ByteDance-Seed/Depth-Anything-3.git"
-SOURCE_REPO_COMMIT = "a7927ef76f99be61925d3a0f8a671cba8bc44f05"
 DEFAULT_WEIGHTS = CachedWebModelAsset(
     "https://huggingface.co/depth-anything/DA3-SMALL/resolve/main/model.safetensors",
     MODEL_ID,
@@ -45,30 +44,9 @@ class DepthAnythingV3(DepthEstimationModel):
     @classmethod
     def from_pretrained(cls, ckpt: str | None = None) -> Self:
         """Load DepthAnythingV3 from a weightfile from Huggingface/Transfomers."""
-        with SourceAsRoot(
-            SOURCE_REPOSITORY,
-            SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ) as repo_path:
-            sys.path.insert(0, os.path.join(repo_path, "src"))
-            find_replace_in_repo(
-                repo_path,
-                "src/depth_anything_3/model/dinov2/layers/rope.py",
-                "positions = torch.cartesian_prod(y_coords, x_coords)",
-                "positions = torch.stack(torch.meshgrid(y_coords, x_coords, indexing='ij'), dim=-1).reshape(-1, 2)",
-            )
-            find_replace_in_repo(
-                repo_path,
-                "src/depth_anything_3/utils/geometry.py",
-                "from einops import einsum",
-                "",
-            )
-
-            from depth_anything_3.cfg import create_object, load_config
-            from depth_anything_3.registry import MODEL_REGISTRY
-
-            model = create_object(load_config(MODEL_REGISTRY["da3-small"]))
+        cfg = load_config(MODEL_REGISTRY["da3-small"])
+        assert isinstance(cfg, DictConfig)
+        model = create_object(cfg)
 
         if ckpt is None:
             state_dict = load_file(DEFAULT_WEIGHTS.fetch())

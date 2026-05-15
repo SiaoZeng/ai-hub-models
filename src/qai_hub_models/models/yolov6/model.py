@@ -5,9 +5,6 @@
 
 from __future__ import annotations
 
-import os
-from importlib import reload
-
 import torch
 from torch import nn
 from typing_extensions import Self
@@ -15,23 +12,20 @@ from typing_extensions import Self
 from qai_hub_models.models._shared.yolo.model import Yolo
 from qai_hub_models.models._shared.yolo.utils import detect_postprocess
 from qai_hub_models.models.common import Precision
+from qai_hub_models.models.yolov6.external_repos.yolov6.yolov6.layers.common import (
+    RepVGGBlock,
+)
+from qai_hub_models.models.yolov6.external_repos.yolov6.yolov6.utils.checkpoint import (
+    load_checkpoint,
+)
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    SourceAsRoot,
     load_path,
     qaihm_temp_dir,
 )
-from qai_hub_models.utils.set_env import set_temp_env
 
-YOLOV6_SOURCE_REPOSITORY = "https://github.com/meituan/YOLOv6"
-YOLOV6_SOURCE_REPO_COMMIT = "55d80c317edd0fb5847e599a1802d394f34a3141"
 MODEL_ASSET_VERSION = 1
 MODEL_ID = __name__.split(".")[-2]
-YOLOV6_SOURCE_PATCHES = [
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches", "pkg_resources.diff")
-    )
-]
 
 WEIGHTS_PATH = "https://github.com/meituan/YOLOv6/releases/download/0.4.0/"
 DEFAULT_WEIGHTS = "yolov6n.pt"
@@ -109,37 +103,15 @@ def _load_yolov6_source_model_from_weights(
 ) -> torch.nn.Module:
     with qaihm_temp_dir() as tmpdir:
         model_path = load_path(ckpt_path, tmpdir)
-        with SourceAsRoot(
-            YOLOV6_SOURCE_REPOSITORY,
-            YOLOV6_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-            YOLOV6_SOURCE_PATCHES,
-        ):
-            # Our models/yolov6 package may already be loaded and cached as
-            # "yolov6" (reproduce by running python -m yolov6.demo from models
-            # folder). To make sure it loads the external yolov6 repo,
-            # explicitly reload first.
-            import yolov6
 
-            reload(yolov6)
+        model = load_checkpoint(model_path, map_location="cpu", inplace=True, fuse=True)
+        model.export = True
 
-            from yolov6.layers.common import RepVGGBlock
-            from yolov6.utils.checkpoint import load_checkpoint
-
-            # Set the environment variable to force torch.load to use weights_only=False
-            # This is needed for PyTorch 2.8+ where the default changed to weights_only=True
-            with set_temp_env({"TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD": "1"}):
-                model = load_checkpoint(
-                    model_path, map_location="cpu", inplace=True, fuse=True
-                )
-            model.export = True
-
-            for layer in model.modules():
-                if isinstance(layer, RepVGGBlock):
-                    layer.switch_to_deploy()
-                elif isinstance(layer, nn.Upsample) and not hasattr(
-                    layer, "recompute_scale_factor"
-                ):
-                    layer.recompute_scale_factor = None  # torch 1.11.0 compatibility
-            return model
+        for layer in model.modules():
+            if isinstance(layer, RepVGGBlock):
+                layer.switch_to_deploy()
+            elif isinstance(layer, nn.Upsample) and not hasattr(
+                layer, "recompute_scale_factor"
+            ):
+                layer.recompute_scale_factor = None  # torch 1.11.0 compatibility
+        return model

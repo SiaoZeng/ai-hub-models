@@ -6,3 +6,8 @@ disabled_paths:
   w8a8:
     qnn_dlc:
       issue: https://github.com/qcom-ai-hub/tetracode/issues/19066
+external_repos:
+  ddrnet_pytorch:
+    repo_url: https://github.com/chenjun2hao/DDRNet.pytorch.git
+    commit_sha: bc0e193e87ead839dbc715c48e6bfb059cf21b27
+    patches_filename: ddrnet_pytorch_patches.diff

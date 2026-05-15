@@ -5,11 +5,6 @@
 
 from __future__ import annotations
 
-import importlib
-import os
-import sys
-import tarfile
-import types
 from pathlib import Path
 
 import numpy as np
@@ -19,12 +14,12 @@ from torch import nn
 from typing_extensions import Self
 
 from qai_hub_models.models.common import SampleInputsType
-from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, SourceAsRoot
+from qai_hub_models.models.rangenet_plus_plus.external_repos.lidar_bonnetal.train.tasks.semantic.modules.segmentator import (
+    Segmentator,
+)
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import InputSpec
-
-RANGENET_SOURCE_REPOSITORY = "https://github.com/PRBonn/lidar-bonnetal.git"
-RANGENET_SOURCE_REPO_COMMIT = "99b827f"
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
@@ -74,13 +69,14 @@ class RangeNetPlusPlus(BaseModel):
             Loaded model instance.
         """
         if model_dir is None:
-            tar_path = DARKNET53_MODEL_ASSET.fetch()
-            model_dir = Path(tar_path.parent) / "darknet53"
-            if not model_dir.exists():
-                with tarfile.open(tar_path) as tar:
-                    tar.extractall(tar_path.parent)
+            model_dir = DARKNET53_MODEL_ASSET.fetch(extract=True)
 
-        model = _load_rangenet_source_model(Path(os.path.abspath(model_dir)))
+        config_path = Path(model_dir) / "arch_cfg.yaml"
+        with open(config_path) as f:
+            arch_cfg = YAML(typ="safe", pure=True).load(f)
+
+        model = Segmentator(arch_cfg, NUM_CLASSES, path=str(model_dir))
+        model.eval()
         return cls(model)
 
     def forward(self, range_image: torch.Tensor) -> torch.Tensor:
@@ -139,48 +135,3 @@ class RangeNetPlusPlus(BaseModel):
         ).reshape(-1, 4)
         arr, _, _ = project_points_to_range_image(points)
         return {"range_image": [arr]}
-
-
-def _load_rangenet_source_model(model_dir: Path) -> nn.Module:
-    config_path = model_dir / "arch_cfg.yaml"
-
-    with SourceAsRoot(
-        RANGENET_SOURCE_REPOSITORY,
-        RANGENET_SOURCE_REPO_COMMIT,
-        MODEL_ID,
-        MODEL_ASSET_VERSION,
-        source_root_subdir="train/tasks/semantic",
-        imported_but_unused_modules=["vispy", "open3d"],
-    ):
-        if "imp" not in sys.modules:
-            sys.modules["imp"] = types.ModuleType("imp")
-
-        train_path = os.path.normpath(os.path.join(os.getcwd(), "../../"))
-        if train_path not in sys.path:
-            sys.path.insert(0, train_path)
-
-        booger_stub = types.ModuleType("rangenet_bonnetal_init")
-        booger_stub.TRAIN_PATH = train_path  # type: ignore[attr-defined]
-        booger_stub.DEPLOY_PATH = os.path.join(train_path, "../deploy")  # type: ignore[attr-defined]
-        sys.modules["rangenet_bonnetal_init"] = booger_stub
-        sys.modules["__init__"] = booger_stub
-
-        def _load_source(name: str, path: str) -> types.ModuleType:
-            spec = importlib.util.spec_from_file_location(name, path)
-            assert spec and spec.loader
-            mod = importlib.util.module_from_spec(spec)
-            sys.modules[name] = mod
-            spec.loader.exec_module(mod)
-            return mod
-
-        sys.modules["imp"].load_source = _load_source  # type: ignore[attr-defined]
-
-        from modules.segmentator import Segmentator
-
-        with open(config_path) as f:
-            arch_cfg = YAML(typ="safe", pure=True).load(f)
-
-        model = Segmentator(arch_cfg, NUM_CLASSES, path=str(model_dir))
-        model.eval()
-
-    return model

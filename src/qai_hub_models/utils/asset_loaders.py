@@ -123,6 +123,23 @@ def check_unpublished_model_warning() -> bool:
     return query_yes_no("Continue?")
 
 
+@contextmanager
+def repo_in_sys_path(repo_dir: str) -> Generator[None, None, None]:
+    """Temporarily add a directory to sys.path for pickle unpickling, with guaranteed cleanup.
+
+    Required by models (yolov6, yolov7) whose weights were saved with pickle —
+    torch.load needs the original module paths on sys.path to resolve classes.
+    """
+    added = repo_dir not in sys.path
+    if added:
+        sys.path.insert(0, repo_dir)
+    try:
+        yield
+    finally:
+        if added and repo_dir in sys.path:
+            sys.path.remove(repo_dir)
+
+
 def query_yes_no(
     question: str, default: str = "yes", timeout: int | None = None
 ) -> bool:

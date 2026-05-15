@@ -1,0 +1,40 @@
+# Allows loading pretrained checkpoints with shape mismatches and removes CUDA device pinning.
+#
+diff --git a/nuplan_simulation/str_trajectory_generator.py b/nuplan_simulation/str_trajectory_generator.py
+index 56ac991..40d3739 100644
+--- a/nuplan_simulation/str_trajectory_generator.py
++++ b/nuplan_simulation/str_trajectory_generator.py
+@@ -71,7 +71,7 @@ class STRTrajectoryGenerator:
+                 self._model_path,
+             )
+             self._model = build_models(model_args=model_args)
+-            self._model.cuda()
++
+             self._model.eval()
+             print("model built on ", self._model.device)
+         else:
+diff --git a/transformer4planning/models/backbone/str_base.py b/transformer4planning/models/backbone/str_base.py
+index eec745b..6f50e93 100644
+--- a/transformer4planning/models/backbone/str_base.py
++++ b/transformer4planning/models/backbone/str_base.py
+@@ -106,8 +106,11 @@ class STR(PreTrainedModel):
+
+     def build_trajectory_tokenizer(self):
+         if self.config.traj_tokenizer == 'cluster_traj':
++            from pathlib import Path as _Path
+             from transformer4planning.models.tokenizer.cluster_traj_tokenizer import ClusterTrajTokenizer
+             cluster_path = self.config.traj_cluster_file
++            if not _Path(cluster_path).is_absolute():
++                cluster_path = str(_Path(__file__).resolve().parents[3] / cluster_path)
+             logger.info(f"cluster_path for trajectory: {cluster_path}")
+             self.encoder.traj_tokenizer = ClusterTrajTokenizer(cluster_path)
+
+@@ -1169,7 +1172,7 @@ def build_models(model_args):
+     elif 'pretrain' in model_args.model_name:
+         # from transformers import AqlmConfig
+         # quantization_config = AqlmConfig(weights="int8", pre_quantized=False)
+-        model = ModelCls.from_pretrained(model_args.model_pretrain_name_or_path, config=config_p)
++        model = ModelCls.from_pretrained(model_args.model_pretrain_name_or_path, config=config_p, ignore_mismatched_sizes=True)
+         logger.info('Pretrained ' + tag + ' from {}'.format(model_args.model_pretrain_name_or_path))
+         if model_args.key_points_diffusion_decoder_load_from is not None:
+                 print(f"Now loading pretrained key_points_diffusion_decoder from {model_args.key_points_diffusion_decoder_load_from}.")

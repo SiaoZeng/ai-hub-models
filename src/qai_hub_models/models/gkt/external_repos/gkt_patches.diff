@@ -1,3 +1,5 @@
+# Bypasses Hydra instantiate for direct model construction and replaces einsum with matmul.
+#
 diff --git a/segmentation/cross_view_transformer/common.py b/segmentation/cross_view_transformer/common.py
 index 008f778..58bccfd 100644
 --- a/segmentation/cross_view_transformer/common.py

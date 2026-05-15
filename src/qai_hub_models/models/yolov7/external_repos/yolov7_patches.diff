@@ -1,0 +1,79 @@
+# Converts to relative imports and disables conditional branches that break ONNX graph tracing.
+#
+diff --git a/models/experimental.py b/models/experimental.py
+index 735d7aa..2bc8737 100644
+--- a/models/experimental.py
++++ b/models/experimental.py
+@@ -1,8 +1,14 @@
+ import numpy as np
++import os
+ import random
+ import torch
+ import torch.nn as nn
+ 
++from qai_hub_models.utils.asset_loaders import repo_in_sys_path
++
++_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++
++
+ from models.common import Conv, DWConv
+ from utils.google_utils import attempt_download
+ 
+@@ -247,9 +253,10 @@ class End2End(nn.Module):
+ def attempt_load(weights, map_location=None):
+     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
+     model = Ensemble()
+-    for w in weights if isinstance(weights, list) else [weights]:
+-        attempt_download(w)
+-        ckpt = torch.load(w, map_location=map_location)  # load
++    with repo_in_sys_path(_REPO_ROOT):
++        for w in weights if isinstance(weights, list) else [weights]:
++            attempt_download(w)
++            ckpt = torch.load(w, map_location=map_location)  # load
+         model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().fuse().eval())  # FP32 model
+     
+     # Compatibility updates
+diff --git a/models/yolo.py b/models/yolo.py
+index 95a019c..d8194f3 100644
+--- a/models/yolo.py
++++ b/models/yolo.py
+@@ -579,7 +579,7 @@ class Model(nn.Module):
+         logger.info('')
+ 
+     def forward(self, x, augment=False, profile=False):
+-        if augment:
++        if False:
+             img_size = x.shape[-2:]  # height, width
+             s = [1, 0.83, 0.67]  # scales
+             f = [None, 3, None]  # flips (2-ud, 3-lr)
+@@ -611,7 +611,7 @@ class Model(nn.Module):
+                 if isinstance(m, Detect) or isinstance(m, IDetect) or isinstance(m, IAuxDetect) or isinstance(m, IKeypoint):
+                     break
+ 
+-            if profile:
++            if False:
+                 c = isinstance(m, (Detect, IDetect, IAuxDetect, IBin))
+                 o = thop.profile(m, inputs=(x.copy() if c else x,), verbose=False)[0] / 1E9 * 2 if thop else 0  # FLOPS
+                 for _ in range(10):
+@@ -626,7 +626,7 @@ class Model(nn.Module):
+             
+             y.append(x if m.i in self.save else None)  # save output
+ 
+-        if profile:
++        if False:
+             print('%.1fms total' % sum(dt))
+         return x
+ 
+diff --git a/utils/google_utils.py b/utils/google_utils.py
+index f363408..ff9c358 100644
+--- a/utils/google_utils.py
++++ b/utils/google_utils.py
+@@ -28,7 +28,7 @@ def attempt_download(file, repo='WongKinYiu/yolov7'):
+         except:  # fallback plan
+             assets = ['yolov7.pt', 'yolov7-tiny.pt', 'yolov7x.pt', 'yolov7-d6.pt', 'yolov7-e6.pt', 
+                       'yolov7-e6e.pt', 'yolov7-w6.pt']
+-            tag = subprocess.check_output('git tag', shell=True).decode().split()[-1]
++            tag = 'v0.1'
+ 
+         name = file.name
+         if name in assets:

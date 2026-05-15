@@ -5,3 +5,7 @@ disabled_paths: {}
 is_collection_model: true
 global_requirements_incompatible: true
 pip_install_flags: git+https://github.com/facebookresearch/EdgeTAM.git@a1209a454c9950d531498074a95ecf3a3ba02dfd
+external_repos:
+  edgetam:
+    repo_url: https://github.com/facebookresearch/EdgeTAM.git
+    commit_sha: a1209a454c9950d531498074a95ecf3a3ba02dfd

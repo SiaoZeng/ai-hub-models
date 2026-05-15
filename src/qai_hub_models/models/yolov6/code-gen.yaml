@@ -3,6 +3,11 @@ supported_precisions:
 - w8a16
 - w8a8
 has_on_target_demo: true
+external_repos:
+  yolov6:
+    repo_url: https://github.com/meituan/YOLOv6
+    commit_sha: 55d80c317edd0fb5847e599a1802d394f34a3141
+    patches_filename: yolov6_patches.diff
 disabled_paths:
   w8a8:
     qnn_dlc:

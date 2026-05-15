@@ -11,10 +11,11 @@ import torch
 from typing_extensions import Self
 
 from qai_hub_models.models._shared.super_resolution.model import SuperResolutionModel
-from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, SourceAsRoot
+from qai_hub_models.models.esrgan.external_repos.esrgan import (
+    RRDBNet_arch as arch,
+)
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 
-ESRGAN_SOURCE_REPOSITORY = "https://github.com/xinntao/ESRGAN"
-ESRGAN_SOURCE_REPO_COMMIT = "73e9b634cf987f5996ac2dd33f4050922398a921"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 2
 DEFAULT_WEIGHTS = CachedWebModelAsset.from_asset_store(
@@ -45,25 +46,14 @@ def _load_esrgan_source_model_from_weights(
     weights_path: str | os.PathLike | None = None,
 ) -> torch.nn.Module:
     # Load ESRGAN model from the source repository using the given weights.
-    with SourceAsRoot(
-        ESRGAN_SOURCE_REPOSITORY,
-        ESRGAN_SOURCE_REPO_COMMIT,
-        MODEL_ID,
-        MODEL_ASSET_VERSION,
-    ):
-        # download the weights file
-        if weights_path is None:
-            weights_path = DEFAULT_WEIGHTS.fetch()
-            print(f"Weights file downloaded as {weights_path}")
+    # download the weights file
+    if weights_path is None:
+        weights_path = DEFAULT_WEIGHTS.fetch()
+        print(f"Weights file downloaded as {weights_path}")
 
-        # necessary import. `esrgan.RRDBNet_arch` comes from the esrgan repo.
-        import RRDBNet_arch as arch
-
-        esrgan_model = arch.RRDBNet(3, 3, 64, 23, gc=32)
-        esrgan_model.load_state_dict(
-            torch.load(
-                weights_path, map_location=torch.device("cpu"), weights_only=False
-            ),
-            strict=True,
-        )
-        return esrgan_model
+    esrgan_model = arch.RRDBNet(3, 3, 64, 23, gc=32)
+    esrgan_model.load_state_dict(
+        torch.load(weights_path, map_location=torch.device("cpu"), weights_only=False),
+        strict=True,
+    )
+    return esrgan_model

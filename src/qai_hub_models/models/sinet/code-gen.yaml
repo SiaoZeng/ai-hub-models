@@ -3,3 +3,8 @@ supported_precisions:
 - w8a16
 - w8a8
 has_on_target_demo: true
+external_repos:
+  ext_portrait_segmentation:
+    repo_url: https://github.com/clovaai/ext_portrait_segmentation
+    commit_sha: 9bc1bada1cb7bd17a3a80a2964980f4b4befef5b
+    patches_filename: ext_portrait_segmentation_patches.diff

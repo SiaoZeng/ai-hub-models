@@ -1,0 +1,37 @@
+# Sets MUJOCO_GL=egl for headless rendering and converts bare module imports to relative imports.
+#
+diff --git a/sim_env.py b/sim_env.py
+index 1234567..abcdefg 100644
+--- a/sim_env.py
++++ b/sim_env.py
+@@ -1,5 +1,6 @@
+ import numpy as np
+ import os
++os.environ.setdefault("MUJOCO_GL", "egl")
+ import collections
+ import matplotlib.pyplot as plt
+ from dm_control import mujoco
+diff --git a/detr/models/backbone.py b/detr/models/backbone.py
+--- a/detr/models/backbone.py
++++ b/detr/models/backbone.py
+@@ -12,7 +12,7 @@
+ from torchvision.models._utils import IntermediateLayerGetter
+ from typing import Dict, List
+
+-from util.misc import NestedTensor, is_main_process
++from ..util.misc import NestedTensor, is_main_process
+
+ from .position_encoding import build_position_encoding
+
+diff --git a/detr/models/position_encoding.py b/detr/models/position_encoding.py
+--- a/detr/models/position_encoding.py
++++ b/detr/models/position_encoding.py
+@@ -7,7 +7,7 @@
+ import torch
+ from torch import nn
+
+-from util.misc import NestedTensor
++from ..util.misc import NestedTensor
+
+ import IPython
+ e = IPython.embed

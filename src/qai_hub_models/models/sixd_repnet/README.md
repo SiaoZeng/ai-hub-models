@@ -12,7 +12,7 @@ Qualcomm AI Hub Models uses [Qualcomm AI Hub Workbench](https://workbench.aihub.
 Install the package via pip:
 ```bash
 # NOTE: 3.10 <= PYTHON_VERSION < 3.14 is supported.
-pip install "qai-hub-models[sixd-repnet]" git+https://github.com/thohemp/6DRepNet.git@464b2ba git+https://github.com/elliottzheng/face-detection.git@786fbab
+pip install "qai-hub-models[sixd-repnet]" git+https://github.com/elliottzheng/face-detection.git@786fbab
 ```
 
 ### 2. Configure Qualcomm® AI Hub Workbench

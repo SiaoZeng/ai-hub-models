@@ -13,7 +13,10 @@ import torch
 from face_detection.alignment import load_net
 from typing_extensions import Self
 
-from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, SourceAsRoot
+from qai_hub_models.models.sixd_repnet.external_repos.sixdrepnet.sixdrepnet.model import (
+    SixDRepNet as UpstreamSixDRepNet,
+)
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,
@@ -45,9 +48,6 @@ SCORE_THRESHOLD = 0.95
 # BGR mean used by the upstream RetinaFace MobileNet, matching batch_detect() in
 # face_detection/alignment.py: mean = [104, 117, 123]
 _RETINA_BGR_MEAN = torch.tensor([104.0, 117.0, 123.0]).view(1, 3, 1, 1)
-
-SIXDREPNET_SOURCE_REPOSITORY = "https://github.com/thohemp/6DRepNet"
-SIXDREPNET_SOURCE_REPO_COMMIT = "464b2ba55c3d9b3d3b707c6271cf329a983ded20"
 
 
 class RetinaFaceDetector(BaseModel):
@@ -145,15 +145,6 @@ class PoseEstimator(BaseModel):
 
     @classmethod
     def from_pretrained(cls, weights_name: str = DEFAULT_WEIGHTS) -> Self:
-        with SourceAsRoot(
-            SIXDREPNET_SOURCE_REPOSITORY,
-            SIXDREPNET_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-            source_root_subdir="sixdrepnet",
-        ):
-            from model import SixDRepNet as UpstreamSixDRepNet
-
         model = UpstreamSixDRepNet(
             backbone_name="RepVGG-B1g2",
             backbone_file="",

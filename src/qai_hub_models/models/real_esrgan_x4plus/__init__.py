@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # ---------------------------------------------------------------------
 
+
 from qai_hub_models.models._shared.super_resolution.app import (  # noqa: F401
     SuperResolutionApp as App,
 )

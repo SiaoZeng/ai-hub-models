@@ -10,27 +10,16 @@ import numpy as np
 import torch
 from ruamel.yaml import YAML
 
+from qai_hub_models.models.salsanext.external_repos.salsanext.train.common.laserscan import (
+    SemLaserScan,
+)
+from qai_hub_models.models.salsanext.external_repos.salsanext.train.tasks.semantic.postproc.KNN import (
+    KNN,
+)
 from qai_hub_models.models.salsanext.model import (
     ARCH_ADDRESS,
     DATA_ADDRESS,
-    MODEL_ASSET_VERSION,
-    MODEL_ID,
-    SALSANEXT_PROXY_REPO_COMMIT,
-    SALSANEXT_PROXY_REPOSITORY,
-    SALSANEXT_SOURCE_PATCHES,
 )
-from qai_hub_models.utils.asset_loaders import SourceAsRoot
-
-# Load modules from source repository
-with SourceAsRoot(
-    SALSANEXT_PROXY_REPOSITORY,
-    SALSANEXT_PROXY_REPO_COMMIT,
-    MODEL_ID,
-    MODEL_ASSET_VERSION,
-    source_repo_patches=SALSANEXT_SOURCE_PATCHES,
-):
-    from train.common.laserscan import SemLaserScan
-    from train.tasks.semantic.postproc.KNN import KNN
 
 
 class SalsaNextApp:

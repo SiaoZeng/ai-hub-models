@@ -2,3 +2,7 @@ supported_precisions:
 - float
 - w8a8
 has_on_target_demo: true
+external_repos:
+  pidnet:
+    repo_url: https://github.com/XuJiacong/PIDNet.git
+    commit_sha: fefa51716bddc13a4321af2c70a074367100645a

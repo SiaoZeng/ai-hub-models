@@ -1,0 +1,15 @@
+# Comments out imports of unavailable optional dependencies.
+#
+diff --git a/segmentron/models/__init__.py b/segmentron/models/__init__.py
+index 1361794..a1c58ac 100644
+--- a/segmentron/models/__init__.py
++++ b/segmentron/models/__init__.py
+@@ -8,7 +8,7 @@ from .dfanet import DFANet
+ from .pspnet import PSPNet
+ from .icnet import ICNet
+ from .danet import DANet
+-# from .ccnet import CCNet
++#
+ from .bisenet import BiSeNet
+ from .cgnet import CGNet
+ from .denseaspp import DenseASPP

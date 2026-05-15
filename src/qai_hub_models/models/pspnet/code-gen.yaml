@@ -2,3 +2,7 @@ supported_precisions:
 - float
 - w8a8
 has_on_target_demo: true
+external_repos:
+  semseg:
+    repo_url: https://github.com/hszhao/semseg.git
+    commit_sha: 4f274c3f276778228bc14a4565822d46359f0cc8

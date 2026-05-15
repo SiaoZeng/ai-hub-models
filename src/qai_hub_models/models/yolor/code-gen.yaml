@@ -9,3 +9,8 @@ disabled_paths:
     tflite:
       scorecard_accuracy_failure: Torch and On-device accuracy diff (-47.200 mAP@0.5:0.95) above threshold (10.0 mAP@0.5:0.95)
 check_trace: false
+external_repos:
+  yolor:
+    repo_url: https://github.com/WongKinYiu/yolor.git
+    commit_sha: 3ca250ae2247ca13911fa498cbe8e2c9b6bab5b0
+    patches_filename: yolor_patches.diff

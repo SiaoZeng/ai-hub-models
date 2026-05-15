@@ -4,3 +4,8 @@ check_trace: false
 is_collection_model: true
 global_requirements_incompatible: true
 pip_install_flags: git+https://github.com/ChaoningZhang/MobileSAM@34bbbfd --use-pep517
+external_repos:
+  track_anything:
+    repo_url: https://github.com/gaomingqi/Track-Anything.git
+    commit_sha: e6e159273790974e04eeea6673f1f93c035005fc
+    patches_filename: track_anything_patches.diff

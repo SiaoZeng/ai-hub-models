@@ -1,3 +1,5 @@
+# Replaces deprecated pkg_resources with packaging module.
+#
 diff --git a/yolov6/utils/general.py b/yolov6/utils/general.py
 index cb4418c..5300651 100644
 --- a/yolov6/utils/general.py

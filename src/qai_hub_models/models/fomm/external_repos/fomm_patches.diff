@@ -1,0 +1,194 @@
+# Converts bare module imports to relative imports and adds align_corners for deterministic grid_sample.
+#
+diff --git a/demo.py b/demo.py
+index 35f2b17..5abe009 100644
+--- a/demo.py
++++ b/demo.py
+@@ -10,9 +10,9 @@ from skimage import img_as_ubyte
+ import torch
+ from sync_batchnorm import DataParallelWithCallback
+ 
+-from modules.generator import OcclusionAwareGenerator
+-from modules.keypoint_detector import KPDetector
+-from animate import normalize_kp
++from .modules.generator import OcclusionAwareGenerator
++from .modules.keypoint_detector import KPDetector
++from .animate import normalize_kp
+ 
+ import ffmpeg
+ from os.path import splitext
+diff --git a/modules/dense_motion.py b/modules/dense_motion.py
+index 06f7039..80aa3e4 100644
+--- a/modules/dense_motion.py
++++ b/modules/dense_motion.py
+@@ -1,7 +1,7 @@
+ from torch import nn
+ import torch.nn.functional as F
+ import torch
+-from modules.util import Hourglass, AntiAliasInterpolation2d, make_coordinate_grid, kp2gaussian
++from .util import Hourglass, AntiAliasInterpolation2d, make_coordinate_grid, kp2gaussian
+ 
+ 
+ class DenseMotionNetwork(nn.Module):
+@@ -49,7 +49,7 @@ class DenseMotionNetwork(nn.Module):
+         Eq 4. in the paper T_{s<-d}(z)
+         """
+         bs, _, h, w = source_image.shape
+-        identity_grid = make_coordinate_grid((h, w), type=kp_source['value'].type())
++        identity_grid = make_coordinate_grid((h, w), dtype=kp_source['value'].dtype, device=kp_source['value'].device)
+         identity_grid = identity_grid.view(1, 1, h, w, 2)
+         coordinate_grid = identity_grid - kp_driving['value'].view(bs, self.num_kp, 1, 1, 2)
+         if 'jacobian' in kp_driving:
+@@ -74,7 +74,7 @@ class DenseMotionNetwork(nn.Module):
+         source_repeat = source_image.unsqueeze(1).unsqueeze(1).repeat(1, self.num_kp + 1, 1, 1, 1, 1)
+         source_repeat = source_repeat.view(bs * (self.num_kp + 1), -1, h, w)
+         sparse_motions = sparse_motions.view((bs * (self.num_kp + 1), h, w, -1))
+-        sparse_deformed = F.grid_sample(source_repeat, sparse_motions)
++        sparse_deformed = F.grid_sample(source_repeat, sparse_motions, align_corners=True)
+         sparse_deformed = sparse_deformed.view((bs, self.num_kp + 1, -1, h, w))
+         return sparse_deformed
+ 
+diff --git a/modules/generator.py b/modules/generator.py
+index ec66570..3805487 100644
+--- a/modules/generator.py
++++ b/modules/generator.py
+@@ -1,8 +1,8 @@
+ import torch
+ from torch import nn
+ import torch.nn.functional as F
+-from modules.util import ResBlock2d, SameBlock2d, UpBlock2d, DownBlock2d
+-from modules.dense_motion import DenseMotionNetwork
++from .util import ResBlock2d, SameBlock2d, UpBlock2d, DownBlock2d
++from .dense_motion import DenseMotionNetwork
+ 
+ 
+ class OcclusionAwareGenerator(nn.Module):
+@@ -54,7 +54,7 @@ class OcclusionAwareGenerator(nn.Module):
+             deformation = deformation.permute(0, 3, 1, 2)
+             deformation = F.interpolate(deformation, size=(h, w), mode='bilinear')
+             deformation = deformation.permute(0, 2, 3, 1)
+-        return F.grid_sample(inp, deformation)
++        return F.grid_sample(inp, deformation, align_corners=True)
+ 
+     def forward(self, source_image, kp_driving, kp_source):
+         # Encoding (downsampling) part
+diff --git a/modules/keypoint_detector.py b/modules/keypoint_detector.py
+index 33f9f1d..f6523dc 100644
+--- a/modules/keypoint_detector.py
++++ b/modules/keypoint_detector.py
+@@ -1,7 +1,7 @@
+ from torch import nn
+ import torch
+ import torch.nn.functional as F
+-from modules.util import Hourglass, make_coordinate_grid, AntiAliasInterpolation2d
++from .util import Hourglass, make_coordinate_grid, AntiAliasInterpolation2d
+ 
+ 
+ class KPDetector(nn.Module):
+@@ -40,7 +40,7 @@ class KPDetector(nn.Module):
+         """
+         shape = heatmap.shape
+         heatmap = heatmap.unsqueeze(-1)
+-        grid = make_coordinate_grid(shape[2:], heatmap.type()).unsqueeze_(0).unsqueeze_(0)
++        grid = make_coordinate_grid(shape[2:], dtype=heatmap.dtype, device=heatmap.device).unsqueeze_(0).unsqueeze_(0)
+         value = (heatmap * grid).sum(dim=(2, 3))
+         kp = {'value': value}
+ 
+diff --git a/modules/model.py b/modules/model.py
+index 7ee07c0..6559445 100644
+--- a/modules/model.py
++++ b/modules/model.py
+@@ -1,7 +1,7 @@
+ from torch import nn
+ import torch
+ import torch.nn.functional as F
+-from modules.util import AntiAliasInterpolation2d, make_coordinate_grid
++from .util import AntiAliasInterpolation2d, make_coordinate_grid
+ from torchvision import models
+ import numpy as np
+ from torch.autograd import grad
+@@ -79,7 +79,7 @@ class Transform:
+ 
+         if ('sigma_tps' in kwargs) and ('points_tps' in kwargs):
+             self.tps = True
+-            self.control_points = make_coordinate_grid((kwargs['points_tps'], kwargs['points_tps']), type=noise.type())
++            self.control_points = make_coordinate_grid((kwargs['points_tps'], kwargs['points_tps']), dtype=noise.dtype, device=noise.device)
+             self.control_points = self.control_points.unsqueeze(0)
+             self.control_params = torch.normal(mean=0,
+                                                std=kwargs['sigma_tps'] * torch.ones([bs, 1, kwargs['points_tps'] ** 2]))
+@@ -87,7 +87,7 @@ class Transform:
+             self.tps = False
+ 
+     def transform_frame(self, frame):
+-        grid = make_coordinate_grid(frame.shape[2:], type=frame.type()).unsqueeze(0)
++        grid = make_coordinate_grid(frame.shape[2:], dtype=frame.dtype, device=frame.device).unsqueeze(0)
+         grid = grid.view(1, frame.shape[2] * frame.shape[3], 2)
+         grid = self.warp_coordinates(grid).view(self.bs, frame.shape[2], frame.shape[3], 2)
+         return F.grid_sample(frame, grid, padding_mode="reflection")
+diff --git a/modules/util.py b/modules/util.py
+index 831fea4..d9e7220 100644
+--- a/modules/util.py
++++ b/modules/util.py
+@@ -7,46 +7,40 @@ from sync_batchnorm import SynchronizedBatchNorm2d as BatchNorm2d
+ 
+ 
+ def kp2gaussian(kp, spatial_size, kp_variance):
+-    """
+-    Transform a keypoint into gaussian like representation
+-    """
+-    mean = kp['value']
++    """Transform a keypoint into gaussian like representation"""
++    mean = kp["value"] if isinstance(kp, dict) else kp
+ 
+-    coordinate_grid = make_coordinate_grid(spatial_size, mean.type())
++    coordinate_grid = make_coordinate_grid(spatial_size, mean.dtype, mean.device)
+     number_of_leading_dimensions = len(mean.shape) - 1
+     shape = (1,) * number_of_leading_dimensions + coordinate_grid.shape
+     coordinate_grid = coordinate_grid.view(*shape)
+-    repeats = mean.shape[:number_of_leading_dimensions] + (1, 1, 1)
++    repeats = (*mean.shape[:number_of_leading_dimensions], 1, 1, 1)
+     coordinate_grid = coordinate_grid.repeat(*repeats)
+ 
+     # Preprocess kp shape
+-    shape = mean.shape[:number_of_leading_dimensions] + (1, 1, 2)
++    shape = (*mean.shape[:number_of_leading_dimensions], 1, 1, 2)
+     mean = mean.view(*shape)
+ 
+-    mean_sub = (coordinate_grid - mean)
++    mean_sub = coordinate_grid - mean
+ 
+-    out = torch.exp(-0.5 * (mean_sub ** 2).sum(-1) / kp_variance)
++    exponent = -0.5 * (mean_sub**2).sum(-1) / kp_variance
++    # Clamp exponent to avoid underflow/overflow issues
++    exponent = torch.clamp(exponent, min=-10.0, max=0.0)
+ 
+-    return out
++    return torch.exp(exponent)
+ 
+ 
+-def make_coordinate_grid(spatial_size, type):
+-    """
+-    Create a meshgrid [-1,1] x [-1,1] of given spatial_size.
+-    """
++def make_coordinate_grid(spatial_size, dtype=None, device=None, **kwargs):
++    """Create a meshgrid [-1,1] x [-1,1] of given spatial_size."""
+     h, w = spatial_size
+-    x = torch.arange(w).type(type)
+-    y = torch.arange(h).type(type)
+-
+-    x = (2 * (x / (w - 1)) - 1)
+-    y = (2 * (y / (h - 1)) - 1)
++    # Replaced manual arange + scaling with torch.linspace
++    x = torch.linspace(-1, 1, w, device=device, dtype=dtype)
++    y = torch.linspace(-1, 1, h, device=device, dtype=dtype)
+ 
+     yy = y.view(-1, 1).repeat(1, w)
+     xx = x.view(1, -1).repeat(h, 1)
+ 
+-    meshed = torch.cat([xx.unsqueeze_(2), yy.unsqueeze_(2)], 2)
+-
+-    return meshed
++    return torch.cat([xx.unsqueeze_(2), yy.unsqueeze_(2)], 2)
+ 
+ 
+ class ResBlock2d(nn.Module):

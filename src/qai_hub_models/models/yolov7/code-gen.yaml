@@ -5,3 +5,8 @@ supported_precisions:
 has_on_target_demo: true
 outputs_to_skip_validation:
   '2': Boxes with low confidence disagree on class index between torch and on-device
+external_repos:
+  yolov7:
+    repo_url: https://github.com/WongKinYiu/yolov7
+    commit_sha: 84932d70fb9e2932d0a70e4a1f02a1d6dd1dd6ca
+    patches_filename: yolov7_patches.diff

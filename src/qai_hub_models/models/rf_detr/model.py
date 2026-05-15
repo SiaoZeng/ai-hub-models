@@ -9,14 +9,10 @@ import torch
 from typing_extensions import Self
 
 from qai_hub_models.models._shared.detr.model import DETR
-from qai_hub_models.utils.asset_loaders import SourceAsRoot
+from qai_hub_models.models.rf_detr.external_repos.rf_detr.rfdetr import RFDETRBase
 from qai_hub_models.utils.image_processing import normalize_image_torchvision
 from qai_hub_models.utils.input_spec import InputSpec
 
-# TODO: Temporarily using GitHub repository for installation. Switch back to PyPI-based install once the development code is released.
-# https://github.com/qcom-ai-hub/ai-hub-models-internal/issues/1634
-SOURCE_REPOSITORY = "https://github.com/roboflow/rf-detr.git"
-SOURCE_REPO_COMMIT = "1e63dbad402eea10f110e86013361d6b02ee0c09"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
 
@@ -58,17 +54,9 @@ class RF_DETR(DETR):
 
     @classmethod
     def from_pretrained(cls) -> Self:
-        with SourceAsRoot(
-            SOURCE_REPOSITORY,
-            SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ):
-            from rfdetr import RFDETRBase
-
-            torch_model = RFDETRBase(resolution=DEFAULT_RESOLUTION, device="cpu")
-            torch_model.optimize_for_inference(compile=False)
-            return cls(torch_model.model.inference_model)
+        torch_model = RFDETRBase(resolution=DEFAULT_RESOLUTION, device="cpu")
+        torch_model.optimize_for_inference(compile=False)
+        return cls(torch_model.model.inference_model)
 
     @staticmethod
     def get_input_spec(

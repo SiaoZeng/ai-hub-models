@@ -1,3 +1,5 @@
+# Renames datasets/ to ffnet_datasets/ to avoid collision with HuggingFace datasets package.
+#
 commit 893641b40d95d14bc1da70e404b43754b6784ab8
 Author: Gustav Larsson <gustlars@qti.qualcomm.com>
 Date:   Wed Feb 14 09:26:52 2024 -0800

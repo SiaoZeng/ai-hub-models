@@ -2,3 +2,8 @@ supported_precisions:
 - float
 - w8a16
 - w8a8
+external_repos:
+  deeplearningexamples:
+    repo_url: https://github.com/NVIDIA/DeepLearningExamples.git
+    commit_sha: 9dd9fcb98f56187e49c5ee280cf8dbd530dde57b
+    patches_filename: deeplearningexamples_patches.diff

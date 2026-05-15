@@ -2,4 +2,8 @@ has_on_target_demo: true
 disabled_paths: {}
 is_collection_model: true
 global_requirements_incompatible: true
-pip_install_flags: git+https://github.com/thohemp/6DRepNet.git@464b2ba git+https://github.com/elliottzheng/face-detection.git@786fbab
+pip_install_flags: git+https://github.com/elliottzheng/face-detection.git@786fbab
+external_repos:
+  sixdrepnet:
+    repo_url: https://github.com/thohemp/6DRepNet
+    commit_sha: 464b2ba55c3d9b3d3b707c6271cf329a983ded20

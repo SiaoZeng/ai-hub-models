@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # ---------------------------------------------------------------------
 
+
 from qai_hub_models.models._shared.cityscapes_segmentation.app import (
     CityscapesSegmentationApp as App,  # noqa: F401
 )

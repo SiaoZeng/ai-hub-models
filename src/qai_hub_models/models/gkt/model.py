@@ -5,19 +5,18 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import torch
 from hydra import compose, initialize_config_dir
 from typing_extensions import Self
 
-import qai_hub_models.models.gkt.external_repos.gkt as gkt_repo
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.nuscenes_bev_evaluator import (
     NuscenesBevSegmentationEvaluator,
 )
 from qai_hub_models.models.common import Precision
+from qai_hub_models.models.gkt.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models.gkt.external_repos.gkt.segmentation.cross_view_transformer.common import (
     remove_prefix,
     setup_network,
@@ -51,10 +50,8 @@ class GKT(BaseModel):
         else:
             checkpoint = load_torch(GKT_CKPT.fetch())
 
-        config_path = os.path.join(
-            os.path.dirname(gkt_repo.__file__), "segmentation", "config"
-        )
-        with initialize_config_dir(version_base=None, config_dir=config_path):
+        config_path = EXTERNAL_REPO_PATHS["gkt"] / "segmentation" / "config"
+        with initialize_config_dir(version_base=None, config_dir=str(config_path)):
             cfg = compose(
                 config_name="config",
                 overrides=["+experiment=gkt_nuscenes_vehicle_kernel_7x1"],

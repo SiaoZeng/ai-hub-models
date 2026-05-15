@@ -11,64 +11,20 @@ from typing_extensions import Self
 from qai_hub_models.models._shared.cityscapes_segmentation.model import (
     CityscapesSegmentor,
 )
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    find_replace_in_repo,
+from qai_hub_models.models.hrnet_w48_ocr.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.hrnet_w48_ocr.external_repos.hrnet_semantic_seg.lib.config import (
+    config,
 )
+from qai_hub_models.models.hrnet_w48_ocr.external_repos.hrnet_semantic_seg.lib.models.seg_hrnet_ocr import (
+    get_seg_model,
+)
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.image_processing import normalize_image_torchvision
-
-HRNET_W48_OCR_SOURCE_REPOSITORY = "https://github.com/HRNet/HRNet-Semantic-Segmentation"
-HRNET_W48_OCR_SOURCE_REPO_COMMIT = "0bbb2880446ddff2d78f8dd7e8c4c610151d5a51"
 
 MODEL_ID = __name__.split(".")[-2]
 DEFAULT_WEIGHTS = "hrnet_ocr_cs_8162_torch11.pth"
 MODEL_ASSET_VERSION = 1
-
-
-def fixup_repo(repo_path: str) -> None:
-    find_replace_in_repo(
-        repo_path=repo_path,
-        filepaths="lib/models/__init__.py",
-        find_str="import models.seg_hrnet",
-        replace_str="import lib.models.seg_hrnet",
-    )
-    find_replace_in_repo(
-        repo_path=repo_path,
-        filepaths="lib/utils/utils.py",
-        find_str="np.int",
-        replace_str="int",
-    )
-    find_replace_in_repo(
-        repo_path=repo_path,
-        filepaths="lib/models/seg_hrnet_ocr.py",
-        find_str="np.int",
-        replace_str="int",
-    )
-    find_replace_in_repo(
-        repo_path=repo_path,
-        filepaths="lib/models/seg_hrnet.py",
-        find_str="np.int",
-        replace_str="int",
-    )
-    find_replace_in_repo(
-        repo_path=repo_path,
-        filepaths="lib/models/hrnet.py",
-        find_str="np.int",
-        replace_str="int",
-    )
-    find_replace_in_repo(
-        repo_path=repo_path,
-        filepaths="lib/datasets/base_dataset.py",
-        find_str="np.int",
-        replace_str="int",
-    )
-    find_replace_in_repo(
-        repo_path=repo_path,
-        filepaths="lib/datasets/cityscapes.py",
-        find_str="np.int",
-        replace_str="int",
-    )
+_HRNET_OCR_REPO_ROOT = EXTERNAL_REPO_PATHS["hrnet_semantic_seg"]
 
 
 class HRNET_W48_OCR(CityscapesSegmentor):
@@ -77,33 +33,27 @@ class HRNET_W48_OCR(CityscapesSegmentor):
     @classmethod
     def from_pretrained(cls, weights: str | None = None) -> Self:
         """Load HRNET_W48_OCR from a weightfile created by the source repository."""
-        with SourceAsRoot(
-            HRNET_W48_OCR_SOURCE_REPOSITORY,
-            HRNET_W48_OCR_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ) as repo_path:
-            fixup_repo(repo_path=repo_path)
+        if not weights:
+            weights = CachedWebModelAsset.from_asset_store(
+                MODEL_ID, MODEL_ASSET_VERSION, DEFAULT_WEIGHTS
+            ).fetch()
 
-            from lib.config import config
-            from lib.models.seg_hrnet_ocr import get_seg_model
+        config_file = str(
+            _HRNET_OCR_REPO_ROOT
+            / "experiments"
+            / "cityscapes"
+            / "seg_hrnet_ocr_w48_trainval_512x1024_sgd_lr1e-2_wd5e-4_bs_12_epoch484.yaml"
+        )
+        config_list = ["MODEL.NUM_OUTPUTS", "1", "MODEL.PRETRAINED", str(weights)]
 
-            if not weights:
-                weights = CachedWebModelAsset.from_asset_store(
-                    MODEL_ID, MODEL_ASSET_VERSION, DEFAULT_WEIGHTS
-                ).fetch()
+        config.defrost()
+        config.merge_from_file(config_file)
+        config.merge_from_list(config_list)
+        config.freeze()
 
-            config_file = "experiments/cityscapes/seg_hrnet_ocr_w48_trainval_512x1024_sgd_lr1e-2_wd5e-4_bs_12_epoch484.yaml"
-            config_list = ["MODEL.NUM_OUTPUTS", "1", "MODEL.PRETRAINED", str(weights)]
-
-            config.defrost()
-            config.merge_from_file(config_file)
-            config.merge_from_list(config_list)
-            config.freeze()
-
-            model = get_seg_model(config)
-            model.eval()
-            return cls(model)
+        model = get_seg_model(config)
+        model.eval()
+        return cls(model)
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
         """

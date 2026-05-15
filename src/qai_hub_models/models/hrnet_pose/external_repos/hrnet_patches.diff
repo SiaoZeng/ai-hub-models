@@ -1,0 +1,13 @@
+# Converts bare module imports to relative imports for package structure compatibility.
+#
+diff --git a/lib/models/__init__.py b/lib/models/__init__.py
+--- a/lib/models/__init__.py
++++ b/lib/models/__init__.py
+@@ -13,5 +13,5 @@ from __future__ import absolute_import
+ from __future__ import division
+ from __future__ import print_function
+
+-import models.pose_resnet
+-import models.pose_hrnet
++from . import pose_resnet
++from . import pose_hrnet

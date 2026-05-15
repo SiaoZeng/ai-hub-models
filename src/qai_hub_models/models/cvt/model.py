@@ -5,37 +5,35 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import torch
+from omegaconf import DictConfig, OmegaConf
 from qai_hub.client import Device
 from torch import nn
 from typing_extensions import Self
 
+import qai_hub_models.models.cvt.external_repos.cross_view_transformers as cvt_repo
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.nuscenes_bev_evaluator import (
     NuscenesBevSegmentationEvaluator,
 )
 from qai_hub_models.models.common import Precision
+from qai_hub_models.models.cvt.external_repos.cross_view_transformers.cross_view_transformer.common import (
+    remove_prefix,
+    setup_network,
+)
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    SourceAsRoot,
     load_torch,
 )
 from qai_hub_models.utils.base_model import BaseModel, TargetRuntime
+from qai_hub_models.utils.external_repo import rewrite_hydra_targets
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
 MODEL_ID = __name__.split(".")[-2]
-SOURCE_REPO = "https://github.com/bradyz/cross_view_transformers"
-COMMIT_HASH = "4de6e641397ef1ffde996d7549f7f988e49156f7"
 CKPT_NAME = "vehicles_50k"  # Try road_75k for road predictions
 MODEL_ASSET_VERSION = 2
-CVT_SOURCE_PATCHES = [
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches/cvt_numpy2_patch.diff")
-    )
-]
 
 
 class CVT(BaseModel):
@@ -51,31 +49,18 @@ class CVT(BaseModel):
             MODEL_ASSET_VERSION,
             f"cvt_nuscenes_{ckpt_name}.ckpt",
         )
-        with SourceAsRoot(
-            SOURCE_REPO, COMMIT_HASH, MODEL_ID, MODEL_ASSET_VERSION, CVT_SOURCE_PATCHES
-        ):
-            from cross_view_transformer.common import (
-                remove_prefix,
-                setup_network,
-            )
-            from cross_view_transformer.model.encoder import CrossAttention
-            from omegaconf import DictConfig, OmegaConf
+        checkpoint = load_torch(WEIGHTS_URL)
+        cfg: Any = DictConfig(checkpoint["hyper_parameters"])
 
-            from qai_hub_models.models.cvt.model_patches import CrossAttention_forward
+        cfg = OmegaConf.to_object(checkpoint["hyper_parameters"])
+        cfg = DictConfig(cfg)
 
-            CrossAttention.forward = CrossAttention_forward
+        state_dict = remove_prefix(checkpoint["state_dict"], "backbone")
 
-            checkpoint = load_torch(WEIGHTS_URL)
-            cfg: Any = DictConfig(checkpoint["hyper_parameters"])
-
-            cfg = OmegaConf.to_object(checkpoint["hyper_parameters"])
-            cfg = DictConfig(cfg)
-
-            state_dict = remove_prefix(checkpoint["state_dict"], "backbone")
-
-            model = setup_network(cfg)
-            model.load_state_dict(state_dict)
-            model.eval()
+        rewrite_hydra_targets(cfg, cvt_repo.__name__)
+        model = setup_network(cfg)
+        model.load_state_dict(state_dict)
+        model.eval()
         return cls(model)
 
     def forward(

@@ -11,8 +11,14 @@ import numpy as np
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.models._shared.mediapipe.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models._shared.mediapipe.external_repos.mediapipe.blazehand_landmark import (
+    BlazeHandLandmark,
+)
+from qai_hub_models.models._shared.mediapipe.external_repos.mediapipe.blazepalm import (
+    BlazePalm,
+)
 from qai_hub_models.models._shared.mediapipe.utils import (
-    MediaPipePyTorchAsRoot,
     mediapipe_detector_postprocess,
 )
 from qai_hub_models.models.common import SampleInputsType
@@ -29,6 +35,8 @@ from qai_hub_models.utils.input_spec import (
     IoType,
     TensorSpec,
 )
+
+MEDIAPIPE_REPO_DIR = EXTERNAL_REPO_PATHS["mediapipe"]
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 2
@@ -160,19 +168,16 @@ class HandDetector(BaseModel):
         score_clipping_threshold: float = DETECT_SCORE_CLIPPING_THRESHOLD,
         include_postprocessing: bool = DETECT_DEFAULT_INCLUDE_POSTPROCESSING,
     ) -> Self:
-        with MediaPipePyTorchAsRoot():
-            from blazepalm import BlazePalm
-
-            hand_detector = BlazePalm()
-            hand_detector.load_weights(detector_weights)
-            hand_detector.load_anchors(detector_anchors)
-            hand_detector.min_score_thresh = min_score_thresh
-            return cls(
-                hand_detector,
-                hand_detector.anchors,
-                score_clipping_threshold,
-                include_postprocessing,
-            )
+        hand_detector = BlazePalm()
+        hand_detector.load_weights(str(MEDIAPIPE_REPO_DIR / detector_weights))
+        hand_detector.load_anchors(str(MEDIAPIPE_REPO_DIR / detector_anchors))
+        hand_detector.min_score_thresh = min_score_thresh
+        return cls(
+            hand_detector,
+            hand_detector.anchors,
+            score_clipping_threshold,
+            include_postprocessing,
+        )
 
     @staticmethod
     def get_input_spec(batch_size: int = BATCH_SIZE) -> InputSpec:
@@ -229,12 +234,9 @@ class HandLandmarkDetector(BaseModel):
     def from_pretrained(
         cls, landmark_detector_weights: str = "blazehand_landmark.pth"
     ) -> Self:
-        with MediaPipePyTorchAsRoot():
-            from blazehand_landmark import BlazeHandLandmark
-
-            hand_regressor = BlazeHandLandmark()
-            hand_regressor.load_weights(landmark_detector_weights)
-            return cls(hand_regressor)
+        hand_regressor = BlazeHandLandmark()
+        hand_regressor.load_weights(str(MEDIAPIPE_REPO_DIR / landmark_detector_weights))
+        return cls(hand_regressor)
 
     @staticmethod
     def get_input_spec(batch_size: int = BATCH_SIZE) -> InputSpec:

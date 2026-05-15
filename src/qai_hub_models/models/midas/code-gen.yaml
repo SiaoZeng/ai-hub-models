@@ -3,3 +3,8 @@ supported_precisions:
 - w8a8
 has_on_target_demo: true
 check_trace: false
+external_repos:
+  midas:
+    repo_url: https://github.com/isl-org/MiDaS.git
+    commit_sha: bdc4ed64c095e026dc0a2f17cabb14d58263decb
+    patches_filename: midas_patches.diff

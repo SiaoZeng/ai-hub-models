@@ -5,44 +5,33 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import torch
+from addict import Dict
 from PIL import Image
 
-from qai_hub_models.models.centerpoint.model import (
-    CENTERPOINT_SOURCE_PATCHES,
-    COMMIT_HASH,
-    MODEL_ASSET_VERSION,
-    MODEL_ID,
-    SOURCE_REPO,
+from qai_hub_models.models.centerpoint.external_repos.centerpoint.det3d.core import (
+    box_torch_ops,
 )
-from qai_hub_models.utils.asset_loaders import (
-    SourceAsRoot,
+from qai_hub_models.models.centerpoint.external_repos.centerpoint.det3d.datasets.pipelines.formating import (
+    Reformat,
 )
-from qai_hub_models.utils.bounding_box_processing_3d import compute_iou_3d_rotated
-
-# *** Imports required for the Data processing ***
-with SourceAsRoot(
-    SOURCE_REPO,
-    COMMIT_HASH,
-    MODEL_ID,
-    MODEL_ASSET_VERSION,
-    source_repo_patches=CENTERPOINT_SOURCE_PATCHES,
-):
-    from det3d.core import box_torch_ops
-    from det3d.datasets.pipelines.formating import Reformat
-    from det3d.datasets.pipelines.loading import LoadPointCloudFromFile
-    from det3d.datasets.pipelines.preprocess import Preprocess, Voxelization
-    from det3d.models.bbox_heads.center_head import _circle_nms
-    from tools.demo_utils import visual
-
-from collections.abc import Mapping, Sequence
-from typing import Any
-
-from addict import Dict
-
+from qai_hub_models.models.centerpoint.external_repos.centerpoint.det3d.datasets.pipelines.loading import (
+    LoadPointCloudFromFile,
+)
+from qai_hub_models.models.centerpoint.external_repos.centerpoint.det3d.datasets.pipelines.preprocess import (
+    Preprocess,
+    Voxelization,
+)
+from qai_hub_models.models.centerpoint.external_repos.centerpoint.det3d.models.bbox_heads.center_head import (
+    _circle_nms,
+)
+from qai_hub_models.models.centerpoint.external_repos.centerpoint.tools.demo_utils import (
+    visual,
+)
 from qai_hub_models.utils.inference import OnDeviceModel
 
 
@@ -76,78 +65,6 @@ def convert_numpy_to_tensor(obj: Any) -> Any:
     if isinstance(obj, Sequence) and not isinstance(obj, str):
         return [convert_numpy_to_tensor(item) for item in obj]
     return obj
-
-
-def rotate_nms_pcdet(
-    boxes: torch.Tensor,
-    scores: torch.Tensor,
-    thresh: float,
-    pre_maxsize: int | None = None,
-    post_max_size: int | None = None,
-) -> torch.Tensor:
-    """
-    Performs Non-Maximum Suppression (NMS) on rotated 3D bounding boxes using a simplified IoU calculation.
-
-    This function filters overlapping bounding boxes based on their confidence scores and a specified IoU threshold.
-    Rotation is considered in the box format but may be ignored in the IoU computation depending on implementation.
-
-    Parameters
-    ----------
-    boxes
-        Tensor of shape (N, 7) representing 3D bounding boxes in the format:
-        [x, y, z, l, w, h, theta]
-        - x, y, z : Center coordinates
-        - l, w, h : Dimensions of the box
-        - theta : Rotation angle (in radians)
-    scores
-        Tensor of shape (N,) representing confidence scores for each box.
-    thresh
-        IoU threshold for suppressing overlapping boxes.
-    pre_maxsize
-        If set, limits the number of boxes considered before applying NMS.
-    post_max_size
-        If set, limits the number of boxes returned after NMS.
-
-    Returns
-    -------
-    selected : torch.Tensor
-        Tensor containing the indices of selected boxes after NMS.
-    """
-    boxes_np = boxes.clone().cpu().numpy()
-    scores_np = scores.clone().cpu().numpy()
-
-    # Transform to [x, y, z, w, l, h, -theta - pi/2]
-    boxes_np = boxes_np[:, [0, 1, 2, 4, 3, 5, 6]]
-    boxes_np[:, -1] = -boxes_np[:, -1] - np.pi / 2
-
-    # Sort scores in descending order
-    order = scores_np.argsort()[::-1].copy()
-
-    if pre_maxsize is not None:
-        order = order[:pre_maxsize]
-
-    boxes = boxes[order].contiguous()
-    boxes_np = boxes_np[order]
-
-    keep: list[int] = []
-
-    for i in range(len(boxes_np)):
-        current = boxes_np[i]
-        should_keep = True
-        for j in keep:
-            iou = compute_iou_3d_rotated(current, boxes_np[j])
-            if iou > thresh:
-                should_keep = False
-                break
-        if should_keep:
-            keep.append(i)
-
-    selected = torch.tensor(order[keep], dtype=torch.long)
-
-    if post_max_size is not None:
-        selected = selected[:post_max_size]
-
-    return selected
 
 
 class CenterPointApp:
@@ -194,8 +111,6 @@ class CenterPointApp:
         tasks = cfg.model.bbox_head.tasks
         num_classes = [len(t["class_names"]) for t in tasks]
         self.num_classes = num_classes
-        box_torch_ops.rotate_nms_pcdet = rotate_nms_pcdet
-        box_torch_ops.compute_iou_3d_rotated = compute_iou_3d_rotated
 
     def preprocess_bin_file(self, bin_path: str) -> dict[str, torch.Tensor]:
         """
@@ -254,7 +169,8 @@ class CenterPointApp:
         )
         reformat = Reformat(mode="test")
 
-        for step in [load, preprocess, voxelize, reformat]:
+        steps: list[Callable] = [load, preprocess, voxelize, reformat]
+        for step in steps:
             res, info = step(res, info)
 
         res_dict: dict[str, torch.Tensor] = convert_numpy_to_tensor(res)

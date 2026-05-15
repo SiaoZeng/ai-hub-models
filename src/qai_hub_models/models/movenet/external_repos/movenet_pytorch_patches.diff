@@ -1,0 +1,15 @@
+# Removes input permute since preprocessing now provides NCHW layout directly.
+#
+diff --git a/movenet/models/movenet.py b/movenet/models/movenet.py
+index 3e3ee8c..43b718c 100644
+--- a/movenet/models/movenet.py
++++ b/movenet/models/movenet.py
+@@ -88,7 +88,7 @@ class MoveNet(nn.Module):
+         
+         # conv forward
+         x  = x * 0.007843137718737125 - 1.0
+-        x = x.permute(0, 3, 1, 2)
++        #
+         x = self.backbone(x)
+         ret = {}
+         for head in self.heads:

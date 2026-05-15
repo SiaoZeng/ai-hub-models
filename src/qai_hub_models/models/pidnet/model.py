@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-from importlib import reload
 from pathlib import Path
 
 import torch
@@ -14,10 +13,11 @@ from typing_extensions import Self
 from qai_hub_models.models._shared.cityscapes_segmentation.model import (
     CityscapesSegmentor,
 )
-from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, SourceAsRoot
+from qai_hub_models.models.pidnet.external_repos.pidnet import (
+    models as pidnet_models,
+)
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 
-PIDNET_PROXY_REPOSITORY = "https://github.com/XuJiacong/PIDNet.git"
-PIDNET_PROXY_REPO_COMMIT = "fefa517"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 2
 DEFAULT_WEIGHTS = "PIDNet_S_Cityscapes_val.pt"
@@ -48,30 +48,21 @@ def _load_pidnet_source_model_from_weights(
             MODEL_ID, MODEL_ASSET_VERSION, DEFAULT_WEIGHTS
         ).fetch()
 
-    with SourceAsRoot(
-        PIDNET_PROXY_REPOSITORY,
-        PIDNET_PROXY_REPO_COMMIT,
-        MODEL_ID,
-        MODEL_ASSET_VERSION,
-    ):
-        import models
-
-        reload(models)
-        # number of class
-        model = models.pidnet.get_pred_model("pidnet-s", 19)
-        assert weights_path_pidnet is not None
-        pretrained_dict = torch.load(
-            weights_path_pidnet, map_location="cpu", weights_only=False
-        )
-        if "state_dict" in pretrained_dict:
-            pretrained_dict = pretrained_dict["state_dict"]
-        model_dict = model.state_dict()
-        pretrained_dict = {
-            k[6:]: v
-            for k, v in pretrained_dict.items()
-            if (k[6:] in model_dict and v.shape == model_dict[k[6:]].shape)
-        }
-        model_dict.update(pretrained_dict)
-        model.load_state_dict(model_dict, strict=False)
-        model.to("cpu").eval()
+    # number of class
+    model = pidnet_models.pidnet.get_pred_model("pidnet-s", 19)
+    assert weights_path_pidnet is not None
+    pretrained_dict = torch.load(
+        weights_path_pidnet, map_location="cpu", weights_only=False
+    )
+    if "state_dict" in pretrained_dict:
+        pretrained_dict = pretrained_dict["state_dict"]
+    model_dict = model.state_dict()
+    pretrained_dict = {
+        k[6:]: v
+        for k, v in pretrained_dict.items()
+        if (k[6:] in model_dict and v.shape == model_dict[k[6:]].shape)
+    }
+    model_dict.update(pretrained_dict)
+    model.load_state_dict(model_dict, strict=False)
+    model.to("cpu").eval()
     return model

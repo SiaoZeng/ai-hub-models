@@ -11,7 +11,7 @@ from typing_extensions import Self
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.colorization_evaluator import ColorizationEvaluator
 from qai_hub_models.models.common import Precision
-from qai_hub_models.utils.asset_loaders import SourceAsRoot, find_replace_in_repo
+from qai_hub_models.models.ddcolor.external_repos.ddcolor.infer_hf import DDColorHF
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import (
     ColorFormat,
@@ -23,46 +23,13 @@ from qai_hub_models.utils.input_spec import (
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
-DDCOLOR_SOURCE_REPOSITORY = "https://github.com/piddnad/DDColor.git"
-DDCOLOR_SOURCE_REPO_COMMIT = "4477c1be2553a1a293f89c47c50526ce74570cf5"
 DEFAULT_WEIGHT = "piddnad/ddcolor_paper_tiny"
 
 
 class DDColor(BaseModel):
     @classmethod
     def from_pretrained(cls, weights: str = DEFAULT_WEIGHT) -> Self:
-        with SourceAsRoot(
-            DDCOLOR_SOURCE_REPOSITORY,
-            DDCOLOR_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ) as repo_path:
-            # Support QNN by changing 6D to 5D tensor
-            # nn.PixelShuffle has 6D permute and reshape
-            find_replace_in_repo(
-                repo_path,
-                "basicsr/archs/ddcolor_arch_utils/unet.py",
-                "self.shuf = nn.PixelShuffle(scale)",
-                "self.scale = scale",
-            )
-            find_replace_in_repo(
-                repo_path,
-                "basicsr/archs/ddcolor_arch_utils/unet.py",
-                "x = self.shuf(self.relu(self.conv(x)))",
-                "x = self.relu(self.conv(x)).reshape(-1,self.scale,self.scale,x.shape[2],x.shape[3]).permute(0,3,1,4,2).reshape(x.shape[0],-1,x.shape[2]*self.scale,x.shape[3]*self.scale)",
-            )
-
-            # Support QNN by replacing einsum
-            find_replace_in_repo(
-                repo_path,
-                "ddcolor_model.py",
-                'out = torch.einsum("bqc,bchw->bqhw", color_embed, img_features)',
-                "out = torch.matmul(color_embed, img_features.flatten(start_dim=2)).view(color_embed.shape[0],color_embed.shape[1],*img_features.shape[2:])",
-            )
-
-            from infer_hf import DDColorHF
-
-            model = DDColorHF.from_pretrained(weights)
+        model = DDColorHF.from_pretrained(weights)
         return cls(model)
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:

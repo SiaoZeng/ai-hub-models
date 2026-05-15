@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-import os
-
 import torch
 
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
@@ -25,17 +23,6 @@ from qai_hub_models.utils.input_spec import (
     IoType,
     TensorSpec,
 )
-
-# The FFNet repo contains some utility functions for Cityscapes, so the
-# repo source lives here
-FFNET_SOURCE_REPOSITORY = "https://github.com/Qualcomm-AI-research/FFNet.git"
-FFNET_SOURCE_REPO_COMMIT = "0887620d3d570b0848c40ce6db6f048a128ee58a"
-FFNET_SOURCE_PATCHES = [
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches", "move_datasets.diff")
-    )
-]
-FFNET_SOURCE_VERSION = 2  # bump if repo/sha/patches are updated
 
 MODEL_ASSET_VERSION = 1
 MODEL_ID = __name__.split(".")[-2]

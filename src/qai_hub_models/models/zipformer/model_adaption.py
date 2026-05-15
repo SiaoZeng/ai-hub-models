@@ -2,8 +2,8 @@
 # Copyright (c) 2025 Qualcomm Technologies, Inc. and/or its subsidiaries.
 # SPDX-License-Identifier: BSD-3-Clause
 # ---------------------------------------------------------------------
+# mypy: ignore-errors
 import os
-import sys
 from typing import Any
 
 import numpy as np
@@ -11,32 +11,16 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from qai_hub_models.utils.asset_loaders import SourceAsRoot
-
-SOURCE_REPO = "https://github.com/k2-fsa/icefall"
-COMMIT_HASH = "693f069de73fd91d7c2009571245d97221cc3a3f"
-
-with SourceAsRoot(
-    SOURCE_REPO,
-    COMMIT_HASH,
-    "icefall",
-    1,
-):
-    sys.path.append("egs/librispeech/ASR/pruned_transducer_stateless7_streaming")
-    os.system(
-        "cp egs/librispeech/ASR/pruned_transducer_stateless7/scaling.py    egs/librispeech/ASR/pruned_transducer_stateless7_streaming"
-    )
-    from egs.librispeech.ASR.pruned_transducer_stateless7_streaming.scaling import (
-        penalize_abs_values_gt,
-        softmax,
-    )
-    from egs.librispeech.ASR.pruned_transducer_stateless7_streaming.zipformer import (
-        AttentionDownsample,
-        ConvolutionModule,
-        RelPositionalEncoding,
-        RelPositionMultiheadAttention,
-    )
-
+from qai_hub_models.models.zipformer.external_repos.icefall.egs.librispeech.ASR.pruned_transducer_stateless7_streaming.scaling import (
+    penalize_abs_values_gt,
+    softmax,
+)
+from qai_hub_models.models.zipformer.external_repos.icefall.egs.librispeech.ASR.pruned_transducer_stateless7_streaming.zipformer import (
+    AttentionDownsample,
+    ConvolutionModule,
+    RelPositionalEncoding,
+    RelPositionMultiheadAttention,
+)
 
 # ============================================================================
 # Qc Module Classes

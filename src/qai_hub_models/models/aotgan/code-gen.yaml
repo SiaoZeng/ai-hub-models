@@ -1,1 +1,6 @@
 has_on_target_demo: true
+external_repos:
+  aotgan:
+    repo_url: https://github.com/researchmm/AOT-GAN-for-Inpainting.git
+    commit_sha: 418034627392289bdfc118d62bc49e6abd3bb185
+    patches_filename: aotgan_patches.diff

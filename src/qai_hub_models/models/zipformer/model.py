@@ -3,8 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # ---------------------------------------------------------------------
 import os
-import sys
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import torch
 from huggingface_hub import hf_hub_download
@@ -12,10 +11,27 @@ from qai_hub.client import Device
 from ruamel.yaml import YAML
 from torch import Tensor, nn
 
+from qai_hub_models.models.zipformer.external_repos.icefall.egs.librispeech.ASR.pruned_transducer_stateless7_streaming.decoder import (
+    Decoder,
+)
+from qai_hub_models.models.zipformer.external_repos.icefall.egs.librispeech.ASR.pruned_transducer_stateless7_streaming.joiner import (
+    Joiner,
+)
+from qai_hub_models.models.zipformer.external_repos.icefall.egs.librispeech.ASR.pruned_transducer_stateless7_streaming.model import (
+    Transducer,
+)
+from qai_hub_models.models.zipformer.external_repos.icefall.egs.librispeech.ASR.pruned_transducer_stateless7_streaming.scaling_converter import (
+    convert_scaled_to_non_scaled,
+)
+from qai_hub_models.models.zipformer.external_repos.icefall.egs.librispeech.ASR.pruned_transducer_stateless7_streaming.zipformer import (
+    Zipformer,
+)
+from qai_hub_models.models.zipformer.external_repos.icefall.icefall.checkpoint import (
+    load_checkpoint,
+)
 from qai_hub_models.models.zipformer.model_adaption import (
     Modify_EncoderModule,
 )
-from qai_hub_models.utils.asset_loaders import SourceAsRoot
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,
@@ -25,18 +41,12 @@ from qai_hub_models.utils.base_model import (
 )
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
-if TYPE_CHECKING:
-    import Decoder
-    import Joiner
-    import Zipformer
-
-
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
 
 
 class ZipformerEncoder(BaseModel):
-    def __init__(self, encoder: "Zipformer", encoder_proj: nn.Module) -> None:
+    def __init__(self, encoder: Zipformer, encoder_proj: nn.Module) -> None:
         super().__init__()
         self.encoder = encoder
         self.encoder_proj = encoder_proj
@@ -58,10 +68,10 @@ class ZipformerEncoder(BaseModel):
         x = args[0]
         states = args[1:]
         output, _, new_states = self.encoder.streaming_forward(
-            x=x, x_lens=torch.tensor([71]), states=states
+            x=x, x_lens=torch.tensor([71]), states=list(states)
         )
         output = self.encoder_proj(output)
-        return output, new_states
+        return output, tuple(new_states)
 
     @staticmethod
     def get_input_spec() -> InputSpec:
@@ -243,7 +253,7 @@ class ZipformerEncoder(BaseModel):
 
 
 class ZipformerDecoder(BaseModel):
-    def __init__(self, decoder: "Decoder", decoder_proj: nn.Module) -> None:
+    def __init__(self, decoder: Decoder, decoder_proj: nn.Module) -> None:
         super().__init__()
         self.decoder = decoder
         self.decoder_proj = decoder_proj
@@ -387,7 +397,10 @@ class ZipformerJoiner(BaseModel):
 @CollectionModel.add_component(ZipformerJoiner, "joiner")
 class HfZipformer(PretrainedCollectionModel):
     def __init__(
-        self, encoder: "Zipformer", decoder: "Decoder", joiner: "Joiner"
+        self,
+        encoder: ZipformerEncoder,
+        decoder: ZipformerDecoder,
+        joiner: ZipformerJoiner,
     ) -> None:
         super().__init__(encoder, decoder, joiner)
         self.encoder = encoder
@@ -415,52 +428,6 @@ class HfZipformer(PretrainedCollectionModel):
 
     @classmethod
     def from_pretrained(cls) -> "HfZipformer":
-        SOURCE_REPO = "https://github.com/k2-fsa/icefall"
-        COMMIT_HASH = "693f069de73fd91d7c2009571245d97221cc3a3f"
-        with SourceAsRoot(
-            SOURCE_REPO,
-            COMMIT_HASH,
-            "icefall",
-            1,
-        ):
-            sys.path.append(
-                "egs/librispeech/ASR/pruned_transducer_stateless7_streaming"
-            )
-            os.system(
-                "cp egs/librispeech/ASR/pruned_transducer_stateless7/scaling_converter.py  egs/librispeech/ASR/pruned_transducer_stateless7_streaming"
-            )
-            os.system(
-                "cp egs/librispeech/ASR/transducer_stateless/encoder_interface.py  egs/librispeech/ASR/pruned_transducer_stateless7_streaming"
-            )
-            os.system(
-                "cp egs/librispeech/ASR/pruned_transducer_stateless7/scaling.py    egs/librispeech/ASR/pruned_transducer_stateless7_streaming"
-            )
-            os.system(
-                "cp egs/librispeech/ASR/pruned_transducer_stateless7/decoder.py    egs/librispeech/ASR/pruned_transducer_stateless7_streaming"
-            )
-            os.system(
-                "cp egs/librispeech/ASR/pruned_transducer_stateless7/joiner.py     egs/librispeech/ASR/pruned_transducer_stateless7_streaming"
-            )
-            os.system(
-                "cp egs/librispeech/ASR/pruned_transducer_stateless7/model.py      egs/librispeech/ASR/pruned_transducer_stateless7_streaming"
-            )
-            from egs.librispeech.ASR.pruned_transducer_stateless7_streaming.decoder import (
-                Decoder,
-            )
-            from egs.librispeech.ASR.pruned_transducer_stateless7_streaming.joiner import (
-                Joiner,
-            )
-            from egs.librispeech.ASR.pruned_transducer_stateless7_streaming.model import (
-                Transducer,
-            )
-            from egs.librispeech.ASR.pruned_transducer_stateless7_streaming.scaling_converter import (
-                convert_scaled_to_non_scaled,
-            )
-            from egs.librispeech.ASR.pruned_transducer_stateless7_streaming.zipformer import (
-                Zipformer,
-            )
-            from icefall.checkpoint import load_checkpoint
-
         model_config_file = os.path.join(os.path.dirname(__file__), "model_config.yaml")
         yaml = YAML(typ="safe")
         with open(model_config_file) as file:
@@ -506,13 +473,13 @@ class HfZipformer(PretrainedCollectionModel):
             filename="exp/pretrained.pt",
             cache_dir="./ckpt",
         )
-        load_checkpoint(ckpt, orig_fp_model)
+        load_checkpoint(Path(ckpt), orig_fp_model)
         orig_fp_model.eval()
         convert_scaled_to_non_scaled(orig_fp_model, inplace=True)
         Modify_EncoderModule(orig_fp_model, config)
 
         return cls(
-            ZipformerEncoder(orig_fp_model.encoder, orig_fp_model.joiner.encoder_proj),
-            ZipformerDecoder(orig_fp_model.decoder, orig_fp_model.joiner.decoder_proj),
-            ZipformerJoiner(orig_fp_model.joiner.output_linear),
+            ZipformerEncoder(encoder, joiner.encoder_proj),
+            ZipformerDecoder(decoder, joiner.decoder_proj),
+            ZipformerJoiner(joiner.output_linear),
         )

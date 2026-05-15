@@ -11,11 +11,10 @@ from typing_extensions import Self
 
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.denoising_evaluator import DenoisingEvaluator
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    load_torch,
+from qai_hub_models.models.dncnn.external_repos.kair.models.network_dncnn import (
+    DnCNN as KairDnCNN,
 )
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import (
     ColorFormat,
@@ -27,8 +26,6 @@ from qai_hub_models.utils.input_spec import (
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
-SOURCE_REPO = "https://github.com/cszn/KAIR"
-COMMIT_HASH = "fc1732f4a4514e42ce15e5b3a1e18c828af47a1e"
 WEIGHTS_URL = "https://github.com/cszn/KAIR/releases/download/v1.0/dncnn_25.pth"
 DEFAULT_INPUT_HEIGHT = 256
 DEFAULT_INPUT_WIDTH = 256
@@ -54,13 +51,9 @@ class DnCNN(BaseModel):
     @classmethod
     def from_pretrained(cls) -> Self:
         """Load DnCNN with pretrained weights for sigma=25 Gaussian denoising."""
-        with SourceAsRoot(SOURCE_REPO, COMMIT_HASH, MODEL_ID, MODEL_ASSET_VERSION):
-            from models.network_dncnn import DnCNN as KairDnCNN
-
-            kair_model = KairDnCNN(
-                in_nc=1, out_nc=1, nc=NUM_CHANNELS, nb=NUM_LAYERS, act_mode="R"
-            )
-
+        kair_model = KairDnCNN(
+            in_nc=1, out_nc=1, nc=NUM_CHANNELS, nb=NUM_LAYERS, act_mode="R"
+        )
         checkpoint_asset = CachedWebModelAsset(
             WEIGHTS_URL, MODEL_ID, MODEL_ASSET_VERSION, "dncnn_25.pth"
         )

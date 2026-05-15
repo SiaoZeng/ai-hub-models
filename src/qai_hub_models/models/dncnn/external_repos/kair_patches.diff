@@ -1,0 +1,14 @@
+# Converts bare module imports to relative imports for package structure compatibility.
+#
+diff --git a/models/network_dncnn.py b/models/network_dncnn.py
+index 7a3f20f..0e05816 100644
+--- a/models/network_dncnn.py
++++ b/models/network_dncnn.py
+@@ -1,6 +1,6 @@
+
+ import torch.nn as nn
+-import models.basicblock as B
++from . import basicblock as B
+
+
+ """

@@ -11,11 +11,10 @@ from typing_extensions import Self
 
 from qai_hub_models import TargetRuntime
 from qai_hub_models.models.common import Precision
-from qai_hub_models.models.crestereo.model_patches import patch_crestereo
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
+from qai_hub_models.models.crestereo.external_repos.crestereo_pytorch.nets import (
+    Model,
 )
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import (
     ColorFormat,
@@ -28,9 +27,6 @@ from qai_hub_models.utils.input_spec import (
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 2
 
-CRESTEREO_SOURCE_REPOSITORY = "https://github.com/ibaiGorordo/CREStereo-Pytorch.git"
-CRESTEREO_SOURCE_REPO_COMMIT = "b6c7a9fe8dc2e9e56ba7b96f4677312309282d15"
-
 # downloaded from https://drive.google.com/file/d/1D2s1v4VhJlNz98FQpFxf_kBAKQVN_7xo/view
 DEFAULT_WEIGHTS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "crestereo_eth3d.pth"
@@ -42,22 +38,12 @@ class CREStereo(BaseModel):
 
     @classmethod
     def from_pretrained(cls, weights_path: str | None = None) -> Self:
-        with SourceAsRoot(
-            CRESTEREO_SOURCE_REPOSITORY,
-            CRESTEREO_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ):
-            from nets import Model
-
-            ckpt_path = weights_path or str(DEFAULT_WEIGHTS.fetch())
-            net = Model(max_disp=256, mixed_precision=False, test_mode=True)
-            state_dict = torch.load(
-                ckpt_path, map_location=torch.device("cpu"), weights_only=False
-            )
-            net.load_state_dict(state_dict, strict=True)
-
-        patch_crestereo(net)
+        ckpt_path = weights_path or str(DEFAULT_WEIGHTS.fetch())
+        net = Model(max_disp=256, mixed_precision=False, test_mode=True)
+        state_dict = torch.load(
+            ckpt_path, map_location=torch.device("cpu"), weights_only=False
+        )
+        net.load_state_dict(state_dict, strict=True)
         return cls(net)
 
     def forward(

@@ -1,0 +1,15 @@
+# Skips redundant checkpoint downloads when file already exists.
+#
+diff --git a/PyTorch/Classification/GPUNet/configs/model_hub.py b/PyTorch/Classification/GPUNet/configs/model_hub.py
+index 51a413c..166fab5 100755
+--- a/PyTorch/Classification/GPUNet/configs/model_hub.py
++++ b/PyTorch/Classification/GPUNet/configs/model_hub.py
+@@ -95,7 +95,7 @@ def get_configs(
+     ngcCheckpointPath = Path(checkpointPath)
+     checkpointPath += latency + ".pth.tar"
+     ngcUrl = MODEL_ZOO_BATCH_NGC[batch][gpuType][latency]
+-    if download:
++    if download and not Path(checkpointPath).exists():
+         download_checkpoint_ngc(ngcUrl, ngcCheckpointPath)
+     with open(configPath) as configFile:
+         modelJSON = json.load(configFile)

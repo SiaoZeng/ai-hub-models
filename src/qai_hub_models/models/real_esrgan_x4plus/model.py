@@ -13,15 +13,8 @@ from qai_hub_models.models._shared.super_resolution.model import (
     DEFAULT_SCALE_FACTOR,
     SuperResolutionModel,
 )
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    load_torch,
-)
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
 
-# The architecture for this RealESRGAN model comes from the original ESRGAN repo
-REALESRGAN_SOURCE_REPOSITORY = "https://github.com/xinntao/ESRGAN"
-REALESRGAN_SOURCE_REPO_COMMIT = "73e9b634cf987f5996ac2dd33f4050922398a921"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 4
 DEFAULT_WEIGHTS = "RealESRGAN_x4plus"
@@ -75,34 +68,26 @@ def _get_weightsfile_from_name(
 
 def _load_realesrgan_source_model_from_weights(weights_name: str) -> torch.nn.Module:
     # Load RealESRGAN model from the source repository using the given weights.
-    # Returns <source repository>.realesrgan.archs.srvgg_arch
     weights_url = _get_weightsfile_from_name(weights_name)
 
-    with SourceAsRoot(
-        REALESRGAN_SOURCE_REPOSITORY,
-        REALESRGAN_SOURCE_REPO_COMMIT,
-        MODEL_ID,
-        MODEL_ASSET_VERSION,
-    ):
-        # necessary import. `archs` comes from the realesrgan repo.
-        if weights_name == DEFAULT_WEIGHTS:  # "RealESRGAN_x4plus"
-            scale_factor = 4
-        elif weights_name == x2PLUS_WEIGHTS:  # "RealESRGAN_x2plus"
-            scale_factor = 2
-        else:
-            raise ValueError(f"Unknown weights name for model creation: {weights_name}")
+    if weights_name == DEFAULT_WEIGHTS:  # "RealESRGAN_x4plus"
+        scale_factor = 4
+    elif weights_name == x2PLUS_WEIGHTS:  # "RealESRGAN_x2plus"
+        scale_factor = 2
+    else:
+        raise ValueError(f"Unknown weights name for model creation: {weights_name}")
 
-        realesrgan_model = RRDBNet(
-            num_in_ch=3,
-            num_out_ch=3,
-            num_feat=64,
-            num_block=23,
-            num_grow_ch=32,
-            scale=scale_factor,
-        )
-        pretrained_dict = load_torch(weights_url)
+    realesrgan_model = RRDBNet(
+        num_in_ch=3,
+        num_out_ch=3,
+        num_feat=64,
+        num_block=23,
+        num_grow_ch=32,
+        scale=scale_factor,
+    )
+    pretrained_dict = load_torch(weights_url)
 
-        keyname = "params_ema" if "params_ema" in pretrained_dict else "params"
-        realesrgan_model.load_state_dict(pretrained_dict[keyname], strict=True)
+    keyname = "params_ema" if "params_ema" in pretrained_dict else "params"
+    realesrgan_model.load_state_dict(pretrained_dict[keyname], strict=True)
 
-        return realesrgan_model
+    return realesrgan_model

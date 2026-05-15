@@ -5,19 +5,14 @@
 
 from __future__ import annotations
 
-import os
-
 import torch
 from typing_extensions import Self
 
-from qai_hub_models.models.fomm.model_patches import (
-    kp2gaussian,
-    make_coordinate_grid,
-    patched_grid_sample,
+from qai_hub_models.models.fomm.external_repos.first_order_model.demo import (
+    load_checkpoints,
 )
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    SourceAsRoot,
     load_path,
     qaihm_temp_dir,
 )
@@ -34,8 +29,6 @@ from qai_hub_models.utils.input_spec import (
     TensorSpec,
 )
 
-FOMM_SOURCE_REPOSITORY = "https://github.com/AliaksandrSiarohin/first-order-model/"
-FOMM_SOURCE_REPO_COMMIT = "f4ff6da1ef5c0e6bcf6ec80324fab37c92193e84"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
 DEFAULT_CONFIG = CachedWebModelAsset(
@@ -246,42 +239,17 @@ class FOMM(PretrainedCollectionModel):
     def get_fomm_model(
         cls, weights_url: str | None = None
     ) -> tuple[torch.nn.Module, torch.nn.Module]:
-        with SourceAsRoot(
-            FOMM_SOURCE_REPOSITORY,
-            FOMM_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ):
-            # Change filename to avoid import clash with current file
-            if os.path.exists("demo.py"):
-                os.rename("demo.py", "fomm_demo.py")
-            import modules.dense_motion
-            import modules.generator
+        # Download default config
+        fomm_config = DEFAULT_CONFIG.fetch()
 
-            # Model Patches
-            import modules.util
-            from fomm_demo import load_checkpoints
+        # Download weights
+        with qaihm_temp_dir() as tmpdir:
+            weights_path = load_path(weights_url or DEFAULT_WEIGHTS, tmpdir)
 
-            # Patch util
-            modules.util.kp2gaussian = kp2gaussian
-            modules.util.make_coordinate_grid = make_coordinate_grid
-
-            modules.dense_motion.kp2gaussian = kp2gaussian
-            modules.dense_motion.make_coordinate_grid = make_coordinate_grid
-            modules.dense_motion.F.grid_sample = patched_grid_sample
-            modules.generator.F.grid_sample = patched_grid_sample
-
-            # Download default config
-            fomm_config = DEFAULT_CONFIG.fetch()
-
-            # Download weights
-            with qaihm_temp_dir() as tmpdir:
-                weights_path = load_path(weights_url or DEFAULT_WEIGHTS, tmpdir)
-
-                generator, kp_detector = load_checkpoints(
-                    config_path=fomm_config, checkpoint_path=weights_path, cpu=True
-                )
-            return generator, kp_detector
+            generator, kp_detector = load_checkpoints(
+                config_path=fomm_config, checkpoint_path=weights_path, cpu=True
+            )
+        return generator, kp_detector
 
     @classmethod
     def from_pretrained(cls, weights_url: str | None = None) -> Self:

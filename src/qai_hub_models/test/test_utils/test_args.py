@@ -31,30 +31,49 @@ from qai_hub_models.utils.model_cache import CacheMode
 
 
 class DynamicMockModule(types.ModuleType):
-    """Create a mock module that returns a mock object for all attributes."""
+    """Mock module that auto-creates submodules in sys.modules on access."""
 
-    def __getattr__(self, name: str) -> MagicMock:
+    def __init__(self, name: str, *args: object, **kwargs: object) -> None:
+        super().__init__(name)
+        self.__path__: list[str] = []
+        self.__all__: list[str] = []
+
+    def __getattr__(self, name: str) -> DynamicMockModule:
+        if name.startswith("__") and name.endswith("__"):
+            raise AttributeError(name)
+        submodule_name = f"{self.__name__}.{name}"
+        if submodule_name not in sys.modules:
+            sub = DynamicMockModule(submodule_name)
+            sys.modules[submodule_name] = sub
+        return sys.modules[submodule_name]  # type: ignore[return-value]
+
+    def __call__(self, *args: object, **kwargs: object) -> MagicMock:
         return MagicMock()
 
 
-@pytest.fixture(autouse=True)
-def mock_imports(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mock imports of custom packages needed for some models."""
-    # monkeypatch.setattr("qai_hub_models.utils.quantization_aimet_onnx", "ensure_min_aimet_onnx_version", MagicMock(return_value=True))
-    for module_name in [
-        "sounddevice",
-        "transformers",
-        "transformers.cache_utils",
-        "transformers.models",
-        "transformers.models.llama",
-        "transformers.models.llama.modeling_llama",
-        "transformers.models.whisper",
-        "transformers.models.whisper.modeling_whisper",
-        "transformers.modeling_attn_mask_utils",
-        "matplotlib",
-        "matplotlib.pyplot",
-    ]:
-        monkeypatch.setitem(sys.modules, module_name, DynamicMockModule(module_name))
+class _MockFinder:
+    """Meta-path finder that intercepts imports of specified packages."""
+
+    def __init__(self, prefixes: list[str]) -> None:
+        self._prefixes = prefixes
+
+    def find_module(self, fullname: str, path: object = None) -> _MockFinder | None:
+        for prefix in self._prefixes:
+            if fullname == prefix or fullname.startswith(prefix + "."):
+                return self
+        return None
+
+    def load_module(self, fullname: str) -> DynamicMockModule:
+        if fullname in sys.modules:
+            return sys.modules[fullname]  # type: ignore[return-value]
+        mod = DynamicMockModule(fullname)
+        sys.modules[fullname] = mod
+        return mod
+
+
+_MOCK_PACKAGES = ["sounddevice", "geffnet", "timm", "transformers", "matplotlib"]
+_finder = _MockFinder(_MOCK_PACKAGES)
+sys.meta_path.insert(0, _finder)  # type: ignore[arg-type]
 
 
 def test_parse_resnet18_export() -> None:

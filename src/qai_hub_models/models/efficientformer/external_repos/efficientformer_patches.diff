@@ -1,0 +1,28 @@
+# Fixes timm import paths for compatibility with newer timm versions.
+#
+diff --git a/models/efficientformer.py b/models/efficientformer.py
+index a379823..8a8ae1b 100644
+--- a/models/efficientformer.py
++++ b/models/efficientformer.py
+@@ -12,7 +12,7 @@ import itertools
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.models.layers import DropPath, trunc_normal_
+ from timm.models.registry import register_model
+-from timm.models.layers.helpers import to_2tuple
++from timm.layers.helpers import to_2tuple
+
+ EfficientFormer_width = {
+     'l1': [48, 96, 224, 448],
+diff --git a/models/efficientformer_v2.py b/models/efficientformer_v2.py
+index 48234a4..0bde84b 100644
+--- a/models/efficientformer_v2.py
++++ b/models/efficientformer_v2.py
+@@ -13,7 +13,7 @@ import itertools
+ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+ from timm.models.layers import DropPath, trunc_normal_
+ from timm.models.registry import register_model
+-from timm.models.layers.helpers import to_2tuple
++from timm.layers.helpers import to_2tuple
+
+ EfficientFormer_width = {
+     'L': [40, 80, 192, 384],  # 26m 83.3% 6attn

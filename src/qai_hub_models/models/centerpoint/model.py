@@ -5,16 +5,21 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import torch
 from qai_hub.client import Device
 from typing_extensions import Self
 
+from qai_hub_models.models.centerpoint.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.centerpoint.external_repos.centerpoint.det3d.models import (
+    build_detector,
+)
+from qai_hub_models.models.centerpoint.external_repos.centerpoint.det3d.torchie import (
+    Config,
+)
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    SourceAsRoot,
     load_torch,
 )
 from qai_hub_models.utils.base_model import (
@@ -24,8 +29,6 @@ from qai_hub_models.utils.base_model import (
 )
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
-SOURCE_REPO = "https://github.com/tianweiy/CenterPoint"
-COMMIT_HASH = "d3a248fa56db2601860d576d5934d00fee9916eb"
 MODEL_ID = __name__.split(".")[-2]
 DEFAULT_WEIGHTS = "pretrained/PointPillars.pth"
 MODEL_ASSET_VERSION = 1
@@ -33,11 +36,7 @@ MODEL_ASSET_VERSION = 1
 MODEL_URL = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, DEFAULT_WEIGHTS
 )
-CENTERPOINT_SOURCE_PATCHES = [
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches", "centerpoint_patch.diff")
-    )
-]
+CENTERPOINT_REPO_PATH = EXTERNAL_REPO_PATHS["centerpoint"]
 
 
 class CenterPoint(BaseModel):
@@ -56,29 +55,23 @@ class CenterPoint(BaseModel):
         """
         Load the configuration file for the CenterPoint model.
 
-        This method sets the source repository context and loads the model
-        configuration using the Torchie Config utility. The configuration
-        includes model architecture details, dataset parameters, and training
-        settings.
+        This method loads the model configuration using the Torchie Config
+        utility. The configuration includes model architecture details,
+        dataset parameters, and training settings.
 
         Returns
         -------
         config : Any
             A configuration object containing model and dataset parameters.
         """
-        with SourceAsRoot(
-            SOURCE_REPO,
-            COMMIT_HASH,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-            source_repo_patches=CENTERPOINT_SOURCE_PATCHES,
-        ):
-            from det3d.torchie import Config
-
-            config_path = (
-                "configs/nusc/pp/nusc_centerpoint_pp_02voxel_two_pfn_10sweep_demo.py"
-            )
-            return Config.fromfile(config_path)
+        config_path = (
+            CENTERPOINT_REPO_PATH
+            / "configs"
+            / "nusc"
+            / "pp"
+            / "nusc_centerpoint_pp_02voxel_two_pfn_10sweep_demo.py"
+        )
+        return Config.fromfile(config_path)
 
     @classmethod
     def from_pretrained(
@@ -98,15 +91,6 @@ class CenterPoint(BaseModel):
         CenterPoint : Self
             An instance of the CenterPoint model wrapper.
         """
-        with SourceAsRoot(
-            SOURCE_REPO,
-            COMMIT_HASH,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-            source_repo_patches=CENTERPOINT_SOURCE_PATCHES,
-        ):
-            from det3d.models import build_detector
-
         weights = load_torch(weights_name)
         cfg = cls.load_config()
         cfg.test_cfg["per_class_nms"] = True

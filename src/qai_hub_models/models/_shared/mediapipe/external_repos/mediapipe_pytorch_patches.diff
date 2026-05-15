@@ -1,0 +1,56 @@
+# Adjusts padding and output format for on-device inference compatibility.
+#
+diff --git a/blazeface.py b/blazeface.py
+index 04f0986..e2bd7a4 100644
+--- a/blazeface.py
++++ b/blazeface.py
+@@ -145,7 +145,7 @@ class BlazeFace(BlazeDetector):
+     def forward(self, x):
+         # TFLite uses slightly different padding on the first conv layer
+         # than PyTorch, so do it manually.
+-        x = F.pad(x, (1, 2, 1, 2), "constant", 0)
++        x = F.pad(x, (2, 2, 2, 2), "constant", 0)
+         
+         b = x.shape[0]      # batch size, needed for reshaping later
+ 
+@@ -178,5 +178,5 @@ class BlazeFace(BlazeDetector):
+         r2 = r2.reshape(b, -1, 16)      # (b, 384, 16)
+ 
+         r = torch.cat((r1, r2), dim=1)  # (b, 896, 16)
+-        return [r, c]
++        return [r1, r2, c1, c2]
+ 
+diff --git a/blazeface_landmark.py b/blazeface_landmark.py
+index dd692e0..6ea7f09 100644
+--- a/blazeface_landmark.py
++++ b/blazeface_landmark.py
+@@ -62,7 +62,7 @@ class BlazeFaceLandmark(BlazeLandmark):
+         )
+ 
+     def forward(self, x):
+-        if x.shape[0] == 0:
++        if False:
+             return torch.zeros((0,)), torch.zeros((0, 468, 3))
+             
+         x = F.pad(x, (0, 1, 0, 1), "constant", 0)
+diff --git a/blazepose.py b/blazepose.py
+index b2e1376..4eff221 100644
+--- a/blazepose.py
++++ b/blazepose.py
+@@ -106,7 +106,7 @@ class BlazePose(BlazeDetector):
+     def forward(self, x):
+         # TFLite uses slightly different padding on the first conv layer
+         # than PyTorch, so do it manually.
+-        # x = F.pad(x, (1, 2, 1, 2), "constant", 0)
++        x = F.pad(x, (1, 2, 2, 2), "constant", 0)
+         
+         b = x.shape[0]      # batch size, needed for reshaping later
+ 
+@@ -138,4 +138,4 @@ class BlazePose(BlazeDetector):
+         r2 = r2.reshape(b, -1, 12)     
+ 
+         r = torch.cat((r1, r2), dim=1)  
+-        return [r, c]
+\ No newline at end of file
++        return [r1, r2, c1, c2]
+\ No newline at end of file

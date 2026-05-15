@@ -5,44 +5,29 @@
 
 from __future__ import annotations
 
-import os
-
 import torch
 from torch import nn
 from typing_extensions import Self
 
-from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, SourceAsRoot
+from qai_hub_models.models.simple_bev_cam.external_repos.simple_bev.nets.segnet import (
+    Segnet,
+)
+from qai_hub_models.models.simple_bev_cam.external_repos.simple_bev.utils import vox
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
-SIMPLEBEV_SOURCE_REPOSITORY = "https://github.com/aharley/simple_bev"
-SIMPLEBEV_SOURCE_REPO_COMMIT = "be46f0ef71960c233341852f3d9bc3677558ab6d"
-SIMPLEBEV_SOURCE_PATCHES = [
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches", "simple_bev_patch.diff")
-    )
-]
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 2
 DEFAULT_WEIGHTS = "model-000025000.pth"
 
-with SourceAsRoot(
-    SIMPLEBEV_SOURCE_REPOSITORY,
-    SIMPLEBEV_SOURCE_REPO_COMMIT,
-    MODEL_ID,
-    MODEL_ASSET_VERSION,
-    source_repo_patches=SIMPLEBEV_SOURCE_PATCHES,
-):
-    import utils.vox
-    from nets.segnet import Segnet
-
-    Z, Y, X = 200, 8, 200
-    scene_centroid_x = 0.0
-    scene_centroid_y = 1.0
-    scene_centroid_z = 0.0
-    xmin, xmax = -50, 50
-    zmin, zmax = -50, 50
-    ymin, ymax = -5, 5
+Z, Y, X = 200, 8, 200
+SCENE_CENTROID_X = 0.0
+SCENE_CENTROID_Y = 1.0
+SCENE_CENTROID_Z = 0.0
+XMIN, XMAX = -50, 50
+ZMIN, ZMAX = -50, 50
+YMIN, YMAX = -5, 5
 
 
 class SimpleBev(BaseModel):
@@ -58,12 +43,12 @@ class SimpleBev(BaseModel):
     ) -> None:
         super().__init__()
         self.model = model
-        self.scene_centroid_x = scene_centroid_x
-        self.scene_centroid_y = scene_centroid_y
-        self.scene_centroid_z = scene_centroid_z
-        self.xmin, self.xmax = xmin, xmax
-        self.zmin, self.zmax = zmin, zmax
-        self.ymin, self.ymax = ymin, ymax
+        self.scene_centroid_x = SCENE_CENTROID_X
+        self.scene_centroid_y = SCENE_CENTROID_Y
+        self.scene_centroid_z = SCENE_CENTROID_Z
+        self.xmin, self.xmax = XMIN, XMAX
+        self.zmin, self.zmax = ZMIN, ZMAX
+        self.ymin, self.ymax = YMIN, YMAX
         self.bounds = (self.xmin, self.xmax, self.ymin, self.ymax, self.zmin, self.zmax)
         self.Z, self.Y, self.X = Z, Y, X
         self.scene_centroid = torch.tensor(
@@ -76,7 +61,7 @@ class SimpleBev(BaseModel):
             ],
             dtype=torch.float32,
         )
-        self.vox_util_ = utils.vox.Vox_util(
+        self.vox_util_ = vox.Vox_util(
             self.Z,
             self.Y,
             self.X,
@@ -208,15 +193,13 @@ def _load_model_from_weight(
     encoder_type: str,
     device: str,
 ) -> nn.Module:
-    bounds = (xmin, xmax, ymin, ymax, zmin, zmax)
+    bounds = (XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX)
     scene_centroid = torch.tensor(
-        [[scene_centroid_x, scene_centroid_y, scene_centroid_z]],
+        [[SCENE_CENTROID_X, SCENE_CENTROID_Y, SCENE_CENTROID_Z]],
         dtype=torch.float32,
     )
     scene_centroid = scene_centroid.to("cpu")
-    vox_util = utils.vox.Vox_util(
-        Z, Y, X, scene_centroid, bounds, None, assert_cube=False
-    )
+    vox_util = vox.Vox_util(Z, Y, X, scene_centroid, bounds, None, assert_cube=False)
     model = Segnet(
         Z,
         Y,

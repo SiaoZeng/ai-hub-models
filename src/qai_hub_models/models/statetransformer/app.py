@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # ---------------------------------------------------------------------
 
-import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -37,19 +36,21 @@ from nuplan.planning.utils.multithreading.worker_parallel import (
 )
 from PIL import Image
 
-from qai_hub_models.models.statetransformer.model import (
-    MODEL_ASSET_VERSION,
-    MODEL_ID,
-    STR_SOURCE_REPO_COMMIT,
-    STR_SOURCE_REPOSITORY,
+import qai_hub_models.models.statetransformer.external_repos.statetransformer as statetransformer_repo
+from qai_hub_models.models.statetransformer.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.statetransformer.external_repos.statetransformer.nuplan_simulation.common_utils import (
+    get_pacifica_parameters,
+    get_scenario_map,
 )
 from qai_hub_models.models.statetransformer.util import save_raster
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    SourceAsRoot,
     load_yaml,
 )
+from qai_hub_models.utils.external_repo import rewrite_hydra_targets
 from qai_hub_models.utils.inference import OnDeviceModel
+
+_STR_TOP_LEVEL = {"tuplan_garage", "nuplan_simulation", "transformer4planning"}
 
 
 def deep_update(original: dict[str, Any], update: dict[str, Any]) -> dict[str, Any]:
@@ -154,128 +155,131 @@ class StateTransformerApp:
         if isinstance(data_path, CachedWebModelAsset):
             data_path = data_path.fetch(extract=True)
 
-        with SourceAsRoot(
-            STR_SOURCE_REPOSITORY,
-            STR_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ):
-            # Load utility functions and scenario map
-            from nuplan_simulation.common_utils import (
-                get_pacifica_parameters,
-                get_scenario_map,
-            )
+        # Paths to planner config and scenario filter YAMLs
+        _repo_dir = EXTERNAL_REPO_PATHS["statetransformer"]
+        planner_config_path = str(
+            _repo_dir
+            / "tuplan_garage"
+            / "planning"
+            / "script"
+            / "config"
+            / "simulation"
+            / "planner"
+            / "str_closed_planner.yaml"
+        )
+        scenario_filter_yaml = str(
+            _repo_dir / "nuplan_simulation" / "test_split_4.yaml"
+        )
 
-            # Paths to planner config and scenario filter YAMLs
-            planner_config_path = f"{os.getcwd()}/tuplan_garage/planning/script/config/simulation/planner/str_closed_planner.yaml"
-            scenario_filter_yaml = "nuplan_simulation/test_split_4.yaml"
+        # Step 1: Build scenarios
+        map_version = "nuplan-maps-v1.0"
+        scenario_mapping = ScenarioMapping(
+            scenario_map=get_scenario_map(), subsample_ratio_override=0.5
+        )
+        builder = NuPlanScenarioBuilder(
+            str(data_path),
+            str(map_path),
+            None,
+            None,
+            map_version,
+            scenario_mapping=scenario_mapping,
+        )
+        params = load_yaml(scenario_filter_yaml)
+        scenario_filter = ScenarioFilter(**params)
+        worker = SingleMachineParallelExecutor(use_process_pool=False)
+        scenarios = builder.get_scenarios(scenario_filter, worker)
 
-            # Step 1: Build scenarios
-            map_version = "nuplan-maps-v1.0"
-            scenario_mapping = ScenarioMapping(
-                scenario_map=get_scenario_map(), subsample_ratio_override=0.5
-            )
-            builder = NuPlanScenarioBuilder(
-                str(data_path),
-                str(map_path),
-                None,
-                None,
-                map_version,
-                scenario_mapping=scenario_mapping,
-            )
-            params = load_yaml(scenario_filter_yaml)
-            scenario_filter = ScenarioFilter(**params)
-            worker = SingleMachineParallelExecutor(use_process_pool=False)
-            scenarios = builder.get_scenarios(scenario_filter, worker)
+        # Step 2: Build planners with overrides
+        params_planner = load_yaml(planner_config_path)
 
-            # Step 2: Build planners with overrides
-            params_planner = load_yaml(planner_config_path)
+        pdm_speed_limit_fraction = "0.2 0.4 0.6 0.8 1.0"
+        conservative_factor = 0.7
+        comfort_weight = 10.0
+        initstable_time = 8
+        planner_name = "str_closed_planner"
 
-            pdm_speed_limit_fraction = "0.2 0.4 0.6 0.8 1.0"
-            conservative_factor = 0.7
-            comfort_weight = 10.0
-            initstable_time = 8
-            planner_name = "str_closed_planner"
-
-            planner_override: dict[str, Any] = {
-                "str_closed_planner": {
-                    "idm_policies": {
-                        "speed_limit_fraction": [
-                            float(c) for c in pdm_speed_limit_fraction.split(" ")
-                        ]
-                    },
-                    "str_generator": {"model_path": str(model_path)},
-                    "conservative_factor": conservative_factor,
-                    "comfort_weight": comfort_weight,
-                    "initstable_time": initstable_time,
-                }
+        planner_override: dict[str, Any] = {
+            "str_closed_planner": {
+                "idm_policies": {
+                    "speed_limit_fraction": [
+                        float(c) for c in pdm_speed_limit_fraction.split(" ")
+                    ]
+                },
+                "str_generator": {"model_path": str(model_path)},
+                "conservative_factor": conservative_factor,
+                "comfort_weight": comfort_weight,
+                "initstable_time": initstable_time,
             }
-            deep_update(params_planner, planner_override)
+        }
+        deep_update(params_planner, planner_override)
+        rewrite_hydra_targets(
+            params_planner, statetransformer_repo.__name__, _STR_TOP_LEVEL
+        )
 
-            # Instantiate planners for each scenario
-            planners = [
-                hydra.utils.instantiate(params_planner)[planner_name] for _ in scenarios
-            ]
+        # Instantiate planners for each scenario
+        planners = [
+            hydra.utils.instantiate(params_planner)[planner_name] for _ in scenarios
+        ]
 
-            # Step 3: Build simulations
-            tracker = LQRTracker(
-                q_longitudinal=[10.0],
-                r_longitudinal=[1.0],
-                q_lateral=[1.0, 10.0, 0.0],
-                r_lateral=[1.0],
-                discretization_time=0.1,
-                tracking_horizon=10,
-                jerk_penalty=1e-4,
-                curvature_rate_penalty=1e-2,
-                stopping_proportional_gain=0.5,
-                stopping_velocity=0.2,
+        # Step 3: Build simulations
+        tracker = LQRTracker(
+            q_longitudinal=[10.0],
+            r_longitudinal=[1.0],
+            q_lateral=[1.0, 10.0, 0.0],
+            r_lateral=[1.0],
+            discretization_time=0.1,
+            tracking_horizon=10,
+            jerk_penalty=1e-4,
+            curvature_rate_penalty=1e-2,
+            stopping_proportional_gain=0.5,
+            stopping_velocity=0.2,
+        )
+        motion_model = KinematicBicycleModel(get_pacifica_parameters())
+
+        # Create ego controllers and observations
+        ego_controllers = [
+            TwoStageController(scenario, tracker, motion_model)
+            for scenario in scenarios
+        ]
+        observations = [TracksObservation(scenario) for scenario in scenarios]
+
+        # Create simulation setups
+        simulation_setups = [
+            SimulationSetup(
+                time_controller=StepSimulationTimeController(scenario),
+                observations=observation,
+                ego_controller=ego_controller,
+                scenario=scenario,
             )
-            motion_model = KinematicBicycleModel(get_pacifica_parameters())
-
-            # Create ego controllers and observations
-            ego_controllers = [
-                TwoStageController(scenario, tracker, motion_model)
-                for scenario in scenarios
-            ]
-            observations = [TracksObservation(scenario) for scenario in scenarios]
-
-            # Create simulation setups
-            simulation_setups = [
-                SimulationSetup(
-                    time_controller=StepSimulationTimeController(scenario),
-                    observations=observation,
-                    ego_controller=ego_controller,
-                    scenario=scenario,
-                )
-                for scenario, observation, ego_controller in zip(
-                    scenarios, observations, ego_controllers, strict=False
-                )
-            ]
-
-            # Run simulations
-            simulations = [
-                Simulation(
-                    simulation_setup=setup,
-                    callback=MultiCallback([]),  # No callbacks needed
-                )
-                for setup in simulation_setups
-            ]
-
-            # Step 4: Get planner inputs
-            for i in range(len(simulations)):
-                sim_init = simulations[i].initialize()
-                planners[i].initialize(sim_init)
-
-            planner_inputs = [sim.get_planner_input() for sim in simulations]
-
-            # Step 5: Convert planner inputs to model samples
-            # Only return the first sample
-            i = 0
-            model_sample = planners[i]._str_generator._inputs_to_model_sample(
-                history=planner_inputs[i].history,
-                traffic_light_data=list(planner_inputs[i].traffic_light_data),
-                map_name=planners[i]._map_api.map_name,
+            for scenario, observation, ego_controller in zip(
+                scenarios, observations, ego_controllers, strict=False
             )
+        ]
+
+        # Run simulations
+        simulations = [
+            Simulation(
+                simulation_setup=setup,
+                callback=MultiCallback([]),  # No callbacks needed
+            )
+            for setup in simulation_setups
+        ]
+
+        # Step 4: Get planner inputs
+        for i in range(len(simulations)):
+            sim_init = simulations[i].initialize()
+            planners[i].initialize(sim_init)
+
+        planner_inputs = [sim.get_planner_input() for sim in simulations]
+
+        # Step 5: Convert planner inputs to model samples
+        # Only return the first sample
+        i = 0
+        model_sample = planners[i]._str_generator._inputs_to_model_sample(
+            history=planner_inputs[i].history,
+            traffic_light_data=list(planner_inputs[i].traffic_light_data),
+            map_name=planners[i]._map_api.map_name,
+        )
 
         # Stack samples into batch format
         device = torch.device("cpu")

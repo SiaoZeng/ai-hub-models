@@ -1,3 +1,5 @@
+# Replaces CUDA-only DCNv3 extension with pure PyTorch fallback and removes pkg_resources.
+#
 diff --git a/classification/ops_dcnv3/functions/dcnv3_func.py b/classification/ops_dcnv3/functions/dcnv3_func.py
 index 619418c..a1965bb 100644
 --- a/classification/ops_dcnv3/functions/dcnv3_func.py

@@ -1,3 +1,8 @@
 supported_precisions:
 - float
 - w8a16
+external_repos:
+  hrnet_semantic_seg:
+    repo_url: https://github.com/HRNet/HRNet-Semantic-Segmentation.git
+    commit_sha: 0bbb2880446ddff2d78f8dd7e8c4c610151d5a51
+    patches_filename: hrnet_semantic_seg_patches.diff

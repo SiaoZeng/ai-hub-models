@@ -5,17 +5,19 @@
 
 from __future__ import annotations
 
+import os
+
 import torch
 from typing_extensions import Self
 
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.movenet_evaluator import MovenetPoseEvaluator
 from qai_hub_models.models.common import Precision
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    find_replace_in_repo,
+from qai_hub_models.models.movenet.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.movenet.external_repos.movenet_pytorch.movenet.models.model_factory import (
+    load_model,
 )
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import BaseModel, TargetRuntime
 from qai_hub_models.utils.input_spec import (
     ColorFormat,
@@ -27,8 +29,6 @@ from qai_hub_models.utils.input_spec import (
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 2
-SOURCE_REPOSITORY = "https://github.com/lee-man/movenet-pytorch/"
-COMMIT_HASH = "d7262410af2776afe66d3f7a2282b64becb82601"
 SAMPLE_INPUTS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "movenet_inputs_2.npy"
 )
@@ -42,20 +42,16 @@ class Movenet(BaseModel):
         cls,
         model_id: int = 101,
     ) -> Self:
-        with SourceAsRoot(
-            SOURCE_REPOSITORY,
-            COMMIT_HASH,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ) as repo_path:
-            find_replace_in_repo(
-                repo_path, "movenet/models/movenet.py", "x = x.permute(0, 3, 1, 2)", "#"
-            )
-            from movenet.models.model_factory import load_model
-
+        # The movenet repo uses relative paths (e.g. "./_models") for weights.
+        # Temporarily change CWD to the repo root so those paths resolve.
+        repo_dir = EXTERNAL_REPO_PATHS["movenet_pytorch"]
+        prev_cwd = os.getcwd()
+        os.chdir(repo_dir)
+        try:
             model = load_model(DEFAULT_MODEL_NAME, ft_size=48)
-
-            return cls(model)
+        finally:
+            os.chdir(prev_cwd)
+        return cls(model)
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
         """

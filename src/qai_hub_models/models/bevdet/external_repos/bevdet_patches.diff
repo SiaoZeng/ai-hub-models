@@ -1,0 +1,311 @@
+# Removes version checks and wildcard imports incompatible with current mmcv/mmdet/mmseg versions.
+#
+diff --git a/mmdet3d/__init__.py b/mmdet3d/__init__.py
+index 643c39c..334e3f5 100644
+--- a/mmdet3d/__init__.py
++++ b/mmdet3d/__init__.py
+@@ -1,49 +1 @@
+-# Copyright (c) OpenMMLab. All rights reserved.
+-import mmcv
+-
+-import mmdet
+-import mmseg
+-from .version import __version__, short_version
+-
+-
+-def digit_version(version_str):
+-    digit_version = []
+-    for x in version_str.split('.'):
+-        if x.isdigit():
+-            digit_version.append(int(x))
+-        elif x.find('rc') != -1:
+-            patch_version = x.split('rc')
+-            digit_version.append(int(patch_version[0]) - 1)
+-            digit_version.append(int(patch_version[1]))
+-    return digit_version
+-
+-
+-mmcv_minimum_version = '1.5.2'
+-mmcv_maximum_version = '1.7.0'
+-mmcv_version = digit_version(mmcv.__version__)
+-
+-
+-assert (mmcv_version >= digit_version(mmcv_minimum_version)
+-        and mmcv_version <= digit_version(mmcv_maximum_version)), \
+-    f'MMCV=={mmcv.__version__} is used but incompatible. ' \
+-    f'Please install mmcv>={mmcv_minimum_version}, <={mmcv_maximum_version}.'
+-
+-mmdet_minimum_version = '2.24.0'
+-mmdet_maximum_version = '3.0.0'
+-mmdet_version = digit_version(mmdet.__version__)
+-assert (mmdet_version >= digit_version(mmdet_minimum_version)
+-        and mmdet_version <= digit_version(mmdet_maximum_version)), \
+-    f'MMDET=={mmdet.__version__} is used but incompatible. ' \
+-    f'Please install mmdet>={mmdet_minimum_version}, ' \
+-    f'<={mmdet_maximum_version}.'
+-
+-mmseg_minimum_version = '0.20.0'
+-mmseg_maximum_version = '1.0.0'
+-mmseg_version = digit_version(mmseg.__version__)
+-assert (mmseg_version >= digit_version(mmseg_minimum_version)
+-        and mmseg_version <= digit_version(mmseg_maximum_version)), \
+-    f'MMSEG=={mmseg.__version__} is used but incompatible. ' \
+-    f'Please install mmseg>={mmseg_minimum_version}, ' \
+-    f'<={mmseg_maximum_version}.'
+-
+-__all__ = ['__version__', 'short_version']
++
+diff --git a/mmdet3d/core/__init__.py b/mmdet3d/core/__init__.py
+index fc98b76..15112f4 100644
+--- a/mmdet3d/core/__init__.py
++++ b/mmdet3d/core/__init__.py
+@@ -1,11 +1 @@
+-# Copyright (c) OpenMMLab. All rights reserved.
+-from .anchor import *  # noqa: F401, F403
+-from .bbox import *  # noqa: F401, F403
+-from .evaluation import *  # noqa: F401, F403
+-from .hook import *  # noqa: F401, F403
+-from .points import *  # noqa: F401, F403
+-from .post_processing import *  # noqa: F401, F403
+-from .utils import *  # noqa: F401, F403
+-from .visualizer import *  # noqa: F401, F403
+-from .voxel import *  # noqa: F401, F403
+-from .two_stage_runner import *
+\ No newline at end of file
++
+diff --git a/mmdet3d/core/bbox/__init__.py b/mmdet3d/core/bbox/__init__.py
+index 8c66630..15112f4 100644
+--- a/mmdet3d/core/bbox/__init__.py
++++ b/mmdet3d/core/bbox/__init__.py
+@@ -1,30 +1 @@
+-# Copyright (c) OpenMMLab. All rights reserved.
+-from .assigners import AssignResult, BaseAssigner, MaxIoUAssigner
+-from .coders import DeltaXYZWLHRBBoxCoder
+-# from .bbox_target import bbox_target
+-from .iou_calculators import (AxisAlignedBboxOverlaps3D, BboxOverlaps3D,
+-                              BboxOverlapsNearest3D,
+-                              axis_aligned_bbox_overlaps_3d, bbox_overlaps_3d,
+-                              bbox_overlaps_nearest_3d)
+-from .samplers import (BaseSampler, CombinedSampler,
+-                       InstanceBalancedPosSampler, IoUBalancedNegSampler,
+-                       PseudoSampler, RandomSampler, SamplingResult)
+-from .structures import (BaseInstance3DBoxes, Box3DMode, CameraInstance3DBoxes,
+-                         Coord3DMode, DepthInstance3DBoxes,
+-                         LiDARInstance3DBoxes, get_box_type, limit_period,
+-                         mono_cam_box2vis, points_cam2img, points_img2cam,
+-                         xywhr2xyxyr)
+-from .transforms import bbox3d2result, bbox3d2roi, bbox3d_mapping_back
+-
+-__all__ = [
+-    'BaseSampler', 'AssignResult', 'BaseAssigner', 'MaxIoUAssigner',
+-    'PseudoSampler', 'RandomSampler', 'InstanceBalancedPosSampler',
+-    'IoUBalancedNegSampler', 'CombinedSampler', 'SamplingResult',
+-    'DeltaXYZWLHRBBoxCoder', 'BboxOverlapsNearest3D', 'BboxOverlaps3D',
+-    'bbox_overlaps_nearest_3d', 'bbox_overlaps_3d',
+-    'AxisAlignedBboxOverlaps3D', 'axis_aligned_bbox_overlaps_3d', 'Box3DMode',
+-    'LiDARInstance3DBoxes', 'CameraInstance3DBoxes', 'bbox3d2roi',
+-    'bbox3d2result', 'DepthInstance3DBoxes', 'BaseInstance3DBoxes',
+-    'bbox3d_mapping_back', 'xywhr2xyxyr', 'limit_period', 'points_cam2img',
+-    'points_img2cam', 'get_box_type', 'Coord3DMode', 'mono_cam_box2vis'
+-]
++
+diff --git a/mmdet3d/core/bbox/coders/__init__.py b/mmdet3d/core/bbox/coders/__init__.py
+index bed2c60..15112f4 100644
+--- a/mmdet3d/core/bbox/coders/__init__.py
++++ b/mmdet3d/core/bbox/coders/__init__.py
+@@ -1,20 +1 @@
+-# Copyright (c) OpenMMLab. All rights reserved.
+-from mmdet.core.bbox import build_bbox_coder
+-from .anchor_free_bbox_coder import AnchorFreeBBoxCoder
+-from .centerpoint_bbox_coders import CenterPointBBoxCoder
+-from .delta_xyzwhlr_bbox_coder import DeltaXYZWLHRBBoxCoder
+-from .fcos3d_bbox_coder import FCOS3DBBoxCoder
+-from .groupfree3d_bbox_coder import GroupFree3DBBoxCoder
+-from .monoflex_bbox_coder import MonoFlexCoder
+-from .partial_bin_based_bbox_coder import PartialBinBasedBBoxCoder
+-from .pgd_bbox_coder import PGDBBoxCoder
+-from .point_xyzwhlr_bbox_coder import PointXYZWHLRBBoxCoder
+-from .smoke_bbox_coder import SMOKECoder
+-from .transfusion_bbox_coder import TransFusionBBoxCoder
+-
+-__all__ = [
+-    'build_bbox_coder', 'DeltaXYZWLHRBBoxCoder', 'PartialBinBasedBBoxCoder',
+-    'CenterPointBBoxCoder', 'AnchorFreeBBoxCoder', 'GroupFree3DBBoxCoder',
+-    'PointXYZWHLRBBoxCoder', 'FCOS3DBBoxCoder', 'PGDBBoxCoder', 'SMOKECoder',
+-    'MonoFlexCoder', 'TransFusionBBoxCoder'
+-]
++
+diff --git a/mmdet3d/core/bbox/coders/centerpoint_bbox_coders.py b/mmdet3d/core/bbox/coders/centerpoint_bbox_coders.py
+index 6d43a63..7c0b3cb 100644
+--- a/mmdet3d/core/bbox/coders/centerpoint_bbox_coders.py
++++ b/mmdet3d/core/bbox/coders/centerpoint_bbox_coders.py
+@@ -1,11 +1,9 @@
+ # Copyright (c) OpenMMLab. All rights reserved.
+ import torch
+ 
+-from mmdet.core.bbox import BaseBBoxCoder
+-from mmdet.core.bbox.builder import BBOX_CODERS
++from mmdet.models.task_modules import BaseBBoxCoder
+ 
+ 
+-@BBOX_CODERS.register_module()
+ class CenterPointBBoxCoder(BaseBBoxCoder):
+     """Bbox coder for CenterPoint.
+ 
+diff --git a/mmdet3d/models/__init__.py b/mmdet3d/models/__init__.py
+index 7c7e8fc..e690f1a 100644
+--- a/mmdet3d/models/__init__.py
++++ b/mmdet3d/models/__init__.py
+@@ -1,29 +1 @@
+-# Copyright (c) OpenMMLab. All rights reserved.
+-from .backbones import *  # noqa: F401,F403
+-from .builder import (BACKBONES, DETECTORS, FUSION_LAYERS, HEADS, LOSSES,
+-                      MIDDLE_ENCODERS, NECKS, ROI_EXTRACTORS, SEGMENTORS,
+-                      SHARED_HEADS, VOXEL_ENCODERS, build_backbone,
+-                      build_detector, build_fusion_layer, build_head,
+-                      build_loss, build_middle_encoder, build_model,
+-                      build_neck, build_roi_extractor, build_shared_head,
+-                      build_voxel_encoder)
+-from .decode_heads import *  # noqa: F401,F403
+-from .dense_heads import *  # noqa: F401,F403
+-from .detectors import *  # noqa: F401,F403
+-from .fusion_layers import *  # noqa: F401,F403
+-from .losses import *  # noqa: F401,F403
+-from .middle_encoders import *  # noqa: F401,F403
+-from .model_utils import *  # noqa: F401,F403
+-from .necks import *  # noqa: F401,F403
+-from .roi_heads import *  # noqa: F401,F403
+-from .segmentors import *  # noqa: F401,F403
+-from .voxel_encoders import *  # noqa: F401,F403
+-
+-__all__ = [
+-    'BACKBONES', 'NECKS', 'ROI_EXTRACTORS', 'SHARED_HEADS', 'HEADS', 'LOSSES',
+-    'DETECTORS', 'SEGMENTORS', 'VOXEL_ENCODERS', 'MIDDLE_ENCODERS',
+-    'FUSION_LAYERS', 'build_backbone', 'build_neck', 'build_roi_extractor',
+-    'build_shared_head', 'build_head', 'build_loss', 'build_detector',
+-    'build_fusion_layer', 'build_model', 'build_middle_encoder',
+-    'build_voxel_encoder'
+-]
++
+diff --git a/mmdet3d/models/backbones/__init__.py b/mmdet3d/models/backbones/__init__.py
+index 2711682..15112f4 100644
+--- a/mmdet3d/models/backbones/__init__.py
++++ b/mmdet3d/models/backbones/__init__.py
+@@ -1,19 +1 @@
+-# Copyright (c) OpenMMLab. All rights reserved.
+-from mmdet.models.backbones import SSDVGG, HRNet, ResNet, ResNetV1d, ResNeXt
+-from .dgcnn import DGCNNBackbone
+-from .dla import DLANet
+-from .mink_resnet import MinkResNet
+-from .multi_backbone import MultiBackbone
+-from .nostem_regnet import NoStemRegNet
+-from .pointnet2_sa_msg import PointNet2SAMSG
+-from .pointnet2_sa_ssg import PointNet2SASSG
+-from .resnet import CustomResNet, CustomResNet3D
+-from .second import SECOND
+-from .swin import SwinTransformer
+-
+-__all__ = [
+-    'ResNet', 'ResNetV1d', 'ResNeXt', 'SSDVGG', 'HRNet', 'NoStemRegNet',
+-    'SECOND', 'DGCNNBackbone', 'PointNet2SASSG', 'PointNet2SAMSG',
+-    'MultiBackbone', 'DLANet', 'MinkResNet', 'CustomResNet', 'CustomResNet3D',
+-    'SwinTransformer'
+-]
++
+diff --git a/mmdet3d/models/backbones/resnet.py b/mmdet3d/models/backbones/resnet.py
+index 1b55219..0060cd5 100644
+--- a/mmdet3d/models/backbones/resnet.py
++++ b/mmdet3d/models/backbones/resnet.py
+@@ -4,11 +4,8 @@ import torch.utils.checkpoint as checkpoint
+ from torch import nn
+ 
+ from mmcv.cnn.bricks.conv_module import ConvModule
+-from mmdet.models import BACKBONES
+ from mmdet.models.backbones.resnet import BasicBlock, Bottleneck
+ 
+-
+-@BACKBONES.register_module()
+ class CustomResNet(nn.Module):
+ 
+     def __init__(
+@@ -123,7 +120,6 @@ class BasicBlock3D(nn.Module):
+         return self.relu(x)
+ 
+ 
+-@BACKBONES.register_module()
+ class CustomResNet3D(nn.Module):
+ 
+     def __init__(
+diff --git a/mmdet3d/models/necks/__init__.py b/mmdet3d/models/necks/__init__.py
+index 57e19c2..15112f4 100644
+--- a/mmdet3d/models/necks/__init__.py
++++ b/mmdet3d/models/necks/__init__.py
+@@ -1,16 +1 @@
+-# Copyright (c) OpenMMLab. All rights reserved.
+-from mmdet.models.necks.fpn import FPN
+-from .dla_neck import DLANeck
+-from .fpn import CustomFPN
+-from .imvoxel_neck import OutdoorImVoxelNeck
+-from .lss_fpn import FPN_LSS
+-from .pointnet2_fp_neck import PointNetFPNeck
+-from .second_fpn import SECONDFPN
+-from .view_transformer import LSSViewTransformer, LSSViewTransformerBEVDepth, \
+-    LSSViewTransformerBEVStereo
+-
+-__all__ = [
+-    'FPN', 'SECONDFPN', 'OutdoorImVoxelNeck', 'PointNetFPNeck', 'DLANeck',
+-    'LSSViewTransformer', 'CustomFPN', 'FPN_LSS', 'LSSViewTransformerBEVDepth',
+-    'LSSViewTransformerBEVStereo'
+-]
++
+diff --git a/mmdet3d/models/necks/fpn.py b/mmdet3d/models/necks/fpn.py
+index 33e8108..53cf282 100644
+--- a/mmdet3d/models/necks/fpn.py
++++ b/mmdet3d/models/necks/fpn.py
+@@ -2,12 +2,9 @@
+ import torch.nn as nn
+ import torch.nn.functional as F
+ from mmcv.cnn import ConvModule
+-from mmcv.runner import BaseModule, auto_fp16
++from mmengine.model import BaseModule
+ 
+-from ..builder import NECKS
+ 
+-
+-@NECKS.register_module()
+ class CustomFPN(BaseModule):
+     r"""Feature Pyramid Network.
+ 
+@@ -150,7 +147,6 @@ class CustomFPN(BaseModule):
+                     inplace=False)
+                 self.fpn_convs.append(extra_fpn_conv)
+ 
+-    @auto_fp16()
+     def forward(self, inputs):
+         """Forward function."""
+         assert len(inputs) == len(self.in_channels)
+diff --git a/mmdet3d/models/necks/lss_fpn.py b/mmdet3d/models/necks/lss_fpn.py
+index c38cab9..f15468c 100644
+--- a/mmdet3d/models/necks/lss_fpn.py
++++ b/mmdet3d/models/necks/lss_fpn.py
+@@ -5,11 +5,9 @@ import torch.nn as nn
+ from mmcv.cnn import build_norm_layer
+ 
+ from torch.utils.checkpoint import checkpoint
+-from mmdet3d.models.backbones.resnet import ConvModule
+-from mmdet.models import NECKS
++from mmcv.cnn.bricks.conv_module import ConvModule
+ 
+ 
+-@NECKS.register_module()
+ class FPN_LSS(nn.Module):
+ 
+     def __init__(self,
+@@ -101,7 +99,6 @@ class FPN_LSS(nn.Module):
+             x = self.up2(x)
+         return x
+ 
+-@NECKS.register_module()
+ class LSSFPN3D(nn.Module):
+     def __init__(self,
+                  in_channels,

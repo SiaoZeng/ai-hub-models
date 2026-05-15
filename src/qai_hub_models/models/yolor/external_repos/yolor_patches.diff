@@ -1,0 +1,47 @@
+# Converts bare module imports to relative imports for package structure compatibility.
+#
+diff --git a/models/models.py b/models/models.py
+index 76c44b6..244e6af 100644
+--- a/models/models.py
++++ b/models/models.py
+@@ -1,7 +1,7 @@
+-from utils.google_utils import *
+-from utils.layers import *
+-from utils.parse_config import *
+-from utils import torch_utils
++from ..utils.google_utils import *
++from ..utils.layers import *
++from ..utils.parse_config import *
++from ..utils import torch_utils
+ 
+ ONNX_EXPORT = False
+ 
+diff --git a/utils/general.py b/utils/general.py
+index 9b06c8b..47af7e7 100644
+--- a/utils/general.py
++++ b/utils/general.py
+@@ -17,9 +17,9 @@ import numpy as np
+ import torch
+ import yaml
+ 
+-from utils.google_utils import gsutil_getsize
+-from utils.metrics import fitness, fitness_p, fitness_r, fitness_ap50, fitness_ap, fitness_f   
+-from utils.torch_utils import init_torch_seeds
++from .google_utils import gsutil_getsize
++from .metrics import fitness, fitness_p, fitness_r, fitness_ap50, fitness_ap, fitness_f   
++from .torch_utils import init_torch_seeds
+ 
+ # Set printoptions
+ torch.set_printoptions(linewidth=320, precision=5, profile='long')
+diff --git a/utils/layers.py b/utils/layers.py
+index 218da9e..f50d3ea 100644
+--- a/utils/layers.py
++++ b/utils/layers.py
+@@ -1,6 +1,6 @@
+ import torch.nn.functional as F
+ 
+-from utils.general import *
++from .general import *
+ 
+ import torch
+ from torch import nn

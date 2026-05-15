@@ -2,3 +2,7 @@ supported_precisions:
 - float
 - w8a16
 has_on_target_demo: true
+external_repos:
+  gaze_estimation:
+    repo_url: https://github.com/david-wb/gaze-estimation
+    commit_sha: 249691893a37944a03e4ad4a3448083b6f63af10

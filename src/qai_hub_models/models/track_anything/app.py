@@ -12,10 +12,10 @@ import numpy as np
 import torch
 from PIL import Image
 
-from qai_hub_models.models.track_anything.model import (
+from qai_hub_models.models.track_anything.external_repos.track_anything.tracker.inference.memory_manager import (
     MemoryManager,
-    TrackAnythingEncodeValue,
 )
+from qai_hub_models.models.track_anything.model import TrackAnythingEncodeValue
 from qai_hub_models.utils.draw import create_color_map
 from qai_hub_models.utils.image_processing import resize_pad, undo_resize_pad
 

@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import cv2
@@ -17,37 +16,28 @@ from qai_hub.client import DatasetEntries
 
 from qai_hub_models.datasets import get_dataset_from_name
 from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.models.deepbox.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.deepbox.external_repos.boundingbox_3d.library.Math import (
+    calc_location,
+)
+from qai_hub_models.models.deepbox.external_repos.boundingbox_3d.library.Plotting import (
+    plot_3d_box,
+)
+from qai_hub_models.models.deepbox.external_repos.boundingbox_3d.torch_lib import (
+    ClassAverages,
+    Dataset,
+)
 from qai_hub_models.models.deepbox.model import (
-    DEEPBOX_SOURCE_REPO_COMMIT,
-    DEEPBOX_SOURCE_REPOSITORY,
-    MODEL_ASSET_VERSION,
-    MODEL_ID,
     DeepBox,
     VGG3DDetection,
     Yolo2DDetection,
 )
-from qai_hub_models.utils.asset_loaders import SourceAsRoot, find_replace_in_repo
 from qai_hub_models.utils.base_model import CollectionModel, PretrainedCollectionModel
 from qai_hub_models.utils.bounding_box_processing import batched_nms
 from qai_hub_models.utils.image_processing import app_to_net_image_inputs
 from qai_hub_models.utils.input_spec import InputSpec
 
-with SourceAsRoot(
-    DEEPBOX_SOURCE_REPOSITORY,
-    DEEPBOX_SOURCE_REPO_COMMIT,
-    MODEL_ID,
-    MODEL_ASSET_VERSION,
-) as repo_path:
-    find_replace_in_repo(
-        repo_path,
-        "library/Math.py",
-        "A = np.zeros([4,3], dtype=np.float)",
-        "A = np.zeros([4,3], dtype=float)",
-    )
-
-    from library.Math import calc_location
-    from library.Plotting import plot_3d_box
-    from torch_lib import ClassAverages, Dataset
+REPO_PATH = EXTERNAL_REPO_PATHS["boundingbox_3d"]
 
 
 class DeepBoxApp:
@@ -218,10 +208,10 @@ class DeepBoxApp:
         angle_bins = Dataset.generate_bins(2)
 
         # Gets the labels and camera calib
-        labels_path = os.path.sep.join([repo_path + "/weights", "coco.names"])
+        labels_path = REPO_PATH / "weights" / "coco.names"
         with open(labels_path) as labels_f:
             labels = labels_f.read().split("\n")
-        calib_file = repo_path + "/camera_cal/calib_cam_to_cam.txt"
+        calib_file = REPO_PATH / "camera_cal" / "calib_cam_to_cam.txt"
 
         x1, y1, x2, y2 = pred_boxes
 
@@ -241,7 +231,7 @@ class DeepBoxApp:
             return None
 
         detectedObject = Dataset.DetectedObject(
-            numpy_image, detected_class, box_2d, calib_file
+            numpy_image, detected_class, box_2d, str(calib_file)
         )
         theta_ray = detectedObject.theta_ray
         proj_matrix = detectedObject.proj_matrix

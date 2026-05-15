@@ -3,3 +3,8 @@ supported_precisions:
 - w8a16
 - w8a8
 has_on_target_demo: true
+external_repos:
+  pytorch_deeplab_xception:
+    repo_url: https://github.com/jfzhang95/pytorch-deeplab-xception
+    commit_sha: 9135e104a7a51ea9effa9c6676a2fcffe6a6a2e6
+    patches_filename: pytorch_deeplab_xception_patches.diff

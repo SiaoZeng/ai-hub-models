@@ -1,3 +1,5 @@
+# Guards albumentations imports that are incompatible with numpy 2.x and not needed for inference.
+#
 diff --git a/saicinpainting/training/data/aug.py b/saicinpainting/training/data/aug.py
 index b124625..c816ef2 100644
 --- a/saicinpainting/training/data/aug.py

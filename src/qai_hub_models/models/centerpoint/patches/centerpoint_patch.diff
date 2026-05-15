@@ -1,3 +1,5 @@
+# Removes CUDA/C++ extension dependencies and fixes imports for CPU-only package compatibility.
+#
 diff --git a/det3d/datasets/__init__.py b/det3d/datasets/__init__.py
 index 1c0f34a..0e187a4 100644
 --- a/det3d/datasets/__init__.py

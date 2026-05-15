@@ -8,14 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from qai_hub_models.models.pointnet.model import (
-    COMMIT_HASH,
-    MODEL_ASSET_VERSION,
-    MODEL_ID,
-    PATCHES,
-    SOURCE_REPO,
-)
-from qai_hub_models.utils.asset_loaders import SourceAsRoot
+from qai_hub_models.models.pointnet.external_repos.pointnet.source import dataset, utils
 
 
 class PointNetApp:
@@ -59,15 +52,6 @@ class PointNetApp:
             A PyTorch DataLoader that yields batches of transformed point cloud data.
             Each batch is a dictionary with a key "pointcloud" containing a tensor of shape (B, N, 3).
         """
-        with SourceAsRoot(
-            SOURCE_REPO,
-            COMMIT_HASH,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-            source_repo_patches=PATCHES,
-        ):
-            from source import dataset, utils
-
         test_transforms = transforms.Compose(
             [
                 utils.PointSampler(1024),

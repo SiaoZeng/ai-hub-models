@@ -5,19 +5,14 @@
 
 from __future__ import annotations
 
-import os
-import sys
 from types import SimpleNamespace
 
 import torch
 from qai_hub.client import Device
 from typing_extensions import Self
 
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    load_torch,
-)
+from qai_hub_models.models.act.external_repos.act.detr.models.detr_vae import build
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
 from qai_hub_models.utils.base_model import BaseModel, Precision, TargetRuntime
 from qai_hub_models.utils.image_processing import normalize_image_torchvision
 from qai_hub_models.utils.input_spec import (
@@ -30,8 +25,6 @@ from qai_hub_models.utils.input_spec import (
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
-ACT_SOURCE_REPOSITORY = "https://github.com/tonyzhaozh/act.git"
-ACT_SOURCE_REPO_COMMIT = "742c753c0d4a5d87076c8f69e5628c79a8cc5488"
 
 # Checkpoint is trained using the repo script
 ACT_CKPT = CachedWebModelAsset.from_asset_store(
@@ -75,14 +68,6 @@ class ACT(BaseModel):
     @classmethod
     def from_pretrained(cls, ckpt_path: str | None = None) -> Self:
         """Load ACT trained checkpoint from the specified path."""
-        with SourceAsRoot(
-            ACT_SOURCE_REPOSITORY,
-            ACT_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ) as repo_path:
-            sys.path.append(os.path.join(repo_path, "detr"))
-            from detr.models.detr_vae import build
         ckpt_path = str(ACT_CKPT.fetch()) if ckpt_path is None else ckpt_path
 
         # The values assigned in config are obtained by printing 'args' in the below mentioned line of the repo (print(args))

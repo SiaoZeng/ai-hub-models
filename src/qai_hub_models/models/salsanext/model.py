@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import torch
@@ -15,23 +14,22 @@ from typing_extensions import Self
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.semantic_kitti_evaluator import SemanticKittiEvaluator
 from qai_hub_models.models.common import SampleInputsType
-from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, SourceAsRoot
+from qai_hub_models.models.salsanext.external_repos.salsanext.train.common.laserscan import (
+    SemLaserScan,
+)
+from qai_hub_models.models.salsanext.external_repos.salsanext.train.tasks.semantic.modules.SalsaNext import (
+    SalsaNext as SalsaNextModel,
+)
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
-SALSANEXT_PROXY_REPOSITORY = "https://github.com/TiagoCortinhal/SalsaNext.git"
-SALSANEXT_PROXY_REPO_COMMIT = "7548c124b48f0259cdc40e98dfc3aeeadca6070c"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 3
 DEFAULT_WEIGHTS = "pretrained/SalsaNext.pt"
 INPUT_LIDAR_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "000000.bin"
 ).fetch()
-SALSANEXT_SOURCE_PATCHES = [
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches", "salsanext_patch.diff")
-    )
-]
 # Load configuration files
 
 ARCH_ADDRESS = CachedWebModelAsset.from_asset_store(
@@ -41,15 +39,6 @@ ARCH_ADDRESS = CachedWebModelAsset.from_asset_store(
 DATA_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "pretrained/data_cfg.yaml"
 ).fetch()
-
-with SourceAsRoot(
-    SALSANEXT_PROXY_REPOSITORY,
-    SALSANEXT_PROXY_REPO_COMMIT,
-    MODEL_ID,
-    MODEL_ASSET_VERSION,
-    source_repo_patches=SALSANEXT_SOURCE_PATCHES,
-):
-    from train.common.laserscan import SemLaserScan
 
 
 class SalsaNext(BaseModel):
@@ -161,21 +150,12 @@ def _load_salsanext_source_model_from_weights(
             MODEL_ID, MODEL_ASSET_VERSION, DEFAULT_WEIGHTS
         ).fetch()
 
-    with SourceAsRoot(
-        SALSANEXT_PROXY_REPOSITORY,
-        SALSANEXT_PROXY_REPO_COMMIT,
-        MODEL_ID,
-        MODEL_ASSET_VERSION,
-        SALSANEXT_SOURCE_PATCHES,
-    ):
-        from train.tasks.semantic.modules.SalsaNext import SalsaNext
-
-        model = SalsaNext(20)
-        model = torch.nn.DataParallel(model)
-        # load pretrained model
-        checkpoint = torch.load(
-            str(weights_path_salsanext), map_location="cpu", weights_only=False
-        )
-        model.load_state_dict(checkpoint["state_dict"], strict=True)
-        model.to("cpu").eval()
+    model: torch.nn.Module = SalsaNextModel(20)
+    model = torch.nn.DataParallel(model)
+    # load pretrained model
+    checkpoint = torch.load(
+        str(weights_path_salsanext), map_location="cpu", weights_only=False
+    )
+    model.load_state_dict(checkpoint["state_dict"], strict=True)
+    model.to("cpu").eval()
     return model

@@ -12,7 +12,8 @@ from qai_hub_models.utils.testing import skip_clone_repo_check
 @skip_clone_repo_check
 def test_off_target_numerical() -> None:
     run_test_off_target_numerical(
-        FFNet122NSLowRes, "segmentation_ffnet122NS_CCC_mobile_pre_down"
+        FFNet122NSLowRes,
+        "segmentation_ffnet122NS_CCC_mobile_pre_down",
     )
 
 

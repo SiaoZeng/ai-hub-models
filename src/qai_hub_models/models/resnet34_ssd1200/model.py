@@ -4,7 +4,6 @@
 # ---------------------------------------------------------------------
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import torch
@@ -14,9 +13,11 @@ from qai_hub_models.models._shared.yolo.model import (
     Yolo,
 )
 from qai_hub_models.models.common import SampleInputsType
+from qai_hub_models.models.resnet34_ssd1200.external_repos.inference.vision.classification_and_detection.python.models.ssd_r34 import (
+    SSD_R34,
+)
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    SourceAsRoot,
     load_image,
     load_torch,
 )
@@ -38,8 +39,6 @@ from qai_hub_models.utils.input_spec import (
     TensorSpec,
 )
 
-SOURCE_REPO = "https://github.com/mlcommons/inference.git"
-COMMIT_HASH = "33894a19c4af6207f7cfdda75f84570f04836de5"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
 
@@ -49,11 +48,6 @@ MODEL_PATH = CachedWebModelAsset.from_asset_store(
 INPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "000000000785.png"
 )
-SOURCE_PATCHES = [
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches", "ssd_r34_patch.diff")
-    )
-]
 
 
 class Resnet34SSD(Yolo):
@@ -92,20 +86,9 @@ class Resnet34SSD(Yolo):
         Resnet34SSD
             An instance of the model wrapped in the BaseModel interface.
         """
-        with SourceAsRoot(
-            SOURCE_REPO,
-            COMMIT_HASH,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-            source_repo_patches=SOURCE_PATCHES,
-        ):
-            from vision.classification_and_detection.python.models.ssd_r34 import (
-                SSD_R34,
-            )
-
-            model = SSD_R34()
-            state_dict = load_torch(ckpt)
-            model.load_state_dict(state_dict)
+        model = SSD_R34()
+        state_dict = load_torch(ckpt)
+        model.load_state_dict(state_dict)
 
         return cls(
             model,

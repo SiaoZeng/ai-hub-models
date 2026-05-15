@@ -11,6 +11,7 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Any
 
 try:
     import git  # noqa: TID251
@@ -36,7 +37,7 @@ MYPY_IGNORE = "# mypy: ignore-errors\n"
 
 # Bump this when postprocess_repo behavior changes (e.g. import rewriting logic).
 # This invalidates all cached clones so they get re-cloned with the new postprocessing.
-POSTPROCESS_VERSION = "1"
+POSTPROCESS_VERSION = "3"
 
 
 # ---------------------------------------------------------------------------
@@ -376,14 +377,19 @@ def _rewrite_import_line(
             rest = stripped[match.end() :]
             return f"{indent}from {package_path}.{module_path} import {rest}"
 
-    # import <pkg>.something — rewrite to from <full_parent> import <leaf>
-    match = re.match(r"import (\w[\w.]+)", stripped)
+    # import <pkg> or import <pkg>.something
+    match = re.match(r"import (\w[\w.]*)", stripped)
     if not match:
         return None
     module_path = match.group(1)
-    if "." not in module_path or module_path.split(".")[0] not in top_level:
+    root = module_path.split(".")[0]
+    if root not in top_level:
         return None
     rest = stripped[match.end() :]
+    if "." not in module_path:
+        # import <pkg> -> from <package_path> import <pkg>
+        return f"{indent}from {package_path} import {module_path}{rest}"
+    # import <pkg>.something -> from <full_parent> import <leaf>
     parent, leaf = module_path.rsplit(".", 1)
     return f"{indent}from {package_path}.{parent} import {leaf}{rest}"
 
@@ -479,6 +485,11 @@ def postprocess_repo(actual_path: Path, canonical_path: Path) -> None:
     """
     _make_package(actual_path)
     _rewrite_absolute_imports(actual_path, canonical_path)
+    # Handle src layout: if src/ exists with packages inside, also rewrite
+    # imports within src/ using src/<pkg> as the canonical sub-path.
+    src_dir = actual_path / "src"
+    if src_dir.is_dir():
+        _rewrite_absolute_imports(src_dir, canonical_path / "src")
 
 
 def clone_and_patch(
@@ -490,6 +501,16 @@ def clone_and_patch(
     patch_path: Path | None = None,
 ) -> None:
     """Clone a repo at a pinned commit, apply patches, and postprocess.
+
+    Order of operations:
+    1. Shallow clone at pinned SHA
+    2. Apply .diff patch (model-specific fixes applied to original source)
+    3. Postprocess: add __init__.py files + rewrite imports to fully-qualified paths
+
+    Patches are applied BEFORE import rewriting, so patch diffs reference the
+    original repo's import style (e.g. ``from models.X import Y``). The
+    postprocess step then rewrites all imports (including patched ones) to use
+    the full ``qai_hub_models.models.<id>.external_repos.<repo>.`` prefix.
 
     Parameters
     ----------
@@ -620,7 +641,7 @@ def clone_and_link_repo(
 def setup_external_repos_impl(
     repo_configs: dict[str, RepoConfig],
     external_repos_path: Path,
-) -> None:
+) -> dict[str, Path]:
     """Clone all external repos if needed.
 
     In pip mode, cache directory existence is sufficient validation
@@ -634,8 +655,14 @@ def setup_external_repos_impl(
         Mapping of repo name to configuration.
     external_repos_path
         Path to the external_repos directory.
+
+    Returns
+    -------
+    dict[str, Path]
+        Mapping of repo name to its resolved directory path on disk.
     """
     per_repo_hashes = compute_repo_hashes(repo_configs, external_repos_path)
+    repo_paths: dict[str, Path] = {}
     for repo_name, config in repo_configs.items():
         content_hash = per_repo_hashes[repo_name]
 
@@ -645,6 +672,7 @@ def setup_external_repos_impl(
 
             stored_hash = hash_file.read_text().strip() if hash_file.exists() else None
             if stored_hash == content_hash and local_dir.exists():
+                repo_paths[repo_name] = local_dir.resolve()
                 continue
             if hash_file.exists():
                 hash_file.unlink()
@@ -667,6 +695,12 @@ def setup_external_repos_impl(
 
         if not IS_PIP_PACKAGE:
             hash_file.write_text(content_hash)
+            repo_paths[repo_name] = (external_repos_path / repo_name).resolve()
+        else:
+            cache_dir = get_cache_dir(external_repos_path, repo_name, content_hash)
+            repo_paths[repo_name] = cache_dir / repo_name
+
+    return repo_paths
 
 
 def get_repo_cache_paths(name: str, shared: bool = False) -> list[Path]:
@@ -696,7 +730,7 @@ def get_repo_cache_paths(name: str, shared: bool = False) -> list[Path]:
     ]
 
 
-def setup_external_repos(name: str, shared: bool = False) -> None:
+def setup_external_repos(name: str, shared: bool = False) -> dict[str, Path]:
     """Setup external repos by reading code-gen.yaml and cloning if needed.
 
     Parameters
@@ -705,7 +739,54 @@ def setup_external_repos(name: str, shared: bool = False) -> None:
         Model ID (e.g. ``"gkt"``) or shared folder name (e.g. ``"centernet"``).
     shared
         If True, looks in ``_shared/<name>/`` instead of ``models/<name>/``.
+
+    Returns
+    -------
+    dict[str, Path]
+        Mapping of repo name to its resolved directory path on disk.
     """
     repo_configs, external_repos_path = _resolve_external_repos(name, shared)
     if repo_configs:
-        setup_external_repos_impl(repo_configs, external_repos_path)
+        return setup_external_repos_impl(repo_configs, external_repos_path)
+    return {}
+
+
+def rewrite_hydra_targets(
+    cfg: Any,
+    repo_package_path: str,
+    top_level_packages: set[str] | None = None,
+) -> None:
+    """Recursively rewrite Hydra ``_target_`` strings to fully-qualified paths.
+
+    Hydra configs use ``_target_`` keys to specify Python class paths for
+    dynamic instantiation (e.g. ``_target_: "models.backbone.ResNet"``).
+    After migrating a repo into external_repos, these bare paths no longer
+    resolve — they need the full ``qai_hub_models.models.<id>.external_repos.<repo>.``
+    prefix prepended.
+
+    Parameters
+    ----------
+    cfg
+        A nested dict/DictConfig (or list) loaded from a Hydra YAML config.
+    repo_package_path
+        The full dotted package path of the external repo root,
+        e.g. ``"qai_hub_models.models.cvt.external_repos.cross_view_transformers"``.
+    top_level_packages
+        If provided, only rewrite targets whose root module is in this set.
+        If None, rewrites any target that doesn't already start with
+        ``"qai_hub_models"``.
+    """
+    prefix = repo_package_path.rstrip(".") + "."
+    if hasattr(cfg, "items"):
+        for key, val in cfg.items():
+            if key == "_target_" and isinstance(val, str):
+                if val.startswith("qai_hub_models"):
+                    continue
+                root = val.split(".")[0]
+                if top_level_packages is None or root in top_level_packages:
+                    cfg[key] = prefix + val
+            else:
+                rewrite_hydra_targets(val, repo_package_path, top_level_packages)
+    elif isinstance(cfg, (list, tuple)):
+        for item in cfg:
+            rewrite_hydra_targets(item, repo_package_path, top_level_packages)

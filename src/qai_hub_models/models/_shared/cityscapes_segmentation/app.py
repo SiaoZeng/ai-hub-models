@@ -16,14 +16,13 @@ from PIL import Image as ImageModule
 from PIL.Image import Image
 
 from qai_hub_models.models._shared.cityscapes_segmentation.model import (
-    FFNET_SOURCE_PATCHES,
-    FFNET_SOURCE_REPO_COMMIT,
-    FFNET_SOURCE_REPOSITORY,
-    FFNET_SOURCE_VERSION,
     MODEL_ASSET_VERSION,
     MODEL_ID,
 )
-from qai_hub_models.utils.asset_loaders import ASSET_CONFIG, SourceAsRoot
+from qai_hub_models.models._shared.ffnet.external_repos.ffnet.ffnet_datasets.cityscapes.dataloader.get_dataloaders import (
+    return_dataloader,
+)
+from qai_hub_models.utils.asset_loaders import ASSET_CONFIG
 from qai_hub_models.utils.image_processing import pil_resize_pad, pil_undo_resize_pad
 
 
@@ -43,24 +42,11 @@ def _load_cityscapes_loader(cityscapes_path: str | None = None) -> object:
         )
         os.makedirs(os.path.join(cityscapes_path, "leftImg8bit", "val"), exist_ok=True)
 
-    # Resolve absolute path outside SourceAsRoot, since cwd changes
     cityscapes_path = os.path.abspath(cityscapes_path)
 
-    with SourceAsRoot(
-        FFNET_SOURCE_REPOSITORY,
-        FFNET_SOURCE_REPO_COMMIT,
-        MODEL_ID,
-        FFNET_SOURCE_VERSION,
-        source_repo_patches=FFNET_SOURCE_PATCHES,
-    ):
-        import config
+    os.environ["FFNET_CITYSCAPES_PATH"] = cityscapes_path
 
-        config.cityscapes_base_path = cityscapes_path
-        from ffnet_datasets.cityscapes.dataloader.get_dataloaders import (
-            return_dataloader,
-        )
-
-        return return_dataloader(num_workers=1, batch_size=1)
+    return return_dataloader(num_workers=1, batch_size=1)
 
 
 def preprocess_cityscapes_image(image: Image) -> torch.Tensor:

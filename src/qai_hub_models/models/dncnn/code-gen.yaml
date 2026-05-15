@@ -1,3 +1,8 @@
 supported_precisions:
 - float
 - w8a8
+external_repos:
+  kair:
+    repo_url: https://github.com/cszn/KAIR.git
+    commit_sha: fc1732f4a4514e42ce15e5b3a1e18c828af47a1e
+    patches_filename: kair_patches.diff

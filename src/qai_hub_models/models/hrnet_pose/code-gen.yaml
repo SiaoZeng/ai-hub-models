@@ -5,3 +5,8 @@ supported_precisions:
 has_on_target_demo: true
 global_requirements_incompatible: true
 pip_pre_build_reqs: mmpose==1.2.0 --no-deps
+external_repos:
+  hrnet:
+    repo_url: https://github.com/leoxiaobin/deep-high-resolution-net.pytorch.git
+    commit_sha: 6f69e4676ad8d43d0d61b64b1b9726f0c369e7b1
+    patches_filename: hrnet_patches.diff

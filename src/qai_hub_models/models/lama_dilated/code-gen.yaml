@@ -1,1 +1,6 @@
 has_on_target_demo: true
+external_repos:
+  lama:
+    repo_url: https://github.com/advimman/lama
+    commit_sha: 7dee0e4a3cf5f73f86a820674bf471454f52b74f
+    patches_filename: lama_patches.diff

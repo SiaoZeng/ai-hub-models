@@ -4,3 +4,7 @@ supported_precisions:
 - w8a16
 - w8a8
 has_on_target_demo: true
+external_repos:
+  pytorch_mobilenet_v2:
+    repo_url: https://github.com/tonylins/pytorch-mobilenet-v2.git
+    commit_sha: 99f213657e97de463c11c9e0eaca3bda598e8b3f

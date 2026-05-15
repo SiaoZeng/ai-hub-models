@@ -13,17 +13,14 @@ from filelock import FileLock
 
 from qai_hub_models.utils.external_repo import (
     IS_PIP_PACKAGE,
-    get_repo_cache_paths,
     setup_external_repos,
 )
 
-
 MODEL_ID = "gkt"
-
+EXTERNAL_REPO_PATHS: dict[str, Path] = {}
 
 if not TYPE_CHECKING:
     with FileLock(Path(__file__).resolve().parent / ".setup.lock"):
-        setup_external_repos(MODEL_ID)
-
+        EXTERNAL_REPO_PATHS = setup_external_repos(MODEL_ID)
     if IS_PIP_PACKAGE:
-        __path__ = [str(p) for p in get_repo_cache_paths(MODEL_ID)]
+        __path__ = [str(p.parent) for p in EXTERNAL_REPO_PATHS.values()]

@@ -5,11 +5,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from sam2.build_sam import build_sam2
-from sam2.modeling.sam2_base import SAM2Base as Sam2
-
 from qai_hub_models.models._shared.sam2.model import (
     SAM2Decoder as SAM2DecoderBase,
 )
@@ -19,14 +14,19 @@ from qai_hub_models.models._shared.sam2.model import (
 from qai_hub_models.models._shared.sam2.model import (
     SAM2Loader as SAM2LoaderBase,
 )
-from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, SourceAsRoot
+from qai_hub_models.models.edgetam.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.edgetam.external_repos.edgetam.sam2.build_sam import (
+    build_sam2,
+)
+from qai_hub_models.models.edgetam.external_repos.edgetam.sam2.modeling.sam2_base import (
+    SAM2Base as Sam2,
+)
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import CollectionModel, PretrainedCollectionModel
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
 DEFAULT_MODEL_TYPE = "edgetam"
-EDGETAM_SOURCE_REPOSITORY = "https://github.com/facebookresearch/EdgeTAM"
-EDGETAM_COMMIT = "a1209a454c9950d531498074a95ecf3a3ba02dfd"
 
 MODEL_REGISTERY = {
     DEFAULT_MODEL_TYPE: "edgetam.pt",
@@ -71,33 +71,27 @@ class EdgeTAMLoader(SAM2LoaderBase):
     @classmethod
     def _load_sam2(cls, model_type: str = DEFAULT_MODEL_TYPE) -> Sam2:
         """Get the EdgeTAM model described by the given model type."""
-        with SourceAsRoot(
-            EDGETAM_SOURCE_REPOSITORY,
-            EDGETAM_COMMIT,
+        config_dir = EXTERNAL_REPO_PATHS["edgetam"] / "sam2" / "configs"
+
+        # Initialize Hydra config from the cloned repo
+        cls._initialize_hydra_config(
+            config_dir=config_dir,
+            job_name="edgetam_inference",
+        )
+
+        if model_type not in MODEL_REGISTERY:
+            raise RuntimeError(f"Weights not found for model type `{model_type}`.")
+
+        asset = CachedWebModelAsset(
+            "https://github.com/facebookresearch/EdgeTAM/raw/main/checkpoints/edgetam.pt",
             MODEL_ID,
             MODEL_ASSET_VERSION,
-        ) as repo_path:
-            config_dir = Path(repo_path) / "sam2" / "configs"
-
-            # Initialize Hydra config from the cloned repo
-            cls._initialize_hydra_config(
-                config_dir=config_dir,
-                job_name="edgetam_inference",
-            )
-
-            if model_type not in MODEL_REGISTERY:
-                raise RuntimeError(f"Weights not found for model type `{model_type}`.")
-
-            asset = CachedWebModelAsset(
-                "https://github.com/facebookresearch/EdgeTAM/raw/main/checkpoints/edgetam.pt",
-                MODEL_ID,
-                MODEL_ASSET_VERSION,
-                f"{MODEL_REGISTERY[model_type]}",
-            )
-            asset.fetch()
-            return build_sam2(
-                CONFIG_REGISTERY[model_type], asset.local_cache_path, device="cpu"
-            )
+            f"{MODEL_REGISTERY[model_type]}",
+        )
+        asset.fetch()
+        return build_sam2(
+            CONFIG_REGISTERY[model_type], asset.local_cache_path, device="cpu"
+        )
 
 
 @CollectionModel.add_component(EdgeTAMEncoder, "encoder")

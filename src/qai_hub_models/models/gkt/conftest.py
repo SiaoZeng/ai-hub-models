@@ -18,9 +18,6 @@ from qai_hub_models.utils.testing import skip_clone_repo_check
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    # Import external_repos to trigger clone before pytest captures stdin
-    import qai_hub_models.models.gkt.external_repos  # noqa: F401
-
     # pytest is unable to figure out how to silence several PyTorch warning types from pyproject.toml settings,
     # so we apply a manual warning filter here instead.
     warnings.filterwarnings(action="ignore", category=torch.jit._trace.TracerWarning)

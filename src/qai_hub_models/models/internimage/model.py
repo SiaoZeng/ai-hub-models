@@ -4,32 +4,30 @@
 # ---------------------------------------------------------------------
 from __future__ import annotations
 
-import os
-import sys
 from types import SimpleNamespace
 
 import torch
 from typing_extensions import Self
 
 from qai_hub_models.models._shared.imagenet_classifier.model import ImagenetClassifier
-from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, SourceAsRoot
+from qai_hub_models.models.internimage.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.internimage.external_repos.internimage.classification.config import (
+    get_config,
+)
+from qai_hub_models.models.internimage.external_repos.internimage.classification.models import (
+    build_model,
+)
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 
 MODEL_ID = __name__.split(".")[-2]
 DEFAULT_WEIGHTS = "internimage_t_1k_224.pth"
 DEFAULT_CONFIG_PATH = "internimage_t_1k_224.yaml"
 MODEL_ASSET_VERSION = 1
 NUM_CLASSES = 1000
-INTERNIMAGE_REPO = "https://github.com/OpenGVLab/InternImage"
-INTERNIMAGE_COMMIT = "31c962dc6c1ceb23e580772f7daaa6944694fbe6"
 INPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "cupcake.jpg"
 )
-
-INTERIMAGE_SOURCE_PATCHES = [
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches", "internimage_patch.diff")
-    )
-]
+INTERNIMAGE_REPO_PATH = EXTERNAL_REPO_PATHS["internimage"]
 
 
 class InternImageClassifier(ImagenetClassifier):
@@ -58,30 +56,24 @@ class InternImageClassifier(ImagenetClassifier):
         model : Self
             An instance of the classifier with the model loaded and ready for inference.
         """
-        with SourceAsRoot(
-            INTERNIMAGE_REPO,
-            INTERNIMAGE_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-            source_repo_patches=INTERIMAGE_SOURCE_PATCHES,
-        ):
-            sys.path.append("classification/")
-            from config import get_config
-            from models import build_model
+        if not config_path:
+            config_path = str(
+                INTERNIMAGE_REPO_PATH
+                / "classification"
+                / "configs"
+                / DEFAULT_CONFIG_PATH
+            )
 
-            if not config_path:
-                config_path = "classification/configs/" + DEFAULT_CONFIG_PATH
+        args = SimpleNamespace(cfg=config_path)
+        config = get_config(args)
+        model = build_model(config)
 
-            args = SimpleNamespace(cfg=config_path)
-            config = get_config(args)
-            model = build_model(config)
+        if not checkpoint_path:
+            checkpoint_path = CachedWebModelAsset.from_asset_store(
+                MODEL_ID, MODEL_ASSET_VERSION, DEFAULT_WEIGHTS
+            ).fetch()
 
-            if not checkpoint_path:
-                checkpoint_path = CachedWebModelAsset.from_asset_store(
-                    MODEL_ID, MODEL_ASSET_VERSION, DEFAULT_WEIGHTS
-                ).fetch()
+        state_dict = torch.load(str(checkpoint_path), map_location="cpu")
+        model.load_state_dict(state_dict["model"], strict=False)
 
-            state_dict = torch.load(str(checkpoint_path), map_location="cpu")
-            model.load_state_dict(state_dict["model"], strict=False)
-
-            return cls(model)
+        return cls(model)

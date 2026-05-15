@@ -2,3 +2,7 @@ supported_precisions:
 - float
 - w8a16
 has_on_target_demo: true
+external_repos:
+  esrgan:
+    repo_url: https://github.com/xinntao/ESRGAN.git
+    commit_sha: 73e9b634cf987f5996ac2dd33f4050922398a921

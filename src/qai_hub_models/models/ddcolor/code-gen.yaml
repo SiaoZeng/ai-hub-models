@@ -1,1 +1,6 @@
 has_on_target_demo: true
+external_repos:
+  ddcolor:
+    repo_url: https://github.com/piddnad/DDColor.git
+    commit_sha: 4477c1be2553a1a293f89c47c50526ce74570cf5
+    patches_filename: ddcolor_patches.diff

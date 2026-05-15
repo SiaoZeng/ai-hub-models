@@ -2,3 +2,8 @@ supported_precisions:
 - float
 - w8a16
 has_on_target_demo: true
+external_repos:
+  efficientformer:
+    repo_url: https://github.com/snap-research/EfficientFormer
+    commit_sha: d01da426243a38303d0a35d01fc928b0e37d38d3
+    patches_filename: efficientformer_patches.diff

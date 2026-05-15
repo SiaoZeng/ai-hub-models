@@ -1,1 +1,6 @@
 disabled_paths: {}
+external_repos:
+  pointnet:
+    repo_url: https://github.com/nikitakaraevv/pointnet
+    commit_sha: 256437e9ab27b197347464cecff87121c5c824ff
+    patches_filename: pointnet_patches.diff

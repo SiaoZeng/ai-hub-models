@@ -1,2 +1,7 @@
 has_on_target_demo: true
 disabled_paths: {}
+external_repos:
+  crestereo_pytorch:
+    repo_url: https://github.com/ibaiGorordo/CREStereo-Pytorch.git
+    commit_sha: b6c7a9fe8dc2e9e56ba7b96f4677312309282d15
+    patches_filename: crestereo_patches.diff

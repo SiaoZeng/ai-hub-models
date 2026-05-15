@@ -1,6 +1,11 @@
 supported_precisions:
 - float
 - w8a8
+external_repos:
+  internimage:
+    repo_url: https://github.com/OpenGVLab/InternImage
+    commit_sha: 31c962dc6c1ceb23e580772f7daaa6944694fbe6
+    patches_filename: internimage_patches.diff
 disabled_paths:
   w8a8:
     precompiled_qnn_onnx:

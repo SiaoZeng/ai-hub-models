@@ -4,20 +4,14 @@
 # ---------------------------------------------------------------------
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from typing import Any
 
 import numpy as np
 import torch
 
-from qai_hub_models.models.act.model import (
-    ACT_SOURCE_REPO_COMMIT,
-    ACT_SOURCE_REPOSITORY,
-    MODEL_ASSET_VERSION,
-    MODEL_ID,
-)
-from qai_hub_models.utils.asset_loaders import SourceAsRoot
+from qai_hub_models.models.act.external_repos.act.sim_env import BOX_POSE, make_sim_env
+from qai_hub_models.models.act.external_repos.act.utils import sample_box_pose, set_seed
 from qai_hub_models.utils.image_processing import numpy_image_to_torch
 
 """
@@ -136,17 +130,6 @@ class ACTApp:
             Output list of dict with length equal to episode_len. Each dict has 3 keys, each representing different angles in the output
             video generated. Size of each value for key in dict is (height, width, channel)
         """
-        with SourceAsRoot(
-            ACT_SOURCE_REPOSITORY,
-            ACT_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ):
-            # Set MuJoCo rendering backend before any MuJoCo operations
-            os.environ["MUJOCO_GL"] = "egl"
-            from sim_env import BOX_POSE, make_sim_env
-            from utils import sample_box_pose, set_seed
-
         set_seed(0)
 
         # creates and initializes a simulated environment

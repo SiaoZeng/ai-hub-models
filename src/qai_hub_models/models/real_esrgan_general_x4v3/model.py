@@ -12,14 +12,12 @@ from typing_extensions import Self
 
 from qai_hub_models.extern.basicsr.archs.srvgg_arch import SRVGGNetCompact
 from qai_hub_models.models._shared.super_resolution.model import SuperResolutionModel
-from qai_hub_models.utils.asset_loaders import SourceAsRoot
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 
-REALESRGAN_SOURCE_REPOSITORY = "https://github.com/xinntao/Real-ESRGAN"
-REALESRGAN_SOURCE_REPO_COMMIT = "5ca1078535923d485892caee7d7804380bfc87fd"
-REALESRGAN_SOURCE_VERSION = 1
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 2
 DEFAULT_WEIGHTS = "realesr-general-x4v3"
+DEFAULT_WEIGHTS_URL = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth"
 PRE_PAD = 10
 SCALING_FACTOR = 4
 
@@ -45,61 +43,33 @@ class Real_ESRGAN_General_x4v3(SuperResolutionModel):
         return cls(realesrgan_model)
 
 
-def _get_weightsfile_from_name(weights_name: str = DEFAULT_WEIGHTS) -> str:
-    """Convert from names of weights files to the url for the weights file"""
-    if weights_name == DEFAULT_WEIGHTS:
-        return "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth"
-    return ""
-
-
 def _load_realesrgan_source_model_from_weights(
     weights_name_or_path: str,
 ) -> torch.nn.Module:
-    with SourceAsRoot(
-        REALESRGAN_SOURCE_REPOSITORY,
-        REALESRGAN_SOURCE_REPO_COMMIT,
-        MODEL_ID,
-        REALESRGAN_SOURCE_VERSION,
-    ):
-        # Patch path for this load only, since the model source
-        # code references modules via a global scope.
-        # CWD should be the repository path now
-        realesrgan_repo_path = os.getcwd()
-        # The official repo omits this folder, which causes import issues
-        version_dir = os.path.join(realesrgan_repo_path, "realesrgan", "version")
-        if not os.path.exists(version_dir):
-            os.makedirs(version_dir)
-
-        if os.path.exists(os.path.expanduser(weights_name_or_path)):
-            weights_path = os.path.expanduser(weights_name_or_path)
-        else:
-            weights_path = os.path.join(os.getcwd(), weights_name_or_path + ".pth")
-            if not os.path.exists(weights_path):
-                # Load RealESRGAN model from the source repository using the given weights.
-                # Returns <source repository>.realesrgan.archs.srvgg_arch
-                weights_url = _get_weightsfile_from_name(weights_name_or_path)
-
-                # download the weights file
-                import requests
-
-                response = requests.get(weights_url)
-                with open(weights_path, "wb") as file:
-                    file.write(response.content)
-                print(f"Weights file downloaded as {weights_path}")
-
-        realesrgan_model = SRVGGNetCompact(
-            num_in_ch=3,
-            num_out_ch=3,
-            num_feat=64,
-            num_conv=32,
-            upscale=4,
-            act_type="prelu",
+    if os.path.exists(os.path.expanduser(weights_name_or_path)):
+        weights_path = os.path.expanduser(weights_name_or_path)
+    else:
+        weights_asset = CachedWebModelAsset(
+            DEFAULT_WEIGHTS_URL,
+            MODEL_ID,
+            MODEL_ASSET_VERSION,
+            "realesr-general-x4v3.pth",
         )
-        pretrained_dict = torch.load(
-            weights_path, map_location=torch.device("cpu"), weights_only=False
-        )
+        weights_path = weights_asset.fetch()
 
-        keyname = "params_ema" if "params_ema" in pretrained_dict else "params"
-        realesrgan_model.load_state_dict(pretrained_dict[keyname], strict=True)
+    realesrgan_model = SRVGGNetCompact(
+        num_in_ch=3,
+        num_out_ch=3,
+        num_feat=64,
+        num_conv=32,
+        upscale=4,
+        act_type="prelu",
+    )
+    pretrained_dict = torch.load(
+        weights_path, map_location=torch.device("cpu"), weights_only=False
+    )
 
-        return realesrgan_model
+    keyname = "params_ema" if "params_ema" in pretrained_dict else "params"
+    realesrgan_model.load_state_dict(pretrained_dict[keyname], strict=True)
+
+    return realesrgan_model

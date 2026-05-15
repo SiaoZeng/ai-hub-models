@@ -10,3 +10,8 @@ readme_install_system_deps: |
   ```
   winget install ffmpeg
   ```
+external_repos:
+  first_order_model:
+    repo_url: https://github.com/AliaksandrSiarohin/first-order-model.git
+    commit_sha: f4ff6da1ef5c0e6bcf6ec80324fab37c92193e84
+    patches_filename: fomm_patches.diff

@@ -2,3 +2,8 @@ supported_precisions:
 - float
 - w8a8
 has_on_target_demo: true
+external_repos:
+  segmentron:
+    repo_url: https://github.com/LikeLy-Journey/SegmenTron
+    commit_sha: 4bc605eedde7d680314f63d329277b73f83b1c5f
+    patches_filename: segmentron_patches.diff

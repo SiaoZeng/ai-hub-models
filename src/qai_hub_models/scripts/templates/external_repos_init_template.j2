@@ -9,26 +9,22 @@ from filelock import FileLock
 
 from qai_hub_models.utils.external_repo import (
     IS_PIP_PACKAGE,
-    get_repo_cache_paths,
     setup_external_repos,
 )
 
-{% if shared_name is defined %}
+{%- if shared_name is defined %}
 MODEL_ID = "{{ shared_name }}"
-{% else %}
+{%- else %}
 MODEL_ID = "{{ model_id }}"
-{% endif %}
+{%- endif %}
+EXTERNAL_REPO_PATHS: dict[str, Path] = {}
 
 if not TYPE_CHECKING:
     with FileLock(Path(__file__).resolve().parent / ".setup.lock"):
-{% if shared_name is defined %}
-        setup_external_repos(MODEL_ID, shared=True)
-{% else %}
-        setup_external_repos(MODEL_ID)
-{% endif %}
+{%- if shared_name is defined %}
+        EXTERNAL_REPO_PATHS = setup_external_repos(MODEL_ID, shared=True)
+{%- else %}
+        EXTERNAL_REPO_PATHS = setup_external_repos(MODEL_ID)
+{%- endif %}
     if IS_PIP_PACKAGE:
-{% if shared_name is defined %}
-        __path__ = [str(p) for p in get_repo_cache_paths(MODEL_ID, shared=True)]
-{% else %}
-        __path__ = [str(p) for p in get_repo_cache_paths(MODEL_ID)]
-{% endif %}
+        __path__ = [str(p.parent) for p in EXTERNAL_REPO_PATHS.values()]

@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from importlib import reload
 from typing import Any, cast
 
 import torch
@@ -16,12 +15,12 @@ from typing_extensions import Self
 from qai_hub_models.models._shared.yolo.model import DEFAULT_YOLO_IMAGE_INPUT_HW, Yolo
 from qai_hub_models.models._shared.yolo.utils import detect_postprocess_split_input
 from qai_hub_models.models.common import Precision
-from qai_hub_models.utils.asset_loaders import SourceAsRoot, find_replace_in_repo
+from qai_hub_models.models.yolov7.external_repos.yolov7.models.experimental import (
+    attempt_load,
+)
 from qai_hub_models.utils.input_spec import InputSpec
 from qai_hub_models.utils.set_env import set_temp_env
 
-YOLOV7_SOURCE_REPOSITORY = "https://github.com/WongKinYiu/yolov7"
-YOLOV7_SOURCE_REPO_COMMIT = "84932d70fb9e2932d0a70e4a1f02a1d6dd1dd6ca"
 MODEL_ID = __name__.split(".")[-2]
 DEFAULT_WEIGHTS = "yolov7-tiny.pt"
 MODEL_ASSET_VERSION = 1
@@ -309,35 +308,8 @@ class _YoloV7Detector(torch.nn.Module):  # YoloV7 Detection
 def _load_yolov7_source_model_from_weights(weights_name: str) -> torch.nn.Module:
     # Load YoloV7 model from the source repository using the given weights.
     # Returns <source repository>.models.yolo.Model
-    with SourceAsRoot(
-        YOLOV7_SOURCE_REPOSITORY,
-        YOLOV7_SOURCE_REPO_COMMIT,
-        MODEL_ID,
-        MODEL_ASSET_VERSION,
-    ) as repo_path:
-        # We don't touch these flags, and having conditionals in `forward`
-        # dependent on inputs to the function makes torch fx Graph creation unhappy.
-        find_replace_in_repo(repo_path, "models/yolo.py", "if augment:", "if False:")
-        find_replace_in_repo(repo_path, "models/yolo.py", "if profile:", "if False:")
 
-        # Our qai_hub_models/models package may already be loaded and cached
-        # as "models" (reproduce by running python -m models.yolov7.demo from
-        # models qai_hub_models folder). To make sure it loads the external
-        # "models" package, explicitly reload first.
-        import models
-
-        reload(models)
-
-        # necessary imports. `models` come from the yolov7 repo.
-        from models.experimental import attempt_load
-        from models.yolo import Model
-
-        # Set the environment variable to force torch.load to use weights_only=False
-        # This is needed for PyTorch 2.8+ where the default changed to weights_only=True
-        with set_temp_env({"TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD": "1"}):
-            yolov7_model = attempt_load(
-                weights_name, map_location="cpu"
-            )  # load FP32 model
-
-        assert isinstance(yolov7_model, Model)
-        return yolov7_model
+    # Set the environment variable to force torch.load to use weights_only=False
+    # This is needed for PyTorch 2.8+ where the default changed to weights_only=True
+    with set_temp_env({"TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD": "1"}):
+        return attempt_load(weights_name, map_location="cpu")  # load FP32 model

@@ -10,14 +10,19 @@ from collections.abc import Callable
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.models._shared.mediapipe.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models._shared.mediapipe.external_repos.mediapipe.blazepose import (
+    BlazePose,
+)
+from qai_hub_models.models._shared.mediapipe.external_repos.mediapipe.blazepose_landmark import (
+    BlazePoseLandmark,
+)
 from qai_hub_models.models._shared.mediapipe.utils import (
-    MediaPipePyTorchAsRoot,
     mediapipe_detector_postprocess,
 )
 from qai_hub_models.models.common import Precision, SampleInputsType
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    find_replace_in_repo,
     load_numpy,
 )
 from qai_hub_models.utils.base_model import (
@@ -32,6 +37,8 @@ from qai_hub_models.utils.input_spec import (
     IoType,
     TensorSpec,
 )
+
+MEDIAPIPE_REPO_DIR = EXTERNAL_REPO_PATHS["mediapipe"]
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 3
@@ -83,27 +90,6 @@ DRAW_POSE_KEYPOINT_INDICES = [
 ROTATION_VECTOR_OFFSET_RADS = (
     torch.pi / 2
 )  # Offset required when computing rotation of the detected pose.
-
-
-def _apply_blazepose_fixes(repo_path: str) -> None:
-    """
-    Apply necessary fixes to the blazepose repository code.
-    These fixes include:
-    1. Changing return statement to return separate tensors as concat reduces the w8a8 accuracy
-    2. Apply padding for better quantization accuracy
-    """
-    find_replace_in_repo(
-        repo_path,
-        "blazepose.py",
-        "return [r, c]",
-        "return [r1, r2, c1, c2]",
-    )
-    find_replace_in_repo(
-        repo_path,
-        "blazepose.py",
-        '# x = F.pad(x, (1, 2, 1, 2), "constant", 0)',
-        'x = F.pad(x, (1, 2, 2, 2), "constant", 0)',
-    )
 
 
 class PoseDetector(BaseModel):
@@ -199,20 +185,15 @@ class PoseDetector(BaseModel):
         score_clipping_threshold: float = DETECT_SCORE_CLIPPING_THRESHOLD,
         include_postprocessing: bool = DETECT_DEFAULT_INCLUDE_POSTPROCESSING,
     ) -> Self:
-        with MediaPipePyTorchAsRoot() as repo_path:
-            _apply_blazepose_fixes(repo_path)
-
-            from blazepose import BlazePose
-
-            pose_detector = BlazePose()
-            pose_detector.load_weights(detector_weights)
-            pose_detector.load_anchors(detector_anchors)
-            return cls(
-                pose_detector,
-                pose_detector.anchors,
-                score_clipping_threshold,
-                include_postprocessing,
-            )
+        pose_detector = BlazePose()
+        pose_detector.load_weights(str(MEDIAPIPE_REPO_DIR / detector_weights))
+        pose_detector.load_anchors(str(MEDIAPIPE_REPO_DIR / detector_anchors))
+        return cls(
+            pose_detector,
+            pose_detector.anchors,
+            score_clipping_threshold,
+            include_postprocessing,
+        )
 
     @staticmethod
     def get_input_spec(batch_size: int = BATCH_SIZE) -> InputSpec:
@@ -305,12 +286,9 @@ class PoseLandmarkDetector(BaseModel):
     def from_pretrained(
         cls, landmark_detector_weights: str = "blazepose_landmark.pth"
     ) -> Self:
-        with MediaPipePyTorchAsRoot():
-            from blazepose_landmark import BlazePoseLandmark
-
-            pose_regressor = BlazePoseLandmark()
-            pose_regressor.load_weights(landmark_detector_weights)
-            return cls(pose_regressor)
+        pose_regressor = BlazePoseLandmark()
+        pose_regressor.load_weights(str(MEDIAPIPE_REPO_DIR / landmark_detector_weights))
+        return cls(pose_regressor)
 
     @staticmethod
     def get_input_spec(batch_size: int = BATCH_SIZE) -> InputSpec:

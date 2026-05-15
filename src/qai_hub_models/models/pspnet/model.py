@@ -14,9 +14,15 @@ from qai_hub_models.models._shared.cityscapes_segmentation.model import (
     CityscapesSegmentor,
 )
 from qai_hub_models.models.common import SampleInputsType
+from qai_hub_models.models.pspnet.external_repos import EXTERNAL_REPO_PATHS
+from qai_hub_models.models.pspnet.external_repos.semseg.model.pspnet import (
+    PSPNet as PSPNetImpl,
+)
+from qai_hub_models.models.pspnet.external_repos.semseg.util import (
+    config as semseg_config,
+)
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    SourceAsRoot,
     load_image,
     load_torch,
 )
@@ -29,9 +35,6 @@ from qai_hub_models.utils.input_spec import (
     TensorSpec,
 )
 
-# Constants for repository and model asset
-PSPNET_PROXY_REPOSITORY: str = "https://github.com/hszhao/semseg.git"
-PSPNET_PROXY_REPO_COMMIT: str = "4f274c3f276778228bc14a4565822d46359f0cc8"
 MODEL_ID: str = __name__.split(".")[-2]
 MODEL_ASSET_VERSION: int = 2
 
@@ -43,6 +46,8 @@ INPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "ADE_val_00001515.jpg"
 )
 NUM_CLASSES = 150
+
+_SEMSEG_REPO_ROOT = EXTERNAL_REPO_PATHS["semseg"]
 
 
 class PSPNet(CityscapesSegmentor):
@@ -65,27 +70,21 @@ class PSPNet(CityscapesSegmentor):
         model : Self
             An instance of PSPNet initialized with pretrained weights.
         """
-        with SourceAsRoot(
-            PSPNET_PROXY_REPOSITORY,
-            PSPNET_PROXY_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ):
-            from model.pspnet import PSPNet as PSPNetImpl
-            from util import config
-
-            # Load configuration
-            args = config.load_cfg_from_cfg_file("config/ade20k/ade20k_pspnet101.yaml")
-            # Initialize model
-            model: nn.Module = PSPNetImpl(
-                layers=args.layers,
-                classes=args.classes,
-                zoom_factor=args.zoom_factor,
-                pretrained=False,
-            )
-            # Load weights
-            checkpoint = load_torch(ckpt)
-            model.load_state_dict(checkpoint, strict=False)
+        # Load configuration
+        config_path = str(
+            _SEMSEG_REPO_ROOT / "config" / "ade20k" / "ade20k_pspnet101.yaml"
+        )
+        args = semseg_config.load_cfg_from_cfg_file(config_path)
+        # Initialize model
+        model: nn.Module = PSPNetImpl(
+            layers=args.layers,
+            classes=args.classes,
+            zoom_factor=args.zoom_factor,
+            pretrained=False,
+        )
+        # Load weights
+        checkpoint = load_torch(ckpt)
+        model.load_state_dict(checkpoint, strict=False)
 
         return cls(model)
 

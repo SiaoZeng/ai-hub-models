@@ -1,3 +1,8 @@
 disabled_paths: {}
 is_collection_model: true
 requires_aot_prepare: true
+external_repos:
+  bevfusion:
+    repo_url: https://github.com/mit-han-lab/bevfusion.git
+    commit_sha: 326653dc06e0938edf1aae7d01efcd158ba83de5
+    patches_filename: bevfusion_patches.diff

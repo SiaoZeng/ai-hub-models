@@ -1,0 +1,98 @@
+# Removes imgaug dependency that is incompatible with numpy 2.x and not needed for inference.
+#
+diff --git a/cross_view_transformer/data/augmentations.py b/cross_view_transformer/data/augmentations.py
+index 9c6665d..647715c 100644
+--- a/cross_view_transformer/data/augmentations.py
++++ b/cross_view_transformer/data/augmentations.py
+@@ -1,7 +1,9 @@
+ """
+ https://github.com/eriklindernoren/PyTorch-YOLOv3/blob/master/pytorchyolo/utils/transforms.py
+ """
+-import imgaug.augmenters as iaa
++# Remove imgaug reference, and imgaug does not support numpy 2.x
++# AI Hub Models does not use this file.
++# import imgaug.augmenters as iaa
+ import torchvision
+ import numpy as np
+ 
+diff --git a/cross_view_transformer/model/encoder.py b/cross_view_transformer/model/encoder.py
+index 1229302..68c128b 100644
+--- a/cross_view_transformer/model/encoder.py
++++ b/cross_view_transformer/model/encoder.py
+@@ -320,8 +320,8 @@ class Encoder(nn.Module):
+         b, n, _, _, _ = batch['image'].shape
+ 
+         image = batch['image'].flatten(0, 1)            # b n c h w
+-        I_inv = batch['intrinsics'].inverse()           # b n 3 3
+-        E_inv = batch['extrinsics'].inverse()           # b n 4 4
++        I_inv = batch['intrinsics']           # b n 3 3
++        E_inv = batch['extrinsics']           # b n 4 4
+ 
+         features = [self.down(y) for y in self.backbone(self.norm(image))]
+ 
+@@ -335,3 +335,65 @@ class Encoder(nn.Module):
+             x = layer(x)
+ 
+         return x
++
++
++# ---------------------------------------------------------------------------
++# Qualcomm-compatible replacements
++# ---------------------------------------------------------------------------
++
++
++def _cross_attention_forward(self, q, k, v, skip=None):
++    """
++    Optimized forward pass for CrossAttention module replacing einsum with matmul.
++
++    q: (b n d H W)
++    k: (b n d h w)
++    v: (b n d h w)
++    """
++    _, _, _, H, W = q.shape
++
++    # Move feature dim to last for multi-head proj
++    q = rearrange(q, 'b n d H W -> b n (H W) d')
++    k = rearrange(k, 'b n d h w -> b n (h w) d')
++    v = rearrange(v, 'b n d h w -> b (n h w) d')
++
++    # Project with multiple heads
++    q = self.to_q(q)                                # b (n H W) (heads dim_head)
++    k = self.to_k(k)                                # b (n h w) (heads dim_head)
++    v = self.to_v(v)                                # b (n h w) (heads dim_head)
++
++    # Group the head dim with batch dim
++    q = rearrange(q, 'b ... (m d) -> (b m) ... d', m=self.heads, d=self.dim_head)
++    k = rearrange(k, 'b ... (m d) -> (b m) ... d', m=self.heads, d=self.dim_head)
++    v = rearrange(v, 'b ... (m d) -> (b m) ... d', m=self.heads, d=self.dim_head)
++
++    # Dot product attention along cameras
++    # Original: dot = self.scale * torch.einsum('b n Q d, b n K d -> b n Q K', q, k)
++    # Replaced with matmul for better QNN support
++    dot = self.scale * torch.matmul(q, k.transpose(-1, -2))
++
++    dot = rearrange(dot, 'b n Q K -> b Q (n K)')
++    att = dot.softmax(dim=-1)
++
++    # Combine values (image level features).
++    # Original: a = torch.einsum('b Q K, b K d -> b Q d', att, v)
++    # Replaced with matmul
++    a = torch.matmul(att, v)
++
++    a = rearrange(a, '(b m) ... d -> b ... (m d)', m=self.heads, d=self.dim_head)
++
++    # Combine multiple heads
++    z = self.proj(a)
++
++    # Optional skip connection
++    if skip is not None:
++        z = z + rearrange(skip, 'b d H W -> b (H W) d')
++
++    z = self.prenorm(z)
++    z = z + self.mlp(z)
++    z = self.postnorm(z)
++
++    return rearrange(z, 'b (H W) d -> b d H W', H=H, W=W)
++
++
++CrossAttention.forward = _cross_attention_forward

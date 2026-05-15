@@ -1,0 +1,15 @@
+# Fixes deprecated numpy dtype aliases (np.float, np.int).
+#
+diff --git a/library/Math.py b/library/Math.py
+index 1efc151..5bb6d19 100644
+--- a/library/Math.py
++++ b/library/Math.py
+@@ -160,7 +160,7 @@ def calc_location(dimension, proj_matrix, box_2d, alpha, theta_ray):
+         M_array = [Ma, Mb, Mc, Md]
+
+         # create A, b
+-        A = np.zeros([4,3], dtype=np.float)
++        A = np.zeros([4,3], dtype=float)
+         b = np.zeros([4,1])
+
+         indicies = [0,1,0,1]

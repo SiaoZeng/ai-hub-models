@@ -4,11 +4,6 @@
 # ---------------------------------------------------------------------
 from __future__ import annotations
 
-import os
-from importlib.util import module_from_spec, spec_from_file_location
-from pathlib import Path
-from typing import Any
-
 import torch
 from mmengine.config import Config
 from qai_hub.client import Device
@@ -17,6 +12,7 @@ from torchpack.utils.config import configs
 from typing_extensions import Self
 
 from qai_hub_models.extern.mmdet import patch_mmdet_no_build_deps
+from qai_hub_models.models.bevfusion_det.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models.bevfusion_det.model_patch import (
     PatchMerging,
     PatchMerging_forward_optimized,
@@ -28,7 +24,6 @@ from qai_hub_models.models.bevfusion_det.model_patch import (
 )
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
-    SourceAsRoot,
     load_torch,
 )
 from qai_hub_models.utils.base_model import (
@@ -56,6 +51,32 @@ with patch_mmdet_no_build_deps():
     from mmdet.models.backbones.swin import ShiftWindowMSA, WindowMSA
     from mmdet.registry import MODELS
 
+    from qai_hub_models.models.bevfusion_det.external_repos.bevfusion.mmdet3d.core.bbox.coders.centerpoint_bbox_coders import (
+        CenterPointBBoxCoder,
+    )
+    from qai_hub_models.models.bevfusion_det.external_repos.bevfusion.mmdet3d.models.backbones.resnet import (
+        GeneralizedResNet,
+    )
+    from qai_hub_models.models.bevfusion_det.external_repos.bevfusion.mmdet3d.models.heads.bbox.centerpoint import (
+        CenterHead,
+        SeparateHead,
+    )
+    from qai_hub_models.models.bevfusion_det.external_repos.bevfusion.mmdet3d.models.necks.generalized_lss import (
+        GeneralizedLSSFPN,
+    )
+    from qai_hub_models.models.bevfusion_det.external_repos.bevfusion.mmdet3d.models.necks.lss import (
+        LSSFPN,
+    )
+    from qai_hub_models.models.bevfusion_det.external_repos.bevfusion.mmdet3d.models.vtransforms.base import (
+        BaseTransform,
+    )
+    from qai_hub_models.models.bevfusion_det.external_repos.bevfusion.mmdet3d.models.vtransforms.lss import (
+        LSSTransform,
+    )
+    from qai_hub_models.models.bevfusion_det.external_repos.bevfusion.mmdet3d.utils.config import (
+        recursive_eval,
+    )
+
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 8
 
@@ -63,14 +84,7 @@ MODEL_ASSET_VERSION = 8
 DEFAULT_WEIGHTS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "camera-only-det.pth"
 )
-BEVF_SOURCE_REPOSITORY = "https://github.com/mit-han-lab/bevfusion.git"
-BEVF_SOURCE_REPO_COMMIT = "326653dc06e0938edf1aae7d01efcd158ba83de5"
-
-BEVF_SOURCE_PATCHES = [
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches/bevfusion_patches.diff")
-    )
-]
+BEVFUSION_REPO_PATH = EXTERNAL_REPO_PATHS["bevfusion"]
 
 
 def _apply_optimizations() -> None:
@@ -420,136 +434,98 @@ class BEVFusion(PretrainedCollectionModel):
         ckpt: str = str(DEFAULT_WEIGHTS.fetch()),
     ) -> tuple[nn.Module, nn.Module, nn.Module, nn.Module, nn.Module, nn.Module]:
         _apply_optimizations()
-        with SourceAsRoot(
-            BEVF_SOURCE_REPOSITORY,
-            BEVF_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-            source_repo_patches=BEVF_SOURCE_PATCHES,
-        ) as repo_path:
 
-            def load_module(class_name: str, path: str) -> Any:
-                module_spec = spec_from_file_location(class_name, location=Path(path))
-                if module_spec is None or module_spec.loader is None:
-                    raise ValueError(f"Module spec not found for path {path}")
-                module = module_from_spec(module_spec)
-                module_spec.loader.exec_module(module)
-                return getattr(module, class_name)
+        config_path = (
+            BEVFUSION_REPO_PATH
+            / "configs"
+            / "nuscenes"
+            / "det"
+            / "centerhead"
+            / "lssfpn"
+            / "camera"
+            / "256x704"
+            / "swint"
+            / "default.yaml"
+        )
 
-            recursive_eval = load_module(
-                "recursive_eval", repo_path + "/mmdet3d/utils/config.py"
+        configs.load(str(config_path), recursive=True)
+        cfg = Config(recursive_eval(configs), filename=config_path)
+        cfg.model.pretrained = None
+        cfg.model.train_cfg = None
+
+        def load_state_dict(module: nn.Module, state_dict: dict, prefix: str) -> None:
+            module.load_state_dict(
+                {
+                    k.replace(prefix, ""): v
+                    for k, v in state_dict.items()
+                    if k.startswith(prefix)
+                }
             )
 
-            config_path = (
-                repo_path
-                + "/configs/nuscenes/det/centerhead/lssfpn/camera/256x704/swint/default.yaml"
-            )
+        checkpoint = load_torch(ckpt)
+        state_dict = checkpoint["state_dict"]
 
-            configs.load(str(config_path), recursive=True)
-            cfg = Config(recursive_eval(configs), filename=config_path)
-            cfg.model.pretrained = None
-            cfg.model.train_cfg = None
+        encoder_backbone = MODELS.build(cfg.model.encoders.camera.backbone)
+        load_state_dict(encoder_backbone, state_dict, "encoders.camera.backbone.")
 
-            def load_state_dict(
-                module: nn.Module, state_dict: dict, prefix: str
-            ) -> None:
-                module.load_state_dict(
-                    {
-                        k.replace(prefix, ""): v
-                        for k, v in state_dict.items()
-                        if k.startswith(prefix)
-                    }
-                )
+        neck_cfg = cfg.model.encoders.camera.neck
+        neck_cfg.pop("type")
+        encoder_neck = GeneralizedLSSFPN(**neck_cfg)
+        load_state_dict(encoder_neck, state_dict, "encoders.camera.neck.")
 
-            checkpoint = load_torch(ckpt)
-            state_dict = checkpoint["state_dict"]
+        vtransform_cfg = cfg.model.encoders.camera.vtransform
+        vtransform_cfg.pop("type")
 
-            encoder_backbone = MODELS.build(cfg.model.encoders.camera.backbone)
-            load_state_dict(encoder_backbone, state_dict, "encoders.camera.backbone.")
+        PatchedLSSTransform = type(
+            "PatchedLSSTransform", (LSSTransform, BaseTransform), {}
+        )
 
-            GeneralizedLSSFPN = load_module(
-                "GeneralizedLSSFPN",
-                repo_path + "/mmdet3d/models/necks/generalized_lss.py",
-            )
-            neck_cfg = cfg.model.encoders.camera.neck
-            neck_cfg.pop("type")
-            encoder_neck = GeneralizedLSSFPN(**neck_cfg)
-            load_state_dict(encoder_neck, state_dict, "encoders.camera.neck.")
+        LSSTransform.forward = patched_lss_forward
+        LSSTransform.get_cam_feats = patched_get_cam_feats
+        vtransform = PatchedLSSTransform(**vtransform_cfg)
 
-            vtransform_cfg = cfg.model.encoders.camera.vtransform
-            vtransform_cfg.pop("type")
-            LSSTransform = load_module(
-                "LSSTransform", repo_path + "/mmdet3d/models/vtransforms/lss.py"
-            )
-            BaseTransform = load_module(
-                "BaseTransform", repo_path + "/mmdet3d/models/vtransforms/base.py"
-            )
+        load_state_dict(vtransform, state_dict, "encoders.camera.vtransform.")
 
-            PatchedLSSTransform = type(
-                "PatchedLSSTransform", (LSSTransform, BaseTransform), {}
-            )
+        decoder_bb_cfg = cfg.model.decoder.backbone
+        decoder_bb_cfg.pop("type")
+        decoder_backbone = GeneralizedResNet(**decoder_bb_cfg)
+        load_state_dict(decoder_backbone, state_dict, "decoder.backbone.")
 
-            LSSTransform.forward = patched_lss_forward
-            LSSTransform.get_cam_feats = patched_get_cam_feats
-            vtransform = PatchedLSSTransform(**vtransform_cfg)
+        decoder_neck_cfg = cfg.model.decoder.neck
+        decoder_neck_cfg.pop("type")
+        decoder_neck = LSSFPN(**decoder_neck_cfg)
+        load_state_dict(decoder_neck, state_dict, "decoder.neck.")
 
-            load_state_dict(vtransform, state_dict, "encoders.camera.vtransform.")
+        bbox_coder_cfg = cfg.model.heads["object"]["bbox_coder"]
+        bbox_coder_cfg.pop("type")
+        bbox_coder = CenterPointBBoxCoder(**bbox_coder_cfg)
+        bbox_coder.onnx_atan2 = onnx_atan2
 
-            GeneralizedResNet = load_module(
-                "GeneralizedResNet", repo_path + "/mmdet3d/models/backbones/resnet.py"
-            )
-            decoder_bb_cfg = cfg.model.decoder.backbone
-            decoder_bb_cfg.pop("type")
-            decoder_backbone = GeneralizedResNet(**decoder_bb_cfg)
-            load_state_dict(decoder_backbone, state_dict, "decoder.backbone.")
+        CenterHead._topk = patched_topk
+        CenterHead.get_task_detections = patched_centerhead_get_task_detections
+        CenterHead.circle_nms = staticmethod(patched_circle_nms)
 
-            LSSFPN = load_module("LSSFPN", repo_path + "/mmdet3d/models/necks/lss.py")
-            decoder_neck_cfg = cfg.model.decoder.neck
-            decoder_neck_cfg.pop("type")
-            decoder_neck = LSSFPN(**decoder_neck_cfg)
-            load_state_dict(decoder_neck, state_dict, "decoder.neck.")
+        cfg.model.heads["object"].pop("type", None)
+        cfg.model.heads["object"].pop("bbox_coder", None)
 
-            separate_head_class = load_module(
-                "SeparateHead", repo_path + "/mmdet3d/models/heads/bbox/centerpoint.py"
-            )
-            bbox_coder = load_module(
-                "CenterPointBBoxCoder",
-                repo_path + "/mmdet3d/core/bbox/coders/centerpoint_bbox_coders.py",
-            )
-            CenterHead = load_module(
-                "CenterHead", repo_path + "/mmdet3d/models/heads/bbox/centerpoint.py"
-            )
+        centerhead_cfg = cfg.model.heads["object"]
+        centerhead_cfg["separate_head"] = dict(centerhead_cfg["separate_head"])
 
-            bbox_coder_cfg = cfg.model.heads["object"]["bbox_coder"]
-            bbox_coder_cfg.pop("type")
-            bbox_coder = bbox_coder(**bbox_coder_cfg)
-            bbox_coder.onnx_atan2 = onnx_atan2
+        centerhead = CenterHead(
+            **centerhead_cfg,
+            separate_head_cls=SeparateHead,
+            bbox_coder=bbox_coder,
+        )
 
-            CenterHead._topk = patched_topk
-            CenterHead.get_task_detections = patched_centerhead_get_task_detections
-            CenterHead.circle_nms = staticmethod(patched_circle_nms)
-
-            cfg.model.heads["object"].pop("type", None)
-            cfg.model.heads["object"].pop("bbox_coder", None)
-
-            centerhead_cfg = cfg.model.heads["object"]
-            centerhead_cfg["separate_head"] = dict(centerhead_cfg["separate_head"])
-
-            centerhead = CenterHead(
-                **centerhead_cfg,
-                separate_head_cls=separate_head_class,
-                bbox_coder=bbox_coder,
-            )
-
-            load_state_dict(centerhead, state_dict, "heads.object.")
-            return (
-                encoder_backbone,
-                encoder_neck,
-                vtransform,
-                decoder_backbone,
-                decoder_neck,
-                centerhead,
-            )
+        load_state_dict(centerhead, state_dict, "heads.object.")
+        return (
+            encoder_backbone,
+            encoder_neck,
+            vtransform,
+            decoder_backbone,
+            decoder_neck,
+            centerhead,
+        )
 
     @classmethod
     def from_pretrained(cls, ckpt: str = str(DEFAULT_WEIGHTS.fetch())) -> Self:

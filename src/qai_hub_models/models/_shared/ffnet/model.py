@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import os
-from importlib import reload
 from pathlib import Path
 from typing import TypeVar
 
@@ -14,16 +13,12 @@ import torch
 from typing_extensions import Self
 
 from qai_hub_models.models._shared.cityscapes_segmentation.model import (
-    FFNET_SOURCE_PATCHES,
-    FFNET_SOURCE_REPO_COMMIT,
-    FFNET_SOURCE_REPOSITORY,
-    FFNET_SOURCE_VERSION,
     CityscapesSegmentor,
 )
-from qai_hub_models.models._shared.cityscapes_segmentation.model import (
-    MODEL_ID as CS_MODEL_ID,
+from qai_hub_models.models._shared.ffnet.external_repos.ffnet.models.model_registry import (
+    model_entrypoint,
 )
-from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, SourceAsRoot
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.input_spec import InputSpec
 
 MODEL_ID = __name__.split(".")[-2]
@@ -70,7 +65,6 @@ class FFNet(CityscapesSegmentor):
     @classmethod
     def from_pretrained(cls, variant_name: str) -> Self:
         model = _load_ffnet_source_model(variant_name)
-
         return cls(model)
 
 
@@ -85,42 +79,9 @@ def _load_ffnet_source_model(variant_name: str) -> torch.nn.Module:
     ).fetch()
     root_weights_path = os.path.dirname(os.path.dirname(weights_path))
 
-    """
-    orig_weights_path = download_data(weights_url, MODEL_ID)
+    os.environ["FFNET_WEIGHTS_PATH"] = root_weights_path
 
-    root_weights_path = os.path.dirname(orig_weights_path)
-
-    # FFNet requires the weights to be located in a sub-directory
-    weights_path = os.path.join(root_weights_path, subpath, dst_name)
-    os.makedirs(os.path.dirname(weights_path), exist_ok=True)
-    shutil.move(src=orig_weights_path, dst=weights_path)
-    """
-
-    # Re-use the repo from _shared/cityscapes_segmentation
-    with SourceAsRoot(
-        FFNET_SOURCE_REPOSITORY,
-        FFNET_SOURCE_REPO_COMMIT,
-        CS_MODEL_ID,
-        FFNET_SOURCE_VERSION,
-        source_repo_patches=FFNET_SOURCE_PATCHES,
-    ):
-        # config, models are top-level packages in the FFNet repo
-        import config
-
-        config.model_weights_base_path = root_weights_path
-
-        # This repository has a top-level "models", which is common. We
-        # explicitly reload it in case it has been loaded and cached by another
-        # package (or our models when executing from qai_hub_models/).
-        # This reload must happen after the config fix, and before trying to
-        # load model_entrypoint.
-        import models
-
-        reload(models)
-
-        from models.model_registry import model_entrypoint
-
-        return model_entrypoint(variant_name)()
+    return model_entrypoint(variant_name)()
 
 
 class FFNetLowRes(FFNet):

@@ -1,3 +1,5 @@
+# Removes torch.prod and simplifies aggregation for single-object export compatibility.
+#
 diff --git a/tracker/model/aggregate.py b/tracker/model/aggregate.py
 index 7622391..89eaa08 100644
 --- a/tracker/model/aggregate.py

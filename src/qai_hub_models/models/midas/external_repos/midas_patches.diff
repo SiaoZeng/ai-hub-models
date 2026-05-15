@@ -1,0 +1,34 @@
+# Replaces torch.hub.load with geffnet package for direct model creation.
+#
+diff --git a/midas/blocks.py b/midas/blocks.py
+index 6d87a00..cc0c7a5 100644
+--- a/midas/blocks.py
++++ b/midas/blocks.py
+@@ -1,3 +1,4 @@
++import geffnet
+ import torch
+ import torch.nn as nn
+ 
+@@ -164,8 +165,7 @@ def _make_scratch(in_shape, out_shape, groups=1, expand=False):
+ 
+ 
+ def _make_pretrained_efficientnet_lite3(use_pretrained, exportable=False):
+-    efficientnet = torch.hub.load(
+-        "rwightman/gen-efficientnet-pytorch",
++    efficientnet = geffnet.create_model(
+         "tf_efficientnet_lite3",
+         pretrained=use_pretrained,
+         exportable=exportable
+diff --git a/midas/midas_net_custom.py b/midas/midas_net_custom.py
+index 50e4acb..7da911e 100644
+--- a/midas/midas_net_custom.py
++++ b/midas/midas_net_custom.py
+@@ -102,7 +102,7 @@ class MidasNet_small(BaseModel):
+         
+         out = self.scratch.output_conv(path_1)
+ 
+-        return torch.squeeze(out, dim=1)
++        return out
+ 
+ 
+ 

@@ -1,4 +1,9 @@
 has_on_target_demo: true
+external_repos:
+  centerpoint:
+    repo_url: https://github.com/tianweiy/CenterPoint
+    commit_sha: d3a248fa56db2601860d576d5934d00fee9916eb
+    patches_filename: centerpoint_patches.diff
 disabled_paths:
   float:
     qnn_dlc:

@@ -5,30 +5,17 @@
 
 from __future__ import annotations
 
-import os
-
 import torch
 from typing_extensions import Self
 
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.inpaint_evaluator import InpaintEvaluator
 from qai_hub_models.models._shared.repaint.model import RepaintModel
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    wipe_sys_modules,
+from qai_hub_models.models.aotgan.external_repos.aotgan.src.model.aotgan import (
+    InpaintGenerator,
 )
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 
-AOTGAN_SOURCE_REPOSITORY = "https://github.com/researchmm/AOT-GAN-for-Inpainting/"
-AOTGAN_SOURCE_REPO_COMMIT = "418034627392289bdfc118d62bc49e6abd3bb185"
-AOTGAN_SOURCE_PATCHES = [
-    # Prevent overflow in layer norm (and re-use mean)
-    # On both on TFLite/QNN, the divider by (n - 1) ends up before the sum, so
-    # overflow is avoided.
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches", "layer_norm.diff")
-    )
-]
 MODEL_ID = __name__.split(".")[-2]
 SUPPORTED_PRETRAINED_MODELS = {"celebahq", "places2"}
 DEFAULT_WEIGHTS = "celebahq"
@@ -62,37 +49,23 @@ class AOTGAN(RepaintModel):
             MODEL_ASSET_VERSION,
             f"pretrained_models/{ckpt_name}/G0000000.pt",
         ).fetch()
-        with SourceAsRoot(
-            AOTGAN_SOURCE_REPOSITORY,
-            AOTGAN_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-            source_repo_patches=AOTGAN_SOURCE_PATCHES,
-        ):
-            import src
 
-            wipe_sys_modules(src)
+        # AOT-GAN InpaintGenerator uses ArgParser to
+        # initialize model and it uses following two parameters
+        #  - rates: default value [1, 2, 4, 8]
+        #  - block_num: default value 8
+        # creating dummy class with default values to set the same
+        class InpaintArgs:
+            def __init__(self) -> None:
+                self.rates = [1, 2, 4, 8]
+                self.block_num = 8
 
-            from src.model.aotgan import InpaintGenerator
-
-            # AOT-GAN InpaintGenerator uses ArgParser to
-            # initialize model and it uses following two parameters
-            #  - rates: default value [1, 2, 4, 8]
-            #  - block_num: default value 8
-            # creating dummy class with default values to set the same
-            class InpaintArgs:
-                def __init__(self) -> None:
-                    self.rates = [1, 2, 4, 8]
-                    self.block_num = 8
-
-            args = InpaintArgs()
-            model = InpaintGenerator(args)
-            model.load_state_dict(
-                torch.load(
-                    downloaded_model_path, map_location="cpu", weights_only=False
-                )
-            )
-            return cls(model)
+        args = InpaintArgs()
+        model = InpaintGenerator(args)
+        model.load_state_dict(
+            torch.load(downloaded_model_path, map_location="cpu", weights_only=False)
+        )
+        return cls(model)
 
     def forward(self, image: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """

@@ -7,16 +7,15 @@
 from __future__ import annotations
 
 import torch
+from torchvision.models import vgg
 from typing_extensions import Self
 
 from qai_hub_models.models.common import SampleInputsType
-from qai_hub_models.models.yolov3.model import YoloV3
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    find_replace_in_repo,
-    load_torch,
+from qai_hub_models.models.deepbox.external_repos.boundingbox_3d.torch_lib import (
+    Model as TorchLibModel,
 )
+from qai_hub_models.models.yolov3.model import YoloV3
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,
@@ -33,8 +32,6 @@ from qai_hub_models.utils.input_spec import (
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 3
-DEEPBOX_SOURCE_REPOSITORY = "https://github.com/skhadem/3D-BoundingBox.git"
-DEEPBOX_SOURCE_REPO_COMMIT = "40ba3b60fd550ff33d5c1b307212dad80149e525"
 
 VGG_WEIGHTS_ASSET = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "epoch_10.pkl"
@@ -86,29 +83,13 @@ class VGG3DDetection(BaseModel):
 
     @classmethod
     def from_pretrained(cls, ckpt_path: str = "DEFAULT") -> Self:
-        with SourceAsRoot(
-            DEEPBOX_SOURCE_REPOSITORY,
-            DEEPBOX_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ) as repo_path:
-            if ckpt_path == "DEFAULT":
-                ckpt_path = str(VGG_WEIGHTS_ASSET.fetch())
+        if ckpt_path == "DEFAULT":
+            ckpt_path = str(VGG_WEIGHTS_ASSET.fetch())
 
-            find_replace_in_repo(
-                repo_path,
-                "library/Math.py",
-                "A = np.zeros([4,3], dtype=np.float)",
-                "A = np.zeros([4,3], dtype=float)",
-            )
-
-            from torch_lib import Model
-            from torchvision.models import vgg
-
-            my_vgg = vgg.vgg19_bn(pretrained=True)
-            vgg_model = Model.Model(features=my_vgg.features, bins=2)
-            checkpoint = load_torch(ckpt_path)
-            vgg_model.load_state_dict(checkpoint["model_state_dict"])
+        my_vgg = vgg.vgg19_bn(pretrained=True)
+        vgg_model = TorchLibModel.Model(features=my_vgg.features, bins=2)
+        checkpoint = load_torch(ckpt_path)
+        vgg_model.load_state_dict(checkpoint["model_state_dict"])
         return cls(vgg_model)
 
     def forward(

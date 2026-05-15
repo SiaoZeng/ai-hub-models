@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -14,46 +13,20 @@ import torch.nn.functional as F
 from qai_hub.client import Device
 from typing_extensions import Self
 
-from qai_hub_models.models.statetransformer.model_patch import custom_one_hot
-
-# Import necessary utilities and patches for the StateTransformer model
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    find_replace_in_repo,
+from qai_hub_models.models.statetransformer.external_repos.statetransformer.transformer4planning.models.backbone.str_base import (
+    build_model_from_path,
 )
+from qai_hub_models.models.statetransformer.model_patch import custom_one_hot
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import BaseModel, Precision, TargetRuntime
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
-# Repository and model configuration
-STR_SOURCE_REPOSITORY = "https://github.com/Tsinghua-MARS-Lab/StateTransformer.git"
-STR_SOURCE_REPO_COMMIT = "b82f9bcf5c9056d0fc5afe9da3350d9bd1c5a9c5"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 3
-STR_SOURCE_PATCHES = [
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "patches", "str_patch.diff")
-    )
-]
 # Default path to pretrained model weights
 MODEL_PATH = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "checkpoint-66000.zip"
 )
-
-
-def fixup_repo(repo_path: str) -> None:
-    find_replace_in_repo(
-        repo_path,
-        "nuplan_simulation/str_trajectory_generator.py",
-        "self._model.cuda()",
-        "",
-    )
-    find_replace_in_repo(
-        repo_path,
-        "transformer4planning/models/backbone/str_base.py",
-        "ModelCls.from_pretrained(model_args.model_pretrain_name_or_path, config=config_p)",
-        "ModelCls.from_pretrained(model_args.model_pretrain_name_or_path, config=config_p, ignore_mismatched_sizes=True)",
-    )
 
 
 class StateTransformer(BaseModel):
@@ -89,21 +62,9 @@ class StateTransformer(BaseModel):
         model : Self
             An instance of the StateTransformer class with the loaded model.
         """
-        with SourceAsRoot(
-            STR_SOURCE_REPOSITORY,
-            STR_SOURCE_REPO_COMMIT,
-            MODEL_ID,
-            MODEL_ASSET_VERSION,
-        ) as repo_path:
-            fixup_repo(repo_path=repo_path)
-
-            from transformer4planning.models.backbone.str_base import (
-                build_model_from_path,
-            )
-
-            if isinstance(weights_path, CachedWebModelAsset):
-                weights_path = weights_path.fetch(extract=True)
-            model = build_model_from_path(str(weights_path))
+        if isinstance(weights_path, CachedWebModelAsset):
+            weights_path = weights_path.fetch(extract=True)
+        model = build_model_from_path(str(weights_path))
         return cls(model)
 
     def forward(

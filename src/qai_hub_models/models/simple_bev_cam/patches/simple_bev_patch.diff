@@ -1,3 +1,5 @@
+# Restructures 3D voxel projection for ONNX-compatible 2D grid_sample and removes CUDA dependencies.
+#
 diff --git a/nets/segnet.py b/nets/segnet.py
 index df4f45f..2b4c1e4 100644
 --- a/nets/segnet.py

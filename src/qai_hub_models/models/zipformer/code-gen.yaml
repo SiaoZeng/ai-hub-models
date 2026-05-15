@@ -9,6 +9,11 @@ disabled_paths:
       scorecard_failure: 'Failing jobs: j5wm371zg'
 is_collection_model: true
 requires_aot_prepare: true
+external_repos:
+  icefall:
+    repo_url: https://github.com/k2-fsa/icefall.git
+    commit_sha: 693f069de73fd91d7c2009571245d97221cc3a3f
+    patches_filename: icefall_patches.diff
 global_requirements_incompatible: true
 pip_pre_build_reqs: torch==2.8.0+cpu -f https://download.pytorch.org/whl/torch/
 pip_install_flags: k2==1.24.4.dev20250807+cpu.torch2.8.0 -f https://k2-fsa.github.io/k2/cpu.html

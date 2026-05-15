@@ -17,10 +17,6 @@ from qai_hub_models.models.{{ model_name }} import Model
 
 
 def pytest_configure(config: pytest.Config) -> None:
-{%- if has_external_repos %}
-    # Import external_repos to trigger clone before pytest captures stdin
-    import qai_hub_models.models.{{ model_name }}.external_repos  # noqa: F401
-{%- endif %}
     # pytest is unable to figure out how to silence several PyTorch warning types from pyproject.toml settings,
     # so we apply a manual warning filter here instead.
 {%- if not enable_pt2 %}

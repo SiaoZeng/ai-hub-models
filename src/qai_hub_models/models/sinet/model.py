@@ -6,22 +6,17 @@
 from __future__ import annotations
 
 import os
-from importlib import reload
 
 import torch
 from typing_extensions import Self
 
 from qai_hub_models.models._shared.selfie_segmentation.model import SelfieSegmentor
 from qai_hub_models.models.common import Precision
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    SourceAsRoot,
-    find_replace_in_repo,
-    load_torch,
+from qai_hub_models.models.sinet.external_repos.ext_portrait_segmentation.models.SINet import (
+    SINet as SINetModel,
 )
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
 
-SINET_SOURCE_REPOSITORY = "https://github.com/clovaai/ext_portrait_segmentation"
-SINET_SOURCE_REPO_COMMIT = "9bc1bada1cb7bd17a3a80a2964980f4b4befef5b"
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 2
 DEFAULT_WEIGHTS = "SINet.pth"
@@ -97,48 +92,31 @@ def _get_weightsfile_from_name(
 def _load_sinet_source_model_from_weights(
     weights_name_or_path: str,
 ) -> torch.nn.Module:
-    with SourceAsRoot(
-        SINET_SOURCE_REPOSITORY, SINET_SOURCE_REPO_COMMIT, MODEL_ID, MODEL_ASSET_VERSION
-    ) as repo_root:
-        # This repository has a top-level "models", which is common. We
-        # explicitly reload it in case it has been loaded and cached by another
-        # package (or our models when executing from qai_hub_models/)
-        import models
+    if os.path.exists(os.path.expanduser(weights_name_or_path)):
+        weights_path = os.path.expanduser(weights_name_or_path)
+    elif not os.path.exists(weights_name_or_path):
+        # Load SINet model from the source repository using the given weights.
+        weights_path = _get_weightsfile_from_name(weights_name_or_path).fetch()
+    else:
+        weights_path = None
+    weights = load_torch(weights_path or weights_name_or_path)
 
-        reload(models)
+    # This config is copied from the main function in Sinet.py:
+    # https://github.com/clovaai/ext_portrait_segmentation/blob/9bc1bada1cb7bd17a3a80a2964980f4b4befef5b/models/SINet.py#L557
+    config = [
+        [[3, 1], [5, 1]],
+        [[3, 1], [3, 1]],
+        [[3, 1], [5, 1]],
+        [[3, 1], [3, 1]],
+        [[5, 1], [3, 2]],
+        [[5, 2], [3, 4]],
+        [[3, 1], [3, 1]],
+        [[5, 1], [5, 1]],
+        [[3, 2], [3, 4]],
+        [[3, 1], [5, 2]],
+    ]
 
-        if os.path.exists(os.path.expanduser(weights_name_or_path)):
-            weights_path = os.path.expanduser(weights_name_or_path)
-        elif not os.path.exists(weights_name_or_path):
-            # Load SINet model from the source repository using the given weights.
-            weights_path = _get_weightsfile_from_name(weights_name_or_path).fetch()
-        else:
-            weights_path = None
-        weights = load_torch(weights_path or weights_name_or_path)
+    sinet_model = SINetModel(classes=2, p=2, q=8, config=config, chnn=1)
+    sinet_model.load_state_dict(weights, strict=True)
 
-        # Perform a find and replace for .data.size() in SINet's shuffle implementation
-        # as tracing treats this as a constant, but does not treat .shape as a constant
-        find_replace_in_repo(repo_root, "models/SINet.py", ".data.size()", ".shape")
-
-        # import the model arch
-        from models.SINet import SINet
-
-        # This config is copied from the main function in Sinet.py:
-        # https://github.com/clovaai/ext_portrait_segmentation/blob/9bc1bada1cb7bd17a3a80a2964980f4b4befef5b/models/SINet.py#L557
-        config = [
-            [[3, 1], [5, 1]],
-            [[3, 1], [3, 1]],
-            [[3, 1], [5, 1]],
-            [[3, 1], [3, 1]],
-            [[5, 1], [3, 2]],
-            [[5, 2], [3, 4]],
-            [[3, 1], [3, 1]],
-            [[5, 1], [5, 1]],
-            [[3, 2], [3, 4]],
-            [[3, 1], [5, 2]],
-        ]
-
-        sinet_model = SINet(classes=2, p=2, q=8, config=config, chnn=1)
-        sinet_model.load_state_dict(weights, strict=True)
-
-        return sinet_model
+    return sinet_model
