@@ -12,5 +12,5 @@ from qai_hub_models.models._shared.video_classifier.utils import preprocess_vide
 
 
 class VideoMAEApp(KineticsClassifierApp):
-    def preprocess_input_tensor(self, tensor: torch.Tensor) -> torch.Tensor:
-        return preprocess_video_224(tensor)
+    def preprocess_clip(self, clip: torch.Tensor) -> torch.Tensor:
+        return preprocess_video_224(clip, short_side_size=320)

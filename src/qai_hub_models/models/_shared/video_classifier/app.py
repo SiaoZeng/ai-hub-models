@@ -9,11 +9,18 @@ from pathlib import Path
 
 import torch
 
-from qai_hub_models.models._shared.video_classifier.model import KineticsClassifier
+from qai_hub_models.models._shared.video_classifier.model import (
+    DEFAULT_NUM_CLIPS,
+    DEFAULT_NUM_CROPS,
+    KineticsClassifier,
+)
 from qai_hub_models.models._shared.video_classifier.utils import (
     get_class_name_kinetics_400,
+    multi_crop,
     preprocess_video_kinetics_400,
+    read_video_at_fps,
     read_video_per_second,
+    sample_clips,
     sample_video,
 )
 
@@ -44,23 +51,33 @@ class KineticsClassifierApp:
     This class consists of light-weight "app code" that is required to
     perform end to end inference with an KineticsClassifier.
 
-    For a given image input, the app will:
-        * Pre-process the video (resize and normalize)
-        * Run Video Classification
-        * Return the probability of each class.
+    For a given video input, the app will:
+        * Pre-process the video (multi-clip sampling + spatial crops)
+        * Run Video Classification across all views
+        * Return the top 5 predicted class names.
     """
 
-    def __init__(self, model: KineticsClassifier, num_frames: int = 16) -> None:
+    def __init__(
+        self,
+        model: KineticsClassifier,
+        num_frames: int = 16,
+        num_clips: int = DEFAULT_NUM_CLIPS,
+        num_crops: int = DEFAULT_NUM_CROPS,
+    ) -> None:
         self.model = model
         self.num_frames = num_frames
+        self.num_clips = num_clips
+        self.num_crops = num_crops
+        self.video_dim: int = model.get_input_spec()["video"][0][-1]
 
-    def preprocess_input_tensor(self, tensor: torch.Tensor) -> torch.Tensor:
-        return preprocess_video_kinetics_400(tensor)
+    def preprocess_clip(self, clip: torch.Tensor) -> torch.Tensor:
+        """Apply model-specific normalisation / resize to a single clip."""
+        return preprocess_video_kinetics_400(clip)
 
     def predict(self, path: str | Path) -> list[str]:
         """
         From the provided path of the video, predict probability distribution
-        over the 400 Kinetics classes and return the class name.
+        over the 400 Kinetics classes and return the top 5 class names.
 
         Parameters
         ----------
@@ -72,16 +89,27 @@ class KineticsClassifierApp:
         predicted_classes : list[str]
             Top 5 most probable classes for a given video.
         """
-        # Reads the video via provided path
-        input_video = read_video_per_second(str(path))
+        if self.video_dim == 112:
+            raw_video = read_video_at_fps(str(path), target_fps=15)
+        else:
+            raw_video = read_video_per_second(str(path))
 
-        # Sample the video to match the number of frames expected by the model.
-        input_video = sample_video(input_video, self.num_frames)
+        if self.num_clips > 1:
+            all_clips = sample_clips(raw_video, self.num_frames, self.num_clips)
+        else:
+            all_clips = [sample_video(raw_video, self.num_frames)]
 
-        # Preprocess the video
-        input_video = self.preprocess_input_tensor(input_video)
+        views: list[torch.Tensor] = []
+        for clip in all_clips:
+            preprocessed = self.preprocess_clip(clip)
+            if self.num_crops > 1:
+                views.extend(multi_crop(preprocessed, self.video_dim, self.num_crops))
+            else:
+                views.append(preprocessed)
 
-        # Inference using model
-        raw_prediction = self.model(input_video.unsqueeze(0))
-
+        # [1, V*3, T, H, W] — V packed along channel dim.
+        stacked = torch.stack(views, dim=0)
+        V, C, T, H, W = stacked.shape
+        video_input = stacked.view(1, V * C, T, H, W)
+        raw_prediction = self.model(video_input)
         return recognize_action_kinetics_400(raw_prediction)

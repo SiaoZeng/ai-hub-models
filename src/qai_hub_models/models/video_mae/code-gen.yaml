@@ -1,3 +1,7 @@
+external_repos:
+  videomae:
+    repo_url: https://github.com/MCG-NJU/VideoMAE.git
+    commit_sha: 14ef8d856287c94ef1f985fe30f958eb4ec2c55d
 supported_precisions:
 - float
 - w8a16

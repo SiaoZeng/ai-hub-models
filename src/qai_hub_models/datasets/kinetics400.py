@@ -5,17 +5,25 @@
 from __future__ import annotations
 
 import os
+from enum import Enum
 from pathlib import Path
 
 import pandas as pd
 import torch
 
 from qai_hub_models.datasets.common import BaseDataset, DatasetMetadata, DatasetSplit
+from qai_hub_models.models._shared.video_classifier.model import (
+    DEFAULT_NUM_CLIPS,
+    DEFAULT_NUM_CROPS,
+)
 from qai_hub_models.models._shared.video_classifier.utils import (
     get_class_name_kinetics_400,
+    multi_crop,
     preprocess_video_224,
     preprocess_video_kinetics_400,
+    read_video_at_fps,
     read_video_per_second,
+    sample_clips,
     sample_video,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset
@@ -77,6 +85,27 @@ def _get_labeled_data(
     return video_paths, label_indices
 
 
+class PreprocessProtocol(Enum):
+    """
+    Per-clip eval preprocessing recipe.
+
+    Selects the family of decode + resize + crop steps applied to each clip
+    before it is fed to the model. Picked explicitly by the caller (or
+    inferred once at ``__init__`` from the model's input spatial size) so
+    later code paths don't have to re-derive intent from a raw shape.
+
+    KINETICS_112_TORCHVISION
+        torchvision R3D / R2+1D / MC3 protocol: read at 15 fps, resize to
+        (128, 171), center-crop to 112x112.
+    KINETICS_224_VIDEOMAE
+        VideoMAE protocol: read at native fps, short-side resize to 256;
+        center-crop to 224x224 only when ``multi_crop`` won't run after.
+    """
+
+    KINETICS_112_TORCHVISION = "kinetics_112_torchvision"
+    KINETICS_224_VIDEOMAE = "kinetics_224_videomae"
+
+
 class Kinetics400Dataset(BaseDataset):
     """
     Class for using the Kinetics400 dataset for video classification:
@@ -88,8 +117,12 @@ class Kinetics400Dataset(BaseDataset):
         split: DatasetSplit = DatasetSplit.TRAIN,
         num_frames: int = 16,
         input_spec: InputSpec | None = None,
+        num_clips: int = DEFAULT_NUM_CLIPS,
+        num_crops: int = DEFAULT_NUM_CROPS,
     ) -> None:
         self.num_frames = num_frames
+        self.num_clips = num_clips
+        self.num_crops = num_crops
         self.split_str = split.name.lower()
         self.videos_asset = CachedWebDatasetAsset(
             f"https://s3.amazonaws.com/kinetics/400/{self.split_str}/part_0.tar.gz",
@@ -106,6 +139,10 @@ class Kinetics400Dataset(BaseDataset):
         self.videos_folder = self.videos_asset.extracted_path
         self.video_dim = input_spec["video"][0][-1] if input_spec else 112
         assert self.video_dim in [112, 224], "Video dimension must be 112 or 224."
+        if self.video_dim == 112:
+            self.protocol = PreprocessProtocol.KINETICS_112_TORCHVISION
+        else:
+            self.protocol = PreprocessProtocol.KINETICS_224_VIDEOMAE
         BaseDataset.__init__(
             self, str(self.videos_folder), split=split, input_spec=input_spec
         )
@@ -132,20 +169,79 @@ class Kinetics400Dataset(BaseDataset):
         return len(self.label_indices) == len(self)
 
     def preprocess_tensor(self, tensor: torch.Tensor) -> torch.Tensor:
-        return (
-            preprocess_video_kinetics_400(tensor)
-            if self.video_dim == 112
-            else preprocess_video_224(tensor)
+        """Apply the per-clip preprocessing for ``self.protocol``."""
+        if self.protocol is PreprocessProtocol.KINETICS_112_TORCHVISION:
+            return preprocess_video_kinetics_400(tensor)
+        # KINETICS_224_VIDEOMAE: skip the center-crop iff multi_crop will
+        # take over the spatial-view step afterwards.
+        return preprocess_video_224(tensor, center_crop=self.num_crops == 1)
+
+    def __getitem__(
+        self, video_idx: int
+    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+        """
+        Decode the video at ``video_idx``, build all ``num_clips * num_crops``
+        views, and return them packed for the model.
+
+        Views are packed along the channel dim as ``[num_views*3, T, H, W]``;
+        the model's ``forward`` splits them back with an explicit reshape.
+        ``video_id`` is returned alongside the label so the evaluator can
+        aggregate scores across views belonging to the same video.
+
+        Parameters
+        ----------
+        video_idx
+            Index of the video in ``[0, num_videos)``.
+
+        Returns
+        -------
+        views : torch.Tensor
+            Shape ``[num_views*3, T, H, W]``.
+        gt : tuple[torch.Tensor, torch.Tensor]
+            ``(label, video_id)`` as scalar ``int64`` tensors.
+        """
+        video_path = str(self.videos_folder / self.mp4_files[video_idx])
+        if self.protocol is PreprocessProtocol.KINETICS_112_TORCHVISION:
+            raw_video = read_video_at_fps(video_path, target_fps=15)
+        else:
+            raw_video = read_video_per_second(video_path)
+
+        all_clips: list[torch.Tensor | None]
+        if self.num_clips > 1:
+            all_clips = list(sample_clips(raw_video, self.num_frames, self.num_clips))
+        else:
+            all_clips = [sample_video(raw_video, self.num_frames)]
+        del raw_video
+
+        # Fill merged output per-clip so each preprocessed clip + its crops
+        # can be freed before the next iteration, avoiding peak memory of
+        # all views simultaneously.
+        merged = torch.empty(
+            self.num_clips * self.num_crops * 3,
+            self.num_frames,
+            self.video_dim,
+            self.video_dim,
+            dtype=torch.float32,
         )
 
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, int]:
-        video = read_video_per_second(str(self.videos_folder / self.mp4_files[index]))
-        video = sample_video(video, self.num_frames)
-        video = self.preprocess_tensor(video)
+        view_idx = 0
+        for idx, clip in enumerate(all_clips):
+            assert clip is not None
+            preprocessed = self.preprocess_tensor(clip)
+            all_clips[idx] = None
+            if self.num_crops > 1:
+                crops = multi_crop(preprocessed, self.video_dim, self.num_crops)
+            else:
+                crops = [preprocessed]
+            del preprocessed
+            for crop in crops:
+                merged[view_idx * 3 : (view_idx + 1) * 3].copy_(crop)
+                view_idx += 1
+            del crops
 
-        # Type hint says output must be a tensor, but this only works correctly
-        # if the raw int label is returned.
-        return (video, self.label_indices[index])
+        label = torch.tensor(self.label_indices[video_idx], dtype=torch.int64)
+        video_id = torch.tensor(video_idx, dtype=torch.int64)
+        return merged, (label, video_id)
 
     def _download_data(self) -> None:
         self.videos_asset.fetch(extract=True)
@@ -158,7 +254,7 @@ class Kinetics400Dataset(BaseDataset):
     @staticmethod
     def default_samples_per_job() -> int:
         """The default value for how many samples to run in each inference job."""
-        return 100
+        return 40
 
     @staticmethod
     def get_dataset_metadata() -> DatasetMetadata:
