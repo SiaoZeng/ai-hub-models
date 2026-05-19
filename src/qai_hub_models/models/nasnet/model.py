@@ -5,20 +5,47 @@
 
 from __future__ import annotations
 
+import numpy as np
 import timm
+import torchvision.transforms as T
 from timm.models.nasnet import CellStem1, FirstCell
 from typing_extensions import Self
 
-from qai_hub_models.models._shared.imagenet_classifier.model import ImagenetClassifier
+from qai_hub_models.datasets import DATASET_NAME_MAP
+from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.datasets.imagenet import ImagenetDataset
+from qai_hub_models.datasets.imagenette import ImagenetteDataset
+from qai_hub_models.models._shared.imagenet_classifier.model import (
+    TEST_IMAGENET_IMAGE,
+    ImagenetClassifier,
+)
 from qai_hub_models.models.common import Precision
 from qai_hub_models.models.nasnet.model_patches import (
     CellStem1_forward,
     FirstCell_forward,
 )
+from qai_hub_models.utils.asset_loaders import load_image
+from qai_hub_models.utils.image_processing import make_imagenet_transform
+from qai_hub_models.utils.input_spec import (
+    ColorFormat,
+    ImageMetadata,
+    InputSpec,
+    IoType,
+    TensorSpec,
+)
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
 DEFAULT_WEIGHTS = "nasnetalarge.tf_in1k"
+NASNET_DIM = 331
+
+# timm nasnetalarge.tf_in1k: crop_pct=0.911 -> resize=floor(331/0.911)=363, BICUBIC, antialias=True
+NASNET_TRANSFORM = make_imagenet_transform(
+    crop_size=NASNET_DIM,
+    resize_size=363,
+    interpolation=T.InterpolationMode.BICUBIC,
+    antialias=True,
+)
 
 
 class NASNet(ImagenetClassifier):
@@ -34,3 +61,60 @@ class NASNet(ImagenetClassifier):
     def get_hub_litemp_percentage(self, _: Precision) -> float:
         """Returns the Lite-MP percentage value for the specified mixed precision quantization."""
         return 1
+
+    @staticmethod
+    def calibration_dataset_name() -> str:
+        return "imagenette_nasnet"
+
+    @staticmethod
+    def eval_datasets() -> list[str]:
+        return ["imagenet_nasnet", "imagenette"]
+
+    @staticmethod
+    def get_input_spec(batch_size: int = 1) -> InputSpec:
+        return {
+            "image_tensor": TensorSpec(
+                shape=(batch_size, 3, NASNET_DIM, NASNET_DIM),
+                dtype="float32",
+                io_type=IoType.IMAGE,
+                value_range=(0.0, 1.0),
+                image_metadata=ImageMetadata(
+                    color_format=ColorFormat.RGB,
+                ),
+            )
+        }
+
+    def _sample_inputs_impl(
+        self, input_spec: InputSpec | None = None
+    ) -> dict[str, list[np.ndarray]]:
+        image = load_image(TEST_IMAGENET_IMAGE)
+        tensor = NASNET_TRANSFORM(image).unsqueeze(0)
+        return dict(image_tensor=[tensor.numpy()])
+
+    @classmethod
+    def get_dataset_class(cls) -> type[ImagenetDataset]:
+        class ImagenetNASNetDataset(ImagenetDataset):
+            def __init__(self, split: DatasetSplit = DatasetSplit.VAL) -> None:
+                super().__init__(split=split, transform=NASNET_TRANSFORM)
+
+            @classmethod
+            def dataset_name(cls) -> str:
+                return "imagenet_nasnet"
+
+        return ImagenetNASNetDataset
+
+    @classmethod
+    def get_imagenette_dataset_class(cls) -> type[ImagenetteDataset]:
+        class ImagenetteNASNetDataset(ImagenetteDataset):
+            def __init__(self, split: DatasetSplit = DatasetSplit.TRAIN) -> None:
+                super().__init__(split=split, transform=NASNET_TRANSFORM)
+
+            @classmethod
+            def dataset_name(cls) -> str:
+                return "imagenette_nasnet"
+
+        return ImagenetteNASNetDataset
+
+
+DATASET_NAME_MAP["imagenet_nasnet"] = NASNet.get_dataset_class()
+DATASET_NAME_MAP["imagenette_nasnet"] = NASNet.get_imagenette_dataset_class()

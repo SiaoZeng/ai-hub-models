@@ -39,6 +39,6 @@ imsdk_supported: true
 numerics_benchmark:
   dataset_name: imagenet
   metric_name: Top-1 Accuracy
-  value: 60.4
+  value: 60.6
   unit: '%'
-  source: https://github.com/qcom-ai-hub/tetracode/issues/18303
+  source: https://pytorch.org/vision/stable/models.html

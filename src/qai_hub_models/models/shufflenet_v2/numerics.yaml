@@ -9,7 +9,7 @@ metrics:
     min: 0.0
     max: 100.0
   metric_enablement_threshold: 10.0
-  benchmark_value: 60.4
+  benchmark_value: 60.6
   num_partial_samples: 1000
   partial_torch_metric: 60.4
   device_metric:

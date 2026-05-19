@@ -9,9 +9,9 @@ metrics:
     min: 0.0
     max: 100.0
   metric_enablement_threshold: 10.0
-  benchmark_value: 68.7
+  benchmark_value: 77.3
   num_partial_samples: 1000
-  partial_torch_metric: 68.7
+  partial_torch_metric: 77.2
   device_metric:
     Samsung Galaxy S25:
       w8a8:

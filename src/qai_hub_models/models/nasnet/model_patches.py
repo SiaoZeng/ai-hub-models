@@ -41,11 +41,9 @@ def CellStem1_forward(
     # path 2
     # CropandResize node is not supported in QNN.
     # Replaced it with manual implementation.
-    h, w = x_relu.shape[2:]
-    x_relu_list = x_relu.split(1, dim=2)
-    x_relu = torch.concat((*x_relu_list[1:h], x_relu_list[0]), dim=2)
-    x_relu_list = x_relu.split(1, dim=3)
-    x_relu = torch.concat((*x_relu_list[1:w], x_relu_list[0]), dim=3)
+    # torch.roll avoids dynamic Split nodes (from shape[2:]) that cause
+    # external-data shape-inference failures in the ONNX quantize path.
+    x_relu = torch.roll(x_relu, shifts=(-1, -1), dims=(2, 3))
 
     # AvgPool takes more time for quantized variants.
     # Replaced it with manual implementation for faster execution.
@@ -106,11 +104,9 @@ def FirstCell_forward(self: Any, x: torch.Tensor, x_prev: torch.Tensor) -> torch
     # path 2
     # CropandResize node is not supported in QNN.
     # Replaced it with manual implementation.
-    h, w = x_relu.shape[2:]
-    x_relu_list = x_relu.split(1, dim=2)
-    x_relu = torch.concat((*x_relu_list[1:h], x_relu_list[0]), dim=2)
-    x_relu_list = x_relu.split(1, dim=3)
-    x_relu = torch.concat((*x_relu_list[1:w], x_relu_list[0]), dim=3)
+    # torch.roll avoids dynamic Split nodes (from shape[2:]) that cause
+    # external-data shape-inference failures in the ONNX quantize path.
+    x_relu = torch.roll(x_relu, shifts=(-1, -1), dims=(2, 3))
 
     # AvgPool takes more time for quantized variants.
     # Replaced it with manual implementation for faster execution.

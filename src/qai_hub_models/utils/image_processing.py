@@ -28,6 +28,47 @@ IMAGENET_TRANSFORM = transforms.Compose(
 )
 
 
+def make_imagenet_transform(
+    crop_size: int,
+    resize_size: int | None = None,
+    interpolation: transforms.InterpolationMode = transforms.InterpolationMode.BILINEAR,
+    antialias: bool = True,
+) -> transforms.Compose:
+    """
+    Build a standard ImageNet-style transform for a given crop size.
+
+    By default resizes to int(crop_size * 256 / 224) then center-crops to
+    crop_size, matching the torchvision convention. Pass resize_size,
+    interpolation, and antialias explicitly to match a specific model's
+    official weights transform (e.g. efficientnet_v2_s uses resize_size=384,
+    efficientnet_b4 uses BICUBIC interpolation).
+
+    CenterCrop(crop_size) is always applied after Resize, even when
+    resize_size == crop_size. This is necessary to produce square outputs
+    from non-square input images: Resize scales the shorter edge to
+    resize_size, leaving the longer edge larger; CenterCrop then squares
+    it. This matches the behaviour of the official torchvision
+    ImageClassification transform.
+
+    Normalization (mean/std subtraction) is intentionally excluded.
+    Models routing inputs through ImagenetClassifier.forward() apply
+    normalization internally via normalize_image_torchvision(). Callers
+    using this transform for other purposes (e.g. quantization calibration)
+    must apply normalization separately.
+    """
+    if resize_size is None:
+        resize_size = round(crop_size * 256 / 224)
+    return transforms.Compose(
+        [
+            transforms.Resize(
+                resize_size, interpolation=interpolation, antialias=antialias
+            ),
+            transforms.CenterCrop(crop_size),
+            transforms.ToTensor(),
+        ]
+    )
+
+
 def app_to_net_image_inputs(
     pixel_values_or_image: torch.Tensor | np.ndarray | Image | list[Image],
     image_layout: str = "RGB",
