@@ -25,6 +25,7 @@ from qai_hub_models.models._shared.llm.model import (
     LLM_AIMETOnnx,
     LLMBase,
 )
+from qai_hub_models.models._shared.llm.perf_collection import update_perf_yaml
 from qai_hub_models.models._shared.llm.quantize import quantize
 from qai_hub_models.models.common import Precision, QAIRTVersion, TargetRuntime
 from qai_hub_models.scorecard import ScorecardDevice
@@ -757,9 +758,6 @@ def run_llm_perf_test(
 
     Returns (tokens_per_second, time_to_first_token_ms).
     """
-    from qai_hub_models.models._shared.llm.perf_collection import update_perf_yaml
-    from qai_hub_models.utils.qdc.genie_jobs import submit_genie_bundle_to_qdc_device
-
     if export_context_lengths is None:
         export_context_lengths = DEFAULT_EXPORT_CONTEXT_LENGTHS
     if export_sequence_lengths is None:
@@ -844,16 +842,24 @@ def run_llm_perf_test(
     )
 
     # QDC run
+    from qai_hub_models.utils.qdc.genie_jobs import (
+        _USE_DEFAULT_PROMPTS,
+        save_eval_results_csv,
+        submit_genie_bundle_to_qdc_device,
+    )
+
     api_token = os.environ.get("QDC_API_TOKEN")
     if not api_token:
         raise ValueError("QDC_API_TOKEN environment variable is not set")
 
-    tps, ttft = submit_genie_bundle_to_qdc_device(
+    run_eval = os.environ.get("QAIHM_RUN_EVAL", "true").lower() == "true"
+    tps, ttft, eval_results = submit_genie_bundle_to_qdc_device(
         api_token,
         device.reference_device.name,
         str(genie_bundle_path),
         job_name=f"Genie {model_id} {precision}",
         qairt_sdk_path=qairt_sdk_path,
+        eval_prompts=None if not run_eval else _USE_DEFAULT_PROMPTS,
     )
 
     # Update perf.yaml with only the max context length
@@ -866,5 +872,11 @@ def run_llm_perf_test(
             tps,
             ttft,
         )
+
+    # Save eval results to CSV in the working directory (not output_dir)
+    # so the workflow artifact upload picks it up from $GITHUB_WORKSPACE.
+    if eval_results:
+        eval_csv_path = Path(f"{model_id}_{device.chipset}_{precision}_eval.csv")
+        save_eval_results_csv(eval_results, str(eval_csv_path))
 
     return tps, ttft

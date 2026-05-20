@@ -43,6 +43,11 @@ on:
         default: '4096'
         type: string
 
+      run_eval:
+        description: 'Run on-device evaluation with default prompts. To use custom prompts, run locally via CLI: python -m qai_hub_models.utils.qdc.genie_jobs --eval-prompts <path-to-json>'
+        default: true
+        type: boolean
+
       create_pr:
         description: 'Create PR with perf.yaml changes'
         default: true
@@ -182,6 +187,7 @@ jobs:
         QAIHM_TEST_DEVICES: ${{ inputs.device || 'Snapdragon X Elite CRD,Snapdragon X2 Elite CRD,Snapdragon 8 Elite QRD,Snapdragon 8 Elite Gen 5 QRD' }}
         LLM_CONTEXT_LENGTH: ${{ inputs.context_length }}
         QAIRT_SDK_PATH: ${{ github.workspace }}/qairt_auto_sdk.zip
+        QAIHM_RUN_EVAL: ${{ inputs.run_eval }}
       run: |
         cd $GITHUB_WORKSPACE && \
           python scripts/build_and_test.py \
@@ -247,7 +253,9 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: llm-perf-results
-        path: ${{ github.workspace }}/*.csv
+        path: |
+          ${{ github.workspace }}/*.csv
+          ${{ github.workspace }}/genie_bundles/**/*_eval.csv
 
     - name: Add CSV to GitHub summary
       if: ${{ !cancelled() }}

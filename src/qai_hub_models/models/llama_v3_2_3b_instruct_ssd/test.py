@@ -388,7 +388,7 @@ def test_qdc(
     )
 
     qdc_job_name = f"Genie {MODEL_ID} {precision}"
-    tps, min_ttft = submit_genie_bundle_to_qdc_device(
+    tps, min_ttft, _ = submit_genie_bundle_to_qdc_device(
         os.environ["QDC_API_TOKEN"],
         device.reference_device.name,
         str(genie_bundle_path),

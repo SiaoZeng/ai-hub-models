@@ -5,8 +5,11 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
+import pathlib
+import re
 import shutil
 import tempfile
 import time
@@ -14,12 +17,26 @@ import zipfile
 from abc import ABC, abstractmethod
 
 from qualcomm_device_cloud_sdk.models import ArtifactType
+from transformers import AutoTokenizer
 
+from qai_hub_models.models._shared.llm.model import LLMBase
 from qai_hub_models.utils.qdc.qdc_jobs import (
     HUB_DEVICE_TO_QDC_DEVICE_MAP,
     POLL_INTERVAL,
     QDCDevice,
     QDCJobs,
+)
+
+DEFAULT_EVAL_PROMPTS_PATH = os.path.normpath(
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..",
+        "..",
+        "models",
+        "_shared",
+        "llm",
+        "eval_prompts.json",
+    )
 )
 
 
@@ -39,6 +56,38 @@ def create_zip(zip_path: str, source_dir: str | os.PathLike) -> None:
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as zf:
         for file_path, arcname in files_to_zip:
             zf.write(file_path, arcname)
+
+
+def _prepare_eval_prompts_in_bundle(
+    genie_bundle_path: str,
+    prompts: list[str],
+) -> None:
+    """Write individual prompt files into the genie bundle's prompts/ directory.
+
+    Uses the tokenizer from the bundle to apply the correct chat template.
+    """
+    tokenizer = AutoTokenizer.from_pretrained(genie_bundle_path)
+
+    prompts_dir = os.path.join(genie_bundle_path, "prompts")
+    os.makedirs(prompts_dir, exist_ok=True)
+
+    for idx, prompt in enumerate(prompts):
+        messages = [
+            {"role": "system", "content": LLMBase.default_system_prompt},
+            {"role": "user", "content": prompt},
+        ]
+        try:
+            formatted = tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+        except Exception:
+            messages = [{"role": "user", "content": prompt}]
+            formatted = tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+        prompt_file = os.path.join(prompts_dir, f"prompt_{idx:03d}.txt")
+        with open(prompt_file, "w", encoding="utf-8") as f:
+            f.write(formatted)
 
 
 class GenieArtifactHandler(ABC):
@@ -82,7 +131,7 @@ class GenieAndroidArtifactHandler(GenieArtifactHandler):
         test_folder = os.path.join(dest_dir, "tests")
         os.makedirs(test_folder, exist_ok=True)
 
-        # Copy 'run_posix.py' and rename it to 'test_appium.py' since pytest looks for files starting with 'test_'.
+        # Copy 'run_android.py' and rename it to 'test_appium.py' since pytest looks for files starting with 'test_'.
         shutil.copy(
             os.path.join(curr_dirname, "device_scripts", self.test_script),
             os.path.join(test_folder, "test_appium.py"),
@@ -128,7 +177,7 @@ class GenieAutoArtifactHandler(GenieAndroidArtifactHandler):
         Parameters
         ----------
         test_script
-            Filename of the Appium/PyTest script to bundle (e.g., ``run_auto_posix.py``).
+            Filename of the Appium/PyTest script to bundle (e.g., ``run_auto_android.py``).
         qairt_sdk_path
             Path to the QAIRT SDK zip file to bundle with the artifact.
             Must be an accessible, valid zip file.
@@ -185,10 +234,11 @@ class GenieLinuxArtifactHandler(GenieArtifactHandler):
         hexagon_version: str,
         qairt_version: str,
     ) -> str:
+        script_name = "run_linux.sh"
         # Copy the bash script directly into dest_dir
-        script_dest = os.path.join(dest_dir, "run_linux.sh")
+        script_dest = os.path.join(dest_dir, script_name)
         shutil.copy(
-            os.path.join(curr_dirname, "device_scripts", "run_linux.sh"),
+            os.path.join(curr_dirname, "device_scripts", script_name),
             script_dest,
         )
 
@@ -226,14 +276,13 @@ class GenieWindowsArtifactHandler(GenieArtifactHandler):
         hexagon_version: str,
         qairt_version: str,
     ) -> str:
-        # Copy the PowerShell script
+        script_name = "run_windows.ps1"
         shutil.copy(
-            os.path.join(curr_dirname, "device_scripts", "run_windows.ps1"),
+            os.path.join(curr_dirname, "device_scripts", script_name),
             dest_dir,
         )
-        dest_script = os.path.join(dest_dir, "run_windows.ps1")
+        dest_script = os.path.join(dest_dir, script_name)
         shutil.copytree(genie_bundle_path, dest_dir, dirs_exist_ok=True)
-        # Replace the Hexagon and QAIRT version placeholders with actual values
         with open(dest_script, encoding="utf-8") as f:
             file_content = f.read()
         with open(dest_script, "w", encoding="utf-8") as f:
@@ -243,7 +292,6 @@ class GenieWindowsArtifactHandler(GenieArtifactHandler):
                 )
             )
 
-        # Create zip in parent directory to avoid zipping the zip itself
         zip_path = os.path.join(os.path.dirname(dest_dir), "test.zip")
         create_zip(zip_path, dest_dir)
         return zip_path
@@ -258,7 +306,9 @@ class GenieQDCJobs(QDCJobs):
     """
 
     def _get_artifact_handler(
-        self, qdc_device: QDCDevice, qairt_sdk_path: str | None = None
+        self,
+        qdc_device: QDCDevice,
+        qairt_sdk_path: str | None = None,
     ) -> GenieArtifactHandler:
         """Get the appropriate artifact handler based on device platform.
 
@@ -285,10 +335,10 @@ class GenieQDCJobs(QDCJobs):
                     "Please provide the path to the automotive QAIRT SDK zip file."
                 )
             return GenieAutoArtifactHandler(
-                test_script="run_auto_posix.py", qairt_sdk_path=qairt_sdk_path
+                test_script="run_auto_android.py", qairt_sdk_path=qairt_sdk_path
             )
         if qdc_device.mobile_platform:
-            return GenieAndroidArtifactHandler(test_script="run_posix.py")
+            return GenieAndroidArtifactHandler(test_script="run_android.py")
         raise ValueError("Unsupported platform type for Genie artifact handler.")
 
     def add_job_artifacts(
@@ -297,6 +347,7 @@ class GenieQDCJobs(QDCJobs):
         genie_bundle_path: str,
         qairt_sdk_path: str | None = None,
         qairt_version: str = "2.45.40.260406",
+        eval_prompts: list[str] | None = None,
     ) -> tuple[list[str], str | None]:
         """Prepare and upload Genie artifacts for the job submission.
 
@@ -310,6 +361,9 @@ class GenieQDCJobs(QDCJobs):
             Path to the QAIRT SDK zip file. Required for auto devices.
         qairt_version
             QAIRT SDK version to download on-device (e.g. ``"2.45.40.260406"``).
+        eval_prompts
+            If provided, list of prompts to evaluate. Each prompt is formatted
+            using the bundle's tokenizer and run sequentially on device.
 
         Returns
         -------
@@ -321,18 +375,29 @@ class GenieQDCJobs(QDCJobs):
         curr_dirname = os.path.dirname(os.path.abspath(__file__))
         artifact_handler = self._get_artifact_handler(qdc_device, qairt_sdk_path)
 
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            zip_path = artifact_handler.create_artifact(
-                curr_dirname,
-                genie_bundle_path,
-                tmpdirname,
-                qdc_device.hexagon_version,
-                qairt_version,
-            )
-            upload_response = self.upload_file(zip_path, ArtifactType.TESTSCRIPT)
-            # Clean up zip file created outside temp directory
-            if os.path.exists(zip_path):
-                os.unlink(zip_path)
+        bundle_path_to_use = genie_bundle_path
+        temp_bundle_dir = None
+        if eval_prompts:
+            temp_bundle_dir = tempfile.mkdtemp(prefix="genie_eval_bundle_")
+            shutil.copytree(genie_bundle_path, temp_bundle_dir, dirs_exist_ok=True)
+            _prepare_eval_prompts_in_bundle(temp_bundle_dir, eval_prompts)
+            bundle_path_to_use = temp_bundle_dir
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                zip_path = artifact_handler.create_artifact(
+                    curr_dirname,
+                    bundle_path_to_use,
+                    tmpdirname,
+                    qdc_device.hexagon_version,
+                    qairt_version,
+                )
+                upload_response = self.upload_file(zip_path, ArtifactType.TESTSCRIPT)
+                if os.path.exists(zip_path):
+                    os.unlink(zip_path)
+        finally:
+            if temp_bundle_dir:
+                shutil.rmtree(temp_bundle_dir, ignore_errors=True)
 
         return [upload_response], artifact_handler.entry_script
 
@@ -426,6 +491,128 @@ class GenieQDCJobs(QDCJobs):
         print("No performance metrics found.")
         return None, None
 
+    @staticmethod
+    def _parse_eval_outputs(content: str) -> dict[int, str]:
+        """Parse a single eval_outputs.txt file with delimiter markers.
+
+        Format: ===EVAL_IDX_NNN=== followed by the model output for that prompt.
+        """
+        outputs: dict[int, str] = {}
+        parts = re.split(r"===EVAL_IDX_(\d+)===\n?", content)
+        for i in range(1, len(parts) - 1, 2):
+            idx = int(parts[i])
+            outputs[idx] = parts[i + 1].strip()
+        return outputs
+
+    def compute_eval_results(
+        self,
+        job_log_files: list,
+        prompts: list[str],
+    ) -> list[dict]:
+        """Parse eval outputs from job logs.
+
+        The device scripts write a single eval_outputs.txt file with
+        delimiter markers (===EVAL_IDX_NNN===) separating each prompt's
+        output.
+
+        Parameters
+        ----------
+        job_log_files
+            List of job log files retrieved from QDC.
+        prompts
+            Original list of prompts (used to attach prompt text to results).
+
+        Returns
+        -------
+        results: list[dict]
+            List of dicts with keys: idx, prompt, output.
+        """
+        outputs: dict[int, str] = {}
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            for job_log in job_log_files:
+                if "eval_outputs" not in job_log.filename:
+                    continue
+
+                target_path = os.path.join(
+                    tmpdirname, "logs", f"{job_log.filename}.zip"
+                )
+                os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                self.download_job_log_files(job_log.filename, target_path)
+
+                safe_root = pathlib.Path(tmpdirname).resolve()
+                with zipfile.ZipFile(target_path) as zf:
+                    for member in zf.namelist():
+                        dest = (safe_root / member).resolve()
+                        if not str(dest).startswith(str(safe_root) + os.sep):
+                            raise ValueError(
+                                f"Zip slip detected in log archive: {member}"
+                            )
+                    zf.extractall(safe_root)
+
+                extracted_name = job_log.filename.split("/")[-1]
+                extracted_path = os.path.join(tmpdirname, extracted_name)
+                if not os.path.exists(extracted_path):
+                    continue
+
+                content = None
+                for encoding in ("utf-8", "utf-16", "utf-16-le"):
+                    try:
+                        with open(extracted_path, encoding=encoding) as f:
+                            content = f.read()
+                        break
+                    except (UnicodeDecodeError, UnicodeError):
+                        pass
+
+                if content is None:
+                    print(f"Warning: Could not decode {extracted_name}")
+                    continue
+
+                outputs = self._parse_eval_outputs(content)
+
+        results: list[dict] = [
+            {
+                "idx": idx,
+                "prompt": prompts[idx] if idx < len(prompts) else "",
+                "output": outputs.get(idx, ""),
+            }
+            for idx in sorted(outputs.keys())
+        ]
+
+        if not results:
+            print("Warning: No eval results found in job logs.")
+            print("Available log files:")
+            for job_log in job_log_files:
+                print(f"  {job_log.filename}")
+
+        return results
+
+
+def save_eval_results_csv(results: list[dict], output_path: str) -> None:
+    """Save evaluation results to a CSV file."""
+    if not results:
+        print("No results to save.")
+        return
+
+    results.sort(key=lambda r: r.get("idx", 0))
+
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["idx", "prompt", "output"])
+        for r in results:
+            writer.writerow(
+                [
+                    r.get("idx", ""),
+                    r.get("prompt", ""),
+                    r.get("output", ""),
+                ]
+            )
+
+    print(f"Results saved to: {output_path}")
+
+
+_USE_DEFAULT_PROMPTS = object()
+
 
 def submit_genie_bundle_to_qdc_device(
     api_token: str,
@@ -434,9 +621,14 @@ def submit_genie_bundle_to_qdc_device(
     job_name: str = "LLM Genie",
     qairt_sdk_path: str | None = None,
     qairt_version: str = "2.45.40.260406",
-) -> tuple[float | None, float | None]:
+    eval_prompts: list[str] | None | object = _USE_DEFAULT_PROMPTS,
+) -> tuple[float | None, float | None, list[dict]]:
     """
     Submit a Genie bundle to QDC for execution on the specified device.
+
+    Runs profiling and evaluation in a single job. If eval_prompts is
+    the default sentinel, the built-in 100 questions are used. Pass None
+    or an empty list to skip evaluation entirely.
 
     Parameters
     ----------
@@ -445,21 +637,33 @@ def submit_genie_bundle_to_qdc_device(
     device
         Hub device name to run the job on.
     genie_bundle_path
-        Directory where genie files are stored. Must contain 'prompt.txt'.
+        Directory where genie files are stored. Must contain 'sample_prompt.txt'.
     job_name
         Name of QDC job.
     qairt_sdk_path
         Path to the QAIRT SDK zip file. Required for auto devices.
     qairt_version
         QAIRT SDK version to download on-device (e.g. ``"2.45.40.260406"``).
+    eval_prompts
+        List of prompts to evaluate on device. If not provided, uses the
+        default eval_prompts.json (100 questions). Pass None or [] to skip
+        evaluation.
 
     Returns
     -------
-    avg_tokens_per_second: float | None
-        Average tokens per second.
-    min_time_to_first_token: float | None
-        Minimum time to first token in ms (used as lower bound for TTFT range).
+    tuple[float | None, float | None, list[dict]]
+        (avg_tokens_per_second, min_time_to_first_token, eval_results)
+        where eval_results is a list of dicts with keys: idx, prompt, output.
     """
+    prompts_to_use: list[str] | None
+    if eval_prompts is _USE_DEFAULT_PROMPTS:
+        with open(DEFAULT_EVAL_PROMPTS_PATH, encoding="utf-8") as f:
+            prompts_to_use = json.load(f)
+    elif isinstance(eval_prompts, list):
+        prompts_to_use = eval_prompts
+    else:
+        prompts_to_use = None
+
     qdc_device = QDCDevice(device)
     genie_job = GenieQDCJobs(
         api_key=api_token,
@@ -467,7 +671,11 @@ def submit_genie_bundle_to_qdc_device(
     )
 
     job_artifacts, entry_script = genie_job.add_job_artifacts(
-        qdc_device, genie_bundle_path, qairt_sdk_path, qairt_version
+        qdc_device,
+        genie_bundle_path,
+        qairt_sdk_path,
+        qairt_version,
+        eval_prompts=prompts_to_use,
     )
 
     job_id = genie_job.submit_automated_job(
@@ -482,7 +690,14 @@ def submit_genie_bundle_to_qdc_device(
     genie_job.log_upload_status(job_id)
     job_log_files = genie_job.get_job_log_files(job_id)
     time.sleep(POLL_INTERVAL)
-    return genie_job.compute_metrics(job_log_files)
+
+    tps, ttft = genie_job.compute_metrics(job_log_files)
+
+    eval_results: list[dict] = []
+    if prompts_to_use:
+        eval_results = genie_job.compute_eval_results(job_log_files, prompts_to_use)
+
+    return tps, ttft, eval_results
 
 
 if __name__ == "__main__":
@@ -531,17 +746,47 @@ if __name__ == "__main__":
         default="2.45.40.260406",
         help="QAIRT SDK version to download on-device (e.g. 2.45.40.260406).",
     )
+    parser.add_argument(
+        "--eval-prompts",
+        type=str,
+        required=False,
+        default=None,
+        help=(
+            "Path to JSON file with list of prompt strings for evaluation. "
+            "If not provided, uses the built-in eval_prompts.json (100 questions)."
+        ),
+    )
+    parser.add_argument(
+        "--output-csv",
+        type=str,
+        required=False,
+        default=None,
+        help="Path to save eval results as CSV.",
+    )
 
     args = parser.parse_args()
+
+    eval_prompts = None
+    if args.eval_prompts:
+        with open(args.eval_prompts, encoding="utf-8") as f:
+            eval_prompts = json.load(f)
+        print(f"Loaded {len(eval_prompts)} eval prompts from {args.eval_prompts}")
+
     if not os.path.exists(os.path.join(args.genie_bundle_path, "sample_prompt.txt")):
         raise FileNotFoundError(
-            f"sample_prompt.txt not found in {args.genie_bundle_path}. Please add a file with prompt to run on-device."
+            f"sample_prompt.txt not found in {args.genie_bundle_path}. "
+            "Please add a file with prompt to run on-device."
         )
-    avg_tps, avg_ttft_ms = submit_genie_bundle_to_qdc_device(
+
+    tps, ttft, eval_results = submit_genie_bundle_to_qdc_device(
         args.api_token,
         args.device,
         args.genie_bundle_path,
         args.job_name,
         args.qairt_sdk_path,
         args.qairt_version,
+        eval_prompts=eval_prompts,
     )
+
+    if args.output_csv:
+        save_eval_results_csv(eval_results, args.output_csv)

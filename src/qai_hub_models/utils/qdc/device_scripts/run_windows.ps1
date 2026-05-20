@@ -15,3 +15,16 @@ for ($i = 1; $i -le 10; $i++) {
     $outputPath = "C:/Temp/QDC_logs/$profileName"
     genie-t2t-run.exe -c genie_config.json --prompt_file sample_prompt.txt --profile $outputPath
 }
+
+$PromptDir = "C:\Temp\TestContent\prompts"
+$EvalOutputFile = "C:/Temp/QDC_logs/eval_outputs.txt"
+if (Test-Path $PromptDir) {
+    New-Item -ItemType Directory -Force -Path "C:/Temp/QDC_logs"
+    "" | Out-File -FilePath $EvalOutputFile -Encoding utf8
+    $promptFiles = Get-ChildItem -Path $PromptDir -Filter "prompt_*.txt" | Sort-Object Name
+    foreach ($promptFile in $promptFiles) {
+        $idx = [regex]::Match($promptFile.Name, 'prompt_(\d+)\.txt').Groups[1].Value
+        "===EVAL_IDX_${idx}===" | Out-File -FilePath $EvalOutputFile -Append -Encoding utf8
+        & genie-t2t-run.exe -c genie_config.json --prompt_file $promptFile.FullName 2>&1 | Out-File -FilePath $EvalOutputFile -Append -Encoding utf8
+    }
+}

@@ -32,4 +32,17 @@ for i in $(seq 1 10); do
       --profile /data/local/tmp/QDC_logs/profile${i}.txt
 done
 
+# Run evaluation over all prompt files
+PROMPT_DIR=/data/local/tmp/TestContent/genie_bundle/prompts
+EVAL_OUTPUT_FILE=/data/local/tmp/QDC_logs/eval_outputs.txt
+
+if [ -d "$PROMPT_DIR" ]; then
+    true > "$EVAL_OUTPUT_FILE"
+    for prompt_file in "$PROMPT_DIR"/prompt_*.txt; do
+        idx=$(basename "$prompt_file" | sed 's/prompt_\([0-9]*\)\.txt/\1/')
+        echo "===EVAL_IDX_${idx}===" >> "$EVAL_OUTPUT_FILE"
+        genie-t2t-run -c genie_config.json --prompt_file "$prompt_file" >> "$EVAL_OUTPUT_FILE" 2>&1
+    done
+fi
+
 mount -o rw,remount /
