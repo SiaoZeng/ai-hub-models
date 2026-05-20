@@ -1,6 +1,7 @@
 exclude: |
     (?x)(
-        /build/
+        /build/|
+        src/qai_hub_models/models/_shared/lm_driver/
     )
 
 repos:

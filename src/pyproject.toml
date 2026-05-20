@@ -106,6 +106,10 @@ module = "qai_hub_models.models._shared.llm.sha_dynamic_kvcache"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
+module = "qai_hub_models.models._shared.lm_driver.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
 module = "qai_hub_models.models.llama_v2_7b_chat.modeling_llama"
 ignore_errors = true
 

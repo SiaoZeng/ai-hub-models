@@ -7,6 +7,7 @@ extend = "../ruff.toml"
 "{src/,}qai_hub_models/models/llama_v2_7b_chat/modeling_llama.py" = ["D", "ANN"]  # Transformers does some odd docstring validation that this breaks
 "{src/,}qai_hub_models/extern/*" = ["PGH004", "TID251", "ANN"]  # these files are copied from other packages
 "{src/,}qai_hub_models/models/*/external_repos/*" = ["ALL"]  # cloned external repos, not our code
+"{src/,}qai_hub_models/models/_shared/lm_driver/*" = ["ALL"]  # cloned from GenAILab, not our code
 
 [lint.flake8-tidy-imports.banned-api]
 "numba".msg = "Do not directly import from numba, as it is an optional dependency. Safely import from qai_hub_models.extern.numba instead."
