@@ -8,6 +8,8 @@ from __future__ import annotations
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.datasets.carvana import CarvanaDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.segmentation_evaluator import SegmentationOutputEvaluator
 from qai_hub_models.models.common import SampleInputsType
@@ -117,10 +119,9 @@ class UNet(BaseModel):
     def get_evaluator(self) -> BaseEvaluator:
         return SegmentationOutputEvaluator(num_classes=2, resize_to_gt=True)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["carvana"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CarvanaDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "carvana"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CarvanaDataset

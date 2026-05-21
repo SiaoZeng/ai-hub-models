@@ -12,6 +12,8 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.kitti import KittiDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.kitti_evaluator import KittiEvaluator
 from qai_hub_models.models._shared.centernet.external_repos.centernet.src.lib.models.decode import (
@@ -131,8 +133,8 @@ class CenterNet3D(CenterNet):
 
         return hm, dep, rot, dim, wh, reg
 
+    @staticmethod
     def get_input_spec(
-        self,
         batch_size: int = 1,
         height: int = 384,
         width: int = 1280,
@@ -153,7 +155,8 @@ class CenterNet3D(CenterNet):
             ),
         }
 
-    def get_output_names(self) -> list[str]:
+    @staticmethod
+    def get_output_names() -> list[str]:
         return ["hm", "dep", "rot", "dim", "wh", "reg"]
 
     def _sample_inputs_impl(
@@ -172,15 +175,15 @@ class CenterNet3D(CenterNet):
     def get_evaluator(self) -> BaseEvaluator:
         return KittiEvaluator(self.decode)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["kitti"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [KittiDataset]
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return KittiDataset
 
     @staticmethod
-    def calibration_dataset_name() -> str:
-        return "kitti"
-
-    def get_channel_last_inputs(self) -> list[str]:
+    def get_channel_last_inputs() -> list[str]:
         return ["image"]
 
 

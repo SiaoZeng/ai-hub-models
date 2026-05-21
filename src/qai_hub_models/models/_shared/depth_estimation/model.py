@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.nyuv2 import NYUV2Dataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.depth_evaluator import DepthEvaluator
 from qai_hub_models.models.common import SampleInputsType
@@ -44,10 +46,9 @@ class DepthEstimationModel(BaseModel):
     def get_evaluator(self) -> BaseEvaluator:
         return DepthEvaluator()
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["nyuv2"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [NYUV2Dataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "nyuv2"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return NYUV2Dataset

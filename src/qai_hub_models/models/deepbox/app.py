@@ -14,7 +14,7 @@ import torch
 from PIL import Image
 from qai_hub.public_rest_api import DatasetEntries
 
-from qai_hub_models.datasets import get_dataset_from_name
+from qai_hub_models.datasets import instantiate_dataset
 from qai_hub_models.datasets.common import DatasetSplit
 from qai_hub_models.models.deepbox.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models.deepbox.external_repos.boundingbox_3d.library.Math import (
@@ -275,10 +275,6 @@ class DeepBoxApp:
         assert isinstance(model, DeepBox)
         return cls(model.yolo_2d_det, model.vgg_3d_det)
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "kitti"
-
     @classmethod
     def get_calibration_data(
         cls,
@@ -292,8 +288,10 @@ class DeepBoxApp:
         yolo_spec = (
             input_specs.get("yolo_2d_detection") if input_specs else None
         ) or collection_model.yolo_2d_det.get_input_spec()
-        dataset = get_dataset_from_name(
-            cls.calibration_dataset_name(),
+        calibration_dataset_cls = collection_model.get_calibration_dataset_cls()
+        assert calibration_dataset_cls is not None
+        dataset = instantiate_dataset(
+            calibration_dataset_cls,
             DatasetSplit.TRAIN,
             input_spec=yolo_spec,
         )

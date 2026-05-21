@@ -12,6 +12,8 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.coco import CocoDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.centernet_detection_evaluator import (
     CenternetDetectionEvaluator,
@@ -139,13 +141,12 @@ class CenterNet2D(CenterNet):
             decode=self.decode,
         )
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["coco"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CocoDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "coco"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CocoDataset
 
     def get_channel_last_inputs(self) -> list[str]:
         return ["image"]

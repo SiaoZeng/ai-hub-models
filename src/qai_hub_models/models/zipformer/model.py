@@ -11,6 +11,8 @@ from qai_hub.client import Device
 from ruamel.yaml import YAML
 from torch import Tensor, nn
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.common_voice import CommonVoiceDataset
 from qai_hub_models.models.common import (
     Precision,
     TargetRuntime,
@@ -418,6 +420,9 @@ class HfZipformer(PretrainedCollectionModel):
         device: torch.device = torch.device("cpu"),
     ) -> list[Tensor]:
         return self.encoder.encoder.get_init_state(device)
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CommonVoiceDataset
 
     @classmethod
     def from_pretrained(cls) -> "HfZipformer":

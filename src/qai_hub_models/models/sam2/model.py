@@ -17,6 +17,8 @@ from sam2.build_sam import build_sam2
 from sam2.modeling.sam2_base import SAM2Base as Sam2
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.sav import SaVDataset
 from qai_hub_models.models._shared.sam2.model import (
     SAM2Decoder as SAM2DecoderBase,
 )
@@ -171,6 +173,9 @@ class SAM2Loader(SAM2LoaderBase):
 @CollectionModel.add_component(SAM2Encoder, "encoder")
 @CollectionModel.add_component(SAM2Decoder, "decoder")
 class SAM2(PretrainedCollectionModel):
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return SaVDataset
+
     def __init__(self, sam2: Sam2, encoder: SAM2Encoder, decoder: SAM2Decoder) -> None:
         super().__init__(*[encoder, decoder])
         self.sam2 = sam2

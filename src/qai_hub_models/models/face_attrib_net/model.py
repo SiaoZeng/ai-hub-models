@@ -9,6 +9,8 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.face_attrib_dataset import FaceAttribDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.face_attrib_evaluator import FaceAttribNetEvaluator
 from qai_hub_models.models.face_attrib_net.layers import (
@@ -30,14 +32,6 @@ from qai_hub_models.utils.input_spec import (
 MODEL_ID = "face_attrib_net"
 MODEL_ASSET_VERSION = "1"
 DEFAULT_WEIGHTS = "detection_only_05302025.pt"
-
-OUT_NAMES = [
-    "left_openness",
-    "right_openness",
-    "glasses",
-    "mask",
-    "sunglasses",
-]
 
 
 class FaceAttribNet(BaseModel):
@@ -599,28 +593,9 @@ class FaceAttribNet(BaseModel):
         """
         return FaceAttribNetEvaluator()
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        """
-        Return list of strings with names of all datasets on which
-        this model can be evaluated.
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [FaceAttribDataset]
 
-        Returns
-        -------
-        dataset_names : list[str]
-            list of strings with names of all datasets on which `face_attrib_net` model can be evaluated.
-        """
-        return ["face_attrib_dataset"]
-
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        """
-        Return the name of the dataset to use for calibration when quantizing the model.
-
-        Returns
-        -------
-        dataset_name : str
-            name of the calibration dataset
-
-        """
-        return "face_attrib_dataset"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return FaceAttribDataset

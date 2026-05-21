@@ -11,6 +11,7 @@ from typing_extensions import Self
 
 # isort: off
 # This verifies aimet is installed, and this must be included first.
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.utils.quantization_aimet_onnx import (
     AIMETOnnxQuantizableMixin,
 )
@@ -278,9 +279,12 @@ class ControlUnetQuantizableBase(AIMETOnnxQuantizableMixin, ControlUnetBase):  #
             )
         return cls(quant_sim, host_device=host_device, onnx_bundle=bundle)
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "stable_diffusion_calib_unet"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        from qai_hub_models.datasets.stable_diffusion_calib import (
+            StableDiffusionCalibDatasetUnet,
+        )
+
+        return StableDiffusionCalibDatasetUnet
 
 
 class ControlNetBase(BaseModel, FromPretrainedMixin):
@@ -359,9 +363,12 @@ class ControlNetBase(BaseModel, FromPretrainedMixin):
     def get_output_names(self) -> list[str]:
         return [f"down_block_{i}" for i in range(12)] + ["mid_block"]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "stable_diffusion_calib_unet"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        from qai_hub_models.datasets.stable_diffusion_calib import (
+            StableDiffusionCalibDatasetUnet,
+        )
+
+        return StableDiffusionCalibDatasetUnet
 
 
 class ControlNetQuantizableBase(AIMETOnnxQuantizableMixin, ControlNetBase):  # type: ignore[misc]
@@ -423,6 +430,9 @@ class ControlNetQuantizableBase(AIMETOnnxQuantizableMixin, ControlNetBase):  # t
             )
         return cls(quant_sim, host_device=host_device, onnx_bundle=bundle)
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "stable_diffusion_calib_controlnet"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        from qai_hub_models.datasets.stable_diffusion_calib import (
+            StableDiffusionCalibDatasetControlNet,
+        )
+
+        return StableDiffusionCalibDatasetControlNet

@@ -9,6 +9,9 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.coco_face import CocoFaceDataset
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.facemap_3dmm_dataset import FaceMap3DMMDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.facemap_3dmm_evaluator import FaceMap3DMMEvaluator
 from qai_hub_models.models.common import SampleInputsType
@@ -110,10 +113,9 @@ class FaceMap_3DMM(BaseModel):
     def get_evaluator(self) -> BaseEvaluator:
         return FaceMap3DMMEvaluator(*self.get_input_spec()["image"][0][2:])
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["facemap_3dmm_dataset", "coco_face"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [FaceMap3DMMDataset, CocoFaceDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "facemap_3dmm_dataset"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return FaceMap3DMMDataset

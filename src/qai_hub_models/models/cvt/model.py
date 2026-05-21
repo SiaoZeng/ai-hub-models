@@ -14,6 +14,8 @@ from torch import nn
 from typing_extensions import Self
 
 import qai_hub_models.models.cvt.external_repos.cross_view_transformers as cvt_repo
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.nuscenes_bev import NuscenesBevCVTDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.nuscenes_bev_evaluator import (
     NuscenesBevSegmentationEvaluator,
@@ -121,13 +123,12 @@ class CVT(BaseModel):
         """Returns the Lite-MP percentage value for the specified mixed precision quantization."""
         return 4
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["nuscenes_bev_cvt"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [NuscenesBevCVTDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "nuscenes_bev_cvt"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return NuscenesBevCVTDataset
 
     def get_input_spec(
         self,

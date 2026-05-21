@@ -22,6 +22,7 @@ from typing import Any, TypeVar
 import qai_hub as hub
 from numpydoc.docscrape import FunctionDoc
 
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.models.protocols import (
     FromPrecompiledProtocol,
@@ -172,7 +173,15 @@ class QAIHMArgumentParser(argparse.ArgumentParser):
         self.default_device = default_device
         self.default_chipset = default_chipset
         self.model_cls = model_cls
+        self._dataset_name_to_cls: dict[str, type[BaseDataset]] = {}
         super().__init__(*args, **kwargs)
+
+    def set_supported_dataset_classes(
+        self, dataset_classes: list[type[BaseDataset]]
+    ) -> None:
+        self._dataset_name_to_cls = {
+            ds_cls.dataset_name(): ds_cls for ds_cls in dataset_classes
+        }
 
     @staticmethod
     def get_hub_device(
@@ -268,6 +277,9 @@ class QAIHMArgumentParser(argparse.ArgumentParser):
             and fetch_static_assets is None
         ):
             self._validate_fp16_support(parsed.device, precision)
+
+        if self._dataset_name_to_cls and hasattr(parsed, "dataset_name"):
+            parsed.dataset_cls = self._dataset_name_to_cls[parsed.dataset_name]
 
         return parsed
 
@@ -1234,7 +1246,7 @@ def export_parser(
 
 def evaluate_parser(
     model_cls: type[FromPretrainedTypeVar | FromPrecompiledTypeVar],
-    supported_datasets: list[str],
+    supported_dataset_classes: list[type[BaseDataset]],
     supported_precision_runtimes: dict[Precision, list[TargetRuntime]] | None = None,
     uses_quantize_job: bool = True,
     num_calibration_samples: int | None = None,
@@ -1247,8 +1259,8 @@ def evaluate_parser(
     ----------
     model_cls
         Class of the model to be exported. Used to add additional args for model instantiation.
-    supported_datasets
-        List of supported dataset names.
+    supported_dataset_classes
+        List of supported dataset classes (subclasses of BaseDataset).
     supported_precision_runtimes
         The list of supported (precision, runtime) pairs for this model.
     uses_quantize_job
@@ -1270,6 +1282,7 @@ def evaluate_parser(
         model_cls=model_cls,
         supported_precision_runtimes=supported_precision_runtimes,
     )
+    parser.set_supported_dataset_classes(supported_dataset_classes)
     parser.add_argument(
         "--compile-options",
         type=str,
@@ -1291,8 +1304,9 @@ def evaluate_parser(
         )
 
     _add_device_args(parser, default_device)
-    if len(supported_datasets) == 0:
+    if not parser._dataset_name_to_cls:
         return parser
+    supported_dataset_names = list(parser._dataset_name_to_cls.keys())
     if uses_quantize_job:
         parser.add_argument(
             "--num-calibration-samples",
@@ -1309,8 +1323,8 @@ def evaluate_parser(
     parser.add_argument(
         "--dataset-name",
         type=str,
-        default=supported_datasets[0],
-        choices=supported_datasets,
+        default=supported_dataset_names[0],
+        choices=supported_dataset_names,
         help="Name of the dataset to use for evaluation.",
     )
     parser.add_argument(

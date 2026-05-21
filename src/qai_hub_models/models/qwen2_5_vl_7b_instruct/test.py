@@ -77,6 +77,11 @@ def test_evaluate(
     expected_metric: float,
     num_samples: int,
 ) -> None:
+    dataset_cls = next(
+        d
+        for d in Qwen2_5_VL_7B_PreSplit.get_eval_dataset_classes()
+        if d.dataset_name() == task
+    )
     Qwen2_5_VL_7B_PreSplit.clear_cache()
     Qwen2_5_VL_7B_QuantizablePreSplit.clear_cache()
     actual_metric, _ = evaluate(
@@ -84,7 +89,7 @@ def test_evaluate(
         fp_model_cls=Qwen2_5_VL_7B_PreSplit,
         qnn_model_cls=LLM_QNN,  # placeholder — no QNN variant yet
         num_samples=num_samples,
-        task=task,
+        dataset_cls=dataset_cls,
         skip_fp_model_eval=True,
         kwargs=dict(
             checkpoint=checkpoint,

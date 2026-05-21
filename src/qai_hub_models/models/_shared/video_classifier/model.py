@@ -7,11 +7,14 @@ from __future__ import annotations
 
 import torch
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.kinetics400 import Kinetics400Dataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.video_classification_evaluator import (
     VideoClassificationEvaluator,
 )
 from qai_hub_models.models._shared.video_classifier.utils import (
+    DEFAULT_NUM_VIEWS,
     preprocess_video_kinetics_400,
     read_video_at_fps,
 )
@@ -32,13 +35,6 @@ MODEL_ASSET_VERSION = 1
 INPUT_VIDEO_PATH = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "surfing_cutback.mp4"
 )
-
-# 5 temporal clips x 1 center crop matches the torchvision reference eval
-# protocol for R3D / R2+1D / MC3 and is the default single-crop setting
-# for VideoMAE.
-DEFAULT_NUM_CLIPS = 5
-DEFAULT_NUM_CROPS = 1
-DEFAULT_NUM_VIEWS = DEFAULT_NUM_CLIPS * DEFAULT_NUM_CROPS
 
 
 class SimpleAvgPool(torch.nn.Module):
@@ -166,10 +162,9 @@ class KineticsClassifier(BaseModel):
     def get_evaluator(self) -> BaseEvaluator:
         return VideoClassificationEvaluator(num_classes=400)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["kinetics400"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [Kinetics400Dataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "kinetics400"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return Kinetics400Dataset

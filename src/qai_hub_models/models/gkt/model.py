@@ -11,6 +11,8 @@ import torch
 from hydra import compose, initialize_config_dir
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.nuscenes_bev import NuscenesBevGKTDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.nuscenes_bev_evaluator import (
     NuscenesBevSegmentationEvaluator,
@@ -161,13 +163,12 @@ class GKT(BaseModel):
     def get_evaluator(self) -> BaseEvaluator:
         return NuscenesBevSegmentationEvaluator()
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["nuscenes_bev_gkt"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [NuscenesBevGKTDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "nuscenes_bev_gkt"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return NuscenesBevGKTDataset
 
     def get_hub_litemp_percentage(self, _: Precision) -> float:
         """Returns the Lite-MP percentage value for the specified mixed precision quantization."""

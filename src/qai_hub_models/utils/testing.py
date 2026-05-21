@@ -22,7 +22,7 @@ import qai_hub as hub
 from qai_hub.client import SourceModelType
 from tabulate import tabulate
 
-from qai_hub_models.datasets.common import get_folder_name
+from qai_hub_models.datasets.common import BaseDataset, get_folder_name
 from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.models.protocols import FromPretrainedProtocol
 from qai_hub_models.scorecard import ScorecardDevice
@@ -204,7 +204,7 @@ def mock_tabulate_fn(df: pd.DataFrame, **kwargs: Any) -> tuple[list[str], str]:
 
 def get_and_sync_datasets_cache_dir(
     has_channel_transpose: bool,
-    dataset_name: str,
+    dataset_cls: type[BaseDataset],
     samples_per_job: int,
     model_cls: type[BaseModel | CollectionModel],
 ) -> Path:
@@ -230,8 +230,8 @@ def get_and_sync_datasets_cache_dir(
     ----------
     has_channel_transpose
         Whether the input data should have the channel last transpose applied
-    dataset_name
-        Name of the dataset
+    dataset_cls
+        Dataset class (subclass of BaseDataset).
     samples_per_job
         Number of samples in each hub dataset. Since we only run one inference job
         per model, this is also equivalent to the overall total number of evaluation samples.
@@ -247,6 +247,7 @@ def get_and_sync_datasets_cache_dir(
     if not has_channel_transpose:
         folder_name += "_nt"
     assert issubclass(model_cls, BaseModel)
+    dataset_name = dataset_cls.dataset_name()
     dataset_folder_name = get_folder_name(
         dataset_name, model_cls.from_pretrained().get_input_spec()
     )
@@ -264,7 +265,7 @@ def get_and_sync_datasets_cache_dir(
         # and stored in the dataset_ids yaml. In the rare case it isn't, do so here.
         if input_key not in dataset_ids or gt_key not in dataset_ids:
             get_hub_val_dataset(
-                dataset_name,
+                dataset_cls,
                 dataset_ids_filepath,
                 model_cls,
                 has_channel_transpose,
@@ -337,7 +338,10 @@ def mock_get_calibration_data(
     else:
         assert isinstance(model, BaseModel) and is_input_spec(input_spec_arg)
         component_spec = input_spec_arg
-        cache_prefix_name = model.calibration_dataset_name() or model.__class__.__name__
+        calib_cls = model.get_calibration_dataset_cls()
+        cache_prefix_name = (
+            calib_cls.dataset_name() if calib_cls else model.__class__.__name__
+        )
 
     cache_prefix = get_folder_name(cache_prefix_name, component_spec)
     cache_key = cache_prefix + "_train"
@@ -389,7 +393,7 @@ def get_val_dataset_id_keys(
 
 
 def get_hub_val_dataset(
-    dataset_name: str,
+    dataset_cls: type[BaseDataset],
     ids_file: Path,
     model_cls: type[BaseModel | CollectionModel],
     apply_channel_transpose: bool,
@@ -412,9 +416,8 @@ def get_hub_val_dataset(
 
     Parameters
     ----------
-    dataset_name
-        Name of the dataset. Dataset must be registered in
-        qai_hub_models.datasets.__init__.py
+    dataset_cls
+        Dataset class (subclass of BaseDataset).
     ids_file
         Path to file where dataset ids are stored.
     model_cls
@@ -437,12 +440,13 @@ def get_hub_val_dataset(
     dataset_ids = load_yaml(ids_file)
     instance = model_cls.from_pretrained()
     input_spec = instance.get_input_spec()
+    dataset_name = dataset_cls.dataset_name()
     folder_name = get_folder_name(dataset_name, input_spec)
     input_key, gt_key = get_val_dataset_id_keys(folder_name, apply_channel_transpose)
     if dataset_ids and input_key in dataset_ids:
         assert gt_key in dataset_ids
         return hub.get_dataset(dataset_ids[input_key])
-    dataloader = get_torch_val_dataloader(dataset_name, num_samples, input_spec)
+    dataloader = get_torch_val_dataloader(dataset_cls, num_samples, input_spec)
     batch = next(iter(dataloader))
     input_entries, gt_entries = dataset_entries_from_batch(
         batch,

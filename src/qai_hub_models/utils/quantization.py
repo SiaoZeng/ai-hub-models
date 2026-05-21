@@ -9,11 +9,10 @@ from typing import Any
 
 import numpy as np
 import torch
-from qai_hub.public_rest_api import DatasetEntries
+from qai_hub.client import DatasetEntries
 from torch.utils.data import DataLoader
 
-from qai_hub_models.datasets import get_dataset_from_name
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.datasets import DatasetSplit, instantiate_dataset
 from qai_hub_models.utils.base_app import CollectionAppProtocol
 from qai_hub_models.utils.base_model import BaseModel, PretrainedCollectionModel
 from qai_hub_models.utils.evaluate import sample_dataset
@@ -88,8 +87,8 @@ def get_calibration_data(
         model = model.components[component_name]
 
     assert isinstance(model, BaseModel)
-    calibration_dataset_name = model.calibration_dataset_name()
-    if calibration_dataset_name is None:
+    calibration_dataset_cls = model.get_calibration_dataset_cls()
+    if calibration_dataset_cls is None:
         assert num_samples is None, (
             "Cannot set num_samples if model doesn't have calibration dataset."
         )
@@ -104,8 +103,8 @@ def get_calibration_data(
     dataset_options = dataset_options or {}
 
     try:
-        dataset = get_dataset_from_name(
-            calibration_dataset_name,
+        dataset = instantiate_dataset(
+            calibration_dataset_cls,
             split=DatasetSplit.TRAIN,
             input_spec=input_spec,
             **dataset_options,

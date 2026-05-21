@@ -9,6 +9,8 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.face_det_lite import FaceDetLiteDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.face_det_lite_evaluator import FaceDetLiteEvaluator
 from qai_hub_models.models.common import Precision
@@ -222,13 +224,12 @@ class FaceDetLite(BaseModel):
         h, w = self.get_input_spec()["input"][0][2:4]
         return FaceDetLiteEvaluator(h, w)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["face_det_lite"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [FaceDetLiteDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "face_det_lite"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return FaceDetLiteDataset
 
     def get_hub_litemp_percentage(self, precision: Precision) -> float:
         """

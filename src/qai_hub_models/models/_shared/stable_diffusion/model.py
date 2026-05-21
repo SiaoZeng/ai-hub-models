@@ -12,6 +12,7 @@ from typing_extensions import Self
 
 # isort: off
 # This verifies aimet is installed, and this must be included first.
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.utils.quantization_aimet_onnx import (
     AIMETOnnxQuantizableMixin,
 )
@@ -165,9 +166,12 @@ class TextEncoderQuantizableBase(AIMETOnnxQuantizableMixin, TextEncoderBase):
             )
         return cls(quant_sim, host_device=host_device, onnx_bundle=bundle)
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "stable_diffusion_calib_text_encoder"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        from qai_hub_models.datasets.stable_diffusion_calib import (
+            StableDiffusionCalibDatasetTextEncoder,
+        )
+
+        return StableDiffusionCalibDatasetTextEncoder
 
 
 class UnetBase(BaseModel, FromPretrainedMixin):
@@ -299,9 +303,12 @@ class UnetQuantizableBase(AIMETOnnxQuantizableMixin, UnetBase):
             )
         return cls(quant_sim, host_device=host_device, onnx_bundle=bundle)
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "stable_diffusion_calib_unet"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        from qai_hub_models.datasets.stable_diffusion_calib import (
+            StableDiffusionCalibDatasetUnet,
+        )
+
+        return StableDiffusionCalibDatasetUnet
 
 
 class VaeDecoderBase(BaseModel, FromPretrainedMixin):
@@ -416,9 +423,12 @@ class VaeDecoderQuantizableBase(AIMETOnnxQuantizableMixin, VaeDecoderBase):
             model_name="Stable Diffusion VaeDecoder",
         )
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "stable_diffusion_calib_vae"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        from qai_hub_models.datasets.stable_diffusion_calib import (
+            StableDiffusionCalibDatasetVae,
+        )
+
+        return StableDiffusionCalibDatasetVae
 
 
 def make_scheduler(

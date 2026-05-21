@@ -34,6 +34,8 @@ from transformers import PretrainedConfig, PreTrainedTokenizer
 from transformers.modeling_attn_mask_utils import AttentionMaskConverter
 from transformers.models.phi3 import Phi3Config, modeling_phi3
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.tricky_llm_prompts import TrickyLLMPromptsPhi35
 from qai_hub_models.models._shared.llm.common import LLMIOType
 from qai_hub_models.models._shared.llm.model import (
     Embedding,
@@ -192,9 +194,9 @@ class Phi35Base(LLMBase):
     default_user_prompt = "What is the capital of France? Answer in one sentence."
     default_system_prompt = "You are a helpful AI assistant."
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return [*LLMBase.eval_datasets(), "tricky_llm_prompts_phi35"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [*LLMBase.get_eval_dataset_classes(), TrickyLLMPromptsPhi35]
 
     @staticmethod
     def monkey_patch(
@@ -304,7 +306,7 @@ class Phi35Base_AIMETOnnx(LLM_AIMETOnnx):
             attention_mask_multiplier=attention_mask_multiplier,
         )
 
-    eval_datasets = Phi35Base.eval_datasets
+    get_eval_dataset_classes = Phi35Base.get_eval_dataset_classes
 
     @classmethod
     def _configure_quant_sim(

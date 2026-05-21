@@ -13,12 +13,11 @@ import numpy as np
 import piper_phonemize
 import soundfile as sf
 import torch
-from qai_hub.public_rest_api import DatasetEntries
+from qai_hub.client import DatasetEntries
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from qai_hub_models.datasets import get_dataset_from_name
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.datasets import DatasetSplit, instantiate_dataset
 from qai_hub_models.models._shared.pipertts.model import (
     DEC_SEQ_OVERLAP,
     DEFAULT_LENGTH_SCALE,
@@ -287,10 +286,6 @@ class PiperTTSApp(CollectionAppProtocol):
         sf.write(output_path, audio_np, SAMPLE_RATE)
         return output_path
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "common_voice_text"
-
     @classmethod
     def get_calibration_data(
         cls,
@@ -318,8 +313,10 @@ class PiperTTSApp(CollectionAppProtocol):
         tokenizer = ByT5Tokenizer()
         noise_scale = noise_scale_for_language(language_)
 
-        dataset = get_dataset_from_name(
-            cls.calibration_dataset_name(),
+        calibration_dataset_cls = collection_model.get_calibration_dataset_cls()
+        assert calibration_dataset_cls is not None
+        dataset = instantiate_dataset(
+            calibration_dataset_cls,
             DatasetSplit.TRAIN,
             lang=language_,
         )

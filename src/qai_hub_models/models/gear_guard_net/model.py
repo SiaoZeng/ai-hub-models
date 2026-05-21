@@ -10,6 +10,9 @@ from copy import deepcopy
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.datasets.coco_ppe import CocoPPEDataset
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.gear_guard_dataset import GearGuardDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.detection_evaluator import DetectionEvaluator
 from qai_hub_models.models._shared.yolo.utils import detect_postprocess
@@ -352,13 +355,12 @@ class GearGuardNet(BaseModel):
             mAP_default_increment_iOU=EVALUATOR_MAP_DEFAULT_INCREMENT_IOU,
         )
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["gear_guard_dataset"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [GearGuardDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "coco_ppe"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CocoPPEDataset
 
     @classmethod
     def get_labels_file_name(cls) -> str | None:

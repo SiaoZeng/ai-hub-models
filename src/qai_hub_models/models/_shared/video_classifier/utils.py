@@ -8,6 +8,10 @@ from torchvision.transforms import functional as TF
 
 from qai_hub_models.utils.path_helpers import QAIHM_PACKAGE_ROOT
 
+DEFAULT_NUM_CLIPS = 5
+DEFAULT_NUM_CROPS = 1
+DEFAULT_NUM_VIEWS = DEFAULT_NUM_CLIPS * DEFAULT_NUM_CROPS
+
 
 def normalize(video: torch.Tensor) -> torch.Tensor:
     """

@@ -11,6 +11,9 @@ import torch
 from transformers import MobileViTFeatureExtractor, MobileViTForImageClassification
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.imagenet_256 import Imagenet_256Dataset
+from qai_hub_models.datasets.imagenette_256 import Imagenette_256Dataset
 from qai_hub_models.models._shared.imagenet_classifier.model import ImagenetClassifier
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
 from qai_hub_models.utils.input_spec import (
@@ -75,10 +78,9 @@ class MobileVIT(ImagenetClassifier):
         ]
         return dict(image_tensor=[tensor.numpy()])
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["imagenet_256", "imagenette_256"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [Imagenet_256Dataset, Imagenette_256Dataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str | None:
-        return "imagenette_256"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return Imagenette_256Dataset

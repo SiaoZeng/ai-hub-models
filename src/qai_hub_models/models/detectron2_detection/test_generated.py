@@ -102,7 +102,7 @@ PASSING_PRECISION_RUNTIMES: dict[Precision, list[TargetRuntime]] = {
 
 
 EVAL_DEVICE = ScorecardDevice.get("Samsung Galaxy S25 (Family)")
-HAS_EVAL_DATASET = len(Model.eval_datasets()) > 0
+HAS_EVAL_DATASET = len(Model.get_eval_dataset_classes()) > 0
 
 
 @pytest.mark.compile
@@ -244,7 +244,7 @@ def test_inference(
         if HAS_EVAL_DATASET:
             on_device_inference_for_accuracy_validation(
                 Model,
-                Model.eval_datasets()[0],
+                Model.get_eval_dataset_classes()[0],
                 MODEL_ID,
                 precision,
                 scorecard_path,
@@ -268,7 +268,7 @@ def test_val_data_torch() -> None:
     if not HAS_EVAL_DATASET:
         return
     torch_inference_for_accuracy_validation(
-        Model.from_pretrained(), Model.eval_datasets()[0], MODEL_ID
+        Model.from_pretrained(), Model.get_eval_dataset_classes()[0], MODEL_ID
     )
 
 

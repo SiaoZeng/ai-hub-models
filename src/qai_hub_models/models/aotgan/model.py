@@ -8,6 +8,8 @@ from __future__ import annotations
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.datasets.celebahq import CelebAHQDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.inpaint_evaluator import InpaintEvaluator
 from qai_hub_models.models._shared.repaint.model import RepaintModel
@@ -102,6 +104,6 @@ class AOTGAN(RepaintModel):
     def get_evaluator(self) -> BaseEvaluator:
         return InpaintEvaluator()
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["celebahq"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CelebAHQDataset]

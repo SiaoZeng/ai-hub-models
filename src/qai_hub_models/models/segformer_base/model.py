@@ -9,6 +9,8 @@ import torch
 from transformers import SegformerForSemanticSegmentation
 from typing_extensions import Self
 
+from qai_hub_models.datasets.ade20k import ADESegmentationDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.segmentation_evaluator import SegmentationOutputEvaluator
 from qai_hub_models.models.common import SampleInputsType
@@ -107,10 +109,9 @@ class SegformerBase(BaseModel):
     def get_evaluator(self) -> BaseEvaluator:
         return SegmentationOutputEvaluator(NUM_CLASSES, resize_to_gt=True)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["ade20k"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [ADESegmentationDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "ade20k"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return ADESegmentationDataset

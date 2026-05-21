@@ -11,6 +11,8 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.cofw import COFWDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.hrnet_face_evaluator import HRNetFaceEvaluator
 from qai_hub_models.models.hrnet_face.external_repos import EXTERNAL_REPO_PATHS
@@ -92,13 +94,12 @@ class HRNetFace(BaseModel):
     def get_evaluator(self) -> BaseEvaluator:
         return HRNetFaceEvaluator()
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["cofw"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [COFWDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "cofw"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return COFWDataset
 
     def get_input_spec(
         self,

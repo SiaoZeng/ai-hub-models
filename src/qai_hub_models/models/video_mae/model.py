@@ -10,12 +10,14 @@ from typing import Any
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.kinetics400 import Kinetics400Dataset
 from qai_hub_models.models._shared.video_classifier.model import (
-    DEFAULT_NUM_VIEWS,
     INPUT_VIDEO_PATH,
     KineticsClassifier,
 )
 from qai_hub_models.models._shared.video_classifier.utils import (
+    DEFAULT_NUM_VIEWS,
     preprocess_video_224,
     read_video_per_second,
 )
@@ -122,10 +124,9 @@ class VideoMAE(KineticsClassifier):
             ]
         }
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["kinetics400"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [Kinetics400Dataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "kinetics400"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return Kinetics400Dataset

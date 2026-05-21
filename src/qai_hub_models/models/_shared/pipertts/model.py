@@ -14,6 +14,8 @@ from torch import Tensor
 from typing_extensions import Self
 
 from qai_hub_models.configs.model_metadata import ModelMetadata
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.common_voice import CommonVoiceText
 from qai_hub_models.models._shared.pipertts.pipertts_metadata_json import (
     write_pipertts_supplementary_files,
 )
@@ -414,6 +416,9 @@ class PiperTTS(PretrainedCollectionModel):
         self.decoder = decoder
         self.charsiu_encoder = charsiu_encoder
         self.charsiu_decoder = charsiu_decoder
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CommonVoiceText
 
     @classmethod
     def get_language(cls) -> TTSLanguage:

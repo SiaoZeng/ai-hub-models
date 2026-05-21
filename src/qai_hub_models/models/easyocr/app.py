@@ -22,11 +22,10 @@ from easyocr.utils import (
     group_text_box,
 )
 from PIL import Image
-from qai_hub.public_rest_api import DatasetEntries
+from qai_hub.client import DatasetEntries
 from torch.utils.data import DataLoader
 
-from qai_hub_models.datasets import get_dataset_from_name
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.datasets import DatasetSplit, instantiate_dataset
 from qai_hub_models.utils.base_model import PretrainedCollectionModel
 from qai_hub_models.utils.draw import draw_box_from_corners, draw_box_from_xyxy
 from qai_hub_models.utils.evaluate import sample_dataset
@@ -664,10 +663,6 @@ class EasyOCRApp:
 
         return output
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "icdar2015"
-
     @classmethod
     def get_calibration_data(
         cls,
@@ -685,9 +680,11 @@ class EasyOCRApp:
         detector = collection_model.components["detector"]
         detector_spec = (input_specs or {}).get("detector", detector.get_input_spec())
 
-        dataset = get_dataset_from_name(
-            cls.calibration_dataset_name(),
-            split=DatasetSplit.TRAIN,
+        calibration_dataset_cls = collection_model.get_calibration_dataset_cls()
+        assert calibration_dataset_cls is not None
+        dataset = instantiate_dataset(
+            calibration_dataset_cls,
+            DatasetSplit.TRAIN,
             input_spec=detector_spec,
         )
         num_samples = num_samples or dataset.default_num_calibration_samples()

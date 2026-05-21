@@ -10,6 +10,8 @@ import os
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.eg1800 import EG1800SegmentationDataset
 from qai_hub_models.models._shared.selfie_segmentation.model import SelfieSegmentor
 from qai_hub_models.models.common import Precision
 from qai_hub_models.models.sinet.external_repos.ext_portrait_segmentation.models.SINet import (
@@ -61,13 +63,12 @@ class SINet(SelfieSegmentor):
         image = (image - mean) / std
         return self.model(image)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["eg1800"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [EG1800SegmentationDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "eg1800"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return EG1800SegmentationDataset
 
     def get_hub_litemp_percentage(self, precision: Precision) -> float:
         """Returns the Lite-MP percentage value for the specified mixed precision quantization."""

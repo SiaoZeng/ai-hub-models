@@ -11,6 +11,8 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.foot_track_dataset import FootTrackDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.foot_track_evaluator import FootTrackNetEvaluator
 from qai_hub_models.models.foot_track_net.layers import (
@@ -264,13 +266,12 @@ class FootTrackNet(BaseModel):
     def get_evaluator(self) -> BaseEvaluator:
         return FootTrackNetEvaluator()
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["foot_track_dataset"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [FootTrackDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "foot_track_dataset"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return FootTrackDataset
 
     @classmethod
     def get_labels_file_name(cls) -> str | None:

@@ -56,6 +56,7 @@ from qai_hub_models.configs.tensor_spec import (
     TensorSpec,
 )
 from qai_hub_models.configs.tool_versions import ToolVersions
+from qai_hub_models.datasets.common import BaseDataset, DatasetSplit
 from qai_hub_models.utils.onnx.torch_wrapper import (
     OnnxModelTorchWrapper,
     _verify_onnxruntime_qnn_installed,
@@ -1464,11 +1465,11 @@ class LLMBase(BaseModel, LLMConfigEditor, ABC):
             task, self.context_length, self.sequence_length, self.tokenizer, device
         )
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        from qai_hub_models.datasets.mmmlu import mmmlu_splits
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        from qai_hub_models.datasets.mmmlu import mmmlu_dataset_classes
 
-        return ["wikitext", "wikitext_ja", "tiny_mmlu", "mmlu", *mmmlu_splits]
+        return mmmlu_dataset_classes()
 
     def __del__(self) -> None:
         # Clean up since it is prone to hang onto GPU memory otherwise
@@ -2157,16 +2158,17 @@ class LLM_AIMETOnnx(AIMETOnnxQuantizableMixin, LLMConfigEditor, BaseModel, ABC):
         num_samples: int = 0,
         input_spec: InputSpec | None = None,
     ) -> DatasetEntries | None:
+        from qai_hub_models.datasets import instantiate_dataset
+        from qai_hub_models.datasets.wikitext import WikiText
         from qai_hub_models.models._shared.llm.generator import LLM_Generator
-        from qai_hub_models.datasets.common import DatasetSplit
-        from qai_hub_models.datasets import get_dataset_from_name
 
         if num_samples == 0:
             num_samples = math.ceil(80000 / self.context_length)
 
-        dataset = get_dataset_from_name(
-            name="wikitext",
-            split=DatasetSplit.TRAIN,
+        dataset = instantiate_dataset(
+            WikiText,
+            DatasetSplit.TRAIN,
+            input_spec=None,
             tokenizer=self.tokenizer,
             block_size=self.sequence_length,
             context_length=self.context_length,
@@ -2215,7 +2217,7 @@ class LLM_AIMETOnnx(AIMETOnnxQuantizableMixin, LLMConfigEditor, BaseModel, ABC):
             task, self.context_length, self.sequence_length, self.tokenizer, device
         )
 
-    eval_datasets = LLMBase.eval_datasets
+    get_eval_dataset_classes = LLMBase.get_eval_dataset_classes
 
     @classmethod
     def prepare_genie_assets(
@@ -2741,7 +2743,7 @@ class LLM_QNN(LLMConfigEditor, BaseModel, ABC):
             task, self.context_length, self.sequence_length, self.tokenizer, device
         )
 
-    eval_datasets = LLMBase.eval_datasets
+    get_eval_dataset_classes = LLMBase.get_eval_dataset_classes
 
     @property
     def main_input_name(self) -> str:

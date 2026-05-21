@@ -242,6 +242,9 @@ def test_evaluate(
     expected_metric: float,
     num_samples: int,
 ) -> None:
+    dataset_cls = next(
+        d for d in FP_Model.get_eval_dataset_classes() if d.dataset_name() == task
+    )
     cleanup()
     is_unquantized = checkpoint == "DEFAULT_UNQUANTIZED"
     extra_kwargs = (
@@ -252,7 +255,7 @@ def test_evaluate(
         fp_model_cls=FP_Model,
         qnn_model_cls=QNN_Model,
         num_samples=num_samples,
-        task=task,
+        dataset_cls=dataset_cls,
         skip_fp_model_eval=not is_unquantized,
         kwargs=dict(
             checkpoint=checkpoint,

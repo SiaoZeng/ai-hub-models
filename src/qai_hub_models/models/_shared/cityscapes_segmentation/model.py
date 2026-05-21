@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import torch
 
+from qai_hub_models.datasets.cityscapes import CityscapesDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.segmentation_evaluator import SegmentationOutputEvaluator
 from qai_hub_models.models.common import SampleInputsType
@@ -107,13 +109,12 @@ class CityscapesSegmentor(BaseModel):
             image = image.resize((w, h))
         return {"image": [app_to_net_image_inputs(image)[1].numpy()]}
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["cityscapes"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CityscapesDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "cityscapes"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CityscapesDataset
 
     @classmethod
     def get_labels_file_name(cls) -> str | None:

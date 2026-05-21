@@ -23,6 +23,8 @@ from transformers import (
 from typing_extensions import Self
 
 from qai_hub_models.configs.model_metadata import ModelMetadata
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.common_voice import CommonVoiceText
 from qai_hub_models.models._shared.common import replace_module_recursively
 from qai_hub_models.models._shared.melotts.meloTTS_encoder import (
     FFNMod,
@@ -765,6 +767,9 @@ class MeloTTS(PretrainedCollectionModel):
         self.decoder = decoder
         self.speaker_id = encoder.speaker_id
         self.tts_object = get_tts_object(self.get_language())
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CommonVoiceText
 
     @classmethod
     @abstractmethod

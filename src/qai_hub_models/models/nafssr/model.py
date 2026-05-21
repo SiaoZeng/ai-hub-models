@@ -11,6 +11,7 @@ import torch
 from torchvision import transforms
 from typing_extensions import Self
 
+from qai_hub_models.datasets.flickr1024 import Flickr1024Dataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.stereo_evaluator import StereoEvaluator
 from qai_hub_models.models._shared.nafnet.model import (
@@ -143,10 +144,9 @@ class NAFSSR(NAFNetModel):
     def get_channel_last_outputs(self) -> list[str]:
         return ["upscaled_left", "upscaled_right"]
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["flickr1024"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type]:
+        return [Flickr1024Dataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str | None:
-        return "flickr1024"
+    def get_calibration_dataset_cls(self) -> type:
+        return Flickr1024Dataset

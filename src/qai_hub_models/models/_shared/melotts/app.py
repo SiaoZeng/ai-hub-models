@@ -7,14 +7,13 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import soundfile as sf
 import torch
-from qai_hub.public_rest_api import DatasetEntries
+from qai_hub.client import DatasetEntries
 from torch import Tensor
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 
-from qai_hub_models.datasets import get_dataset_from_name
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.datasets import DatasetSplit, instantiate_dataset
 from qai_hub_models.models._shared.melotts.model import (
     DEC_SEQ_OVERLAP,
     MAX_BERT_TOKENS,
@@ -266,10 +265,6 @@ class MeloTTSApp(CollectionAppProtocol):
             samplerate=self.tts_object.hps.data.sampling_rate,
         )
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "common_voice_text"
-
     @classmethod
     def get_calibration_data(
         cls,
@@ -297,8 +292,10 @@ class MeloTTSApp(CollectionAppProtocol):
         noise_scale_w = 0.8
         sdp_ratio = 0.2
 
-        dataset = get_dataset_from_name(
-            cls.calibration_dataset_name(),
+        calibration_dataset_cls = collection_model.get_calibration_dataset_cls()
+        assert calibration_dataset_cls is not None
+        dataset = instantiate_dataset(
+            calibration_dataset_cls,
             DatasetSplit.TRAIN,
             lang=language,
         )

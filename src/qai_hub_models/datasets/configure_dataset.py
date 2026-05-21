@@ -17,7 +17,7 @@ from qai_hub_models.datasets.gear_guard_dataset import GearGuardDataset
 from qai_hub_models.datasets.human_faces import HumanFacesDataset
 from qai_hub_models.datasets.kitti import KittiDataset
 from qai_hub_models.datasets.nuscenes import NuscenesDataset
-from qai_hub_models.datasets.nyuv2 import NyUv2Dataset
+from qai_hub_models.datasets.nyuv2 import NYUV2Dataset
 from qai_hub_models.datasets.reds import REDSDataset
 from qai_hub_models.datasets.sav import SaVDataset
 from qai_hub_models.datasets.semantic_kitti import SemanticKittiDataset
@@ -69,7 +69,7 @@ def get_parser() -> argparse.ArgumentParser:
 
 def configure_dataset(dataset: str, files: list[str]) -> None:
     if dataset == "nyuv2":
-        NyUv2Dataset(source_dataset_file=files[0])
+        NYUV2Dataset(source_dataset_file=files[0])
     elif dataset == "nuscenes":
         NuscenesDataset(source_dataset_file=files[0])
     elif dataset == "foot_track_dataset":

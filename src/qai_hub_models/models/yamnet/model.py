@@ -9,6 +9,8 @@ import torch
 from torch_audioset.yamnet.model import YAMNet
 from typing_extensions import Self
 
+from qai_hub_models.datasets.audioset import AudioSetDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.audioset_evaluator import AudioSetOutputEvaluator
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.models.common import SampleInputsType
@@ -86,13 +88,12 @@ class YamNet(BaseModel):
     def get_output_names(self) -> list[str]:
         return ["class_scores"]
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["audioset"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [AudioSetDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "audioset"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return AudioSetDataset
 
     def get_evaluator(self) -> BaseEvaluator:
         return AudioSetOutputEvaluator()

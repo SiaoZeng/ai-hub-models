@@ -11,6 +11,8 @@ from qai_hub.client import Device
 from torch.nn import functional as F
 from typing_extensions import Self
 
+from qai_hub_models.datasets.coco import CocoDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.models._shared.detectron2.model import Detectron2
 from qai_hub_models.models.common import (
     Precision,
@@ -248,6 +250,9 @@ class Detectron2Detection(PretrainedCollectionModel):
         super().__init__(*[proposal_generator, roi_head])
         self.proposal_generator = proposal_generator
         self.roi_head = roi_head
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CocoDataset
 
     @classmethod
     def from_pretrained(cls, config: str = DEFAULT_CONFIG) -> Self:

@@ -280,3 +280,32 @@ class MMMLU_YO(MMMLU):
 
 class MMMLU_ZH(MMMLU):
     SUBSET_NAME = "ZH_CN"
+
+
+def mmmlu_dataset_classes() -> list[type[BaseDataset]]:
+    from qai_hub_models.datasets.mmlu import MMLU
+    from qai_hub_models.datasets.tiny_mmlu import TinyMMLU
+    from qai_hub_models.datasets.wikitext import WikiText
+    from qai_hub_models.datasets.wikitext_ja import WikiText_Japanese
+
+    return [
+        WikiText,
+        WikiText_Japanese,
+        TinyMMLU,
+        MMLU,
+        MMMLU,
+        MMMLU_AR,
+        MMMLU_BN,
+        MMMLU_DE,
+        MMMLU_ES,
+        MMMLU_FR,
+        MMMLU_HI,
+        MMMLU_ID,
+        MMMLU_IT,
+        MMMLU_JA,
+        MMMLU_KO,
+        MMMLU_PT,
+        MMMLU_SW,
+        MMMLU_YO,
+        MMMLU_ZH,
+    ]

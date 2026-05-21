@@ -46,6 +46,7 @@ from qai_hub.client import Device
 from typing_extensions import Self
 
 from qai_hub_models.configs.model_metadata import ModelMetadata
+from qai_hub_models.datasets.imagenette import IMAGENETTE_ASSET
 from qai_hub_models.models._shared.llm.common import LLMIOType
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_CONTEXT_LENGTH,
@@ -630,8 +631,6 @@ class Qwen2_5_VL_7B_VisionEncoder(Qwen2VLVisionEncoder):
         """
         from PIL import Image
         from transformers import AutoProcessor
-
-        from qai_hub_models.datasets.imagenette import IMAGENETTE_ASSET
 
         IMAGENETTE_ASSET.fetch(extract=True)
         img_root = IMAGENETTE_ASSET.extracted_path

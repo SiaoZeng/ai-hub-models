@@ -12,6 +12,8 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.cocobody import CocoBodyDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.centernet_pose_evaluator import CenternetPoseEvaluator
 from qai_hub_models.models._shared.centernet.external_repos.centernet.src.lib.models.decode import (
@@ -33,6 +35,7 @@ MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
 
 IMAGE = CachedWebModelAsset.from_asset_store(MODEL_ID, MODEL_ASSET_VERSION, "image.jpg")
+
 # checkpoint download from https://drive.google.com/file/d/1mC2PAQT_RuHi_9ZMZgkt4rg7BSY2_Lkd
 DEFAULT_WEIGHTS = CachedWebModelAsset.from_asset_store(
     MODEL_ID,
@@ -133,17 +136,17 @@ class CenterNetPose(CenterNet):
         hm, wh, hps, reg, hm_hp, hm_offset = self.model(image)[-1].values()
         hm = torch.sigmoid(hm)
         hm_hp = torch.sigmoid(hm_hp)
-
         return hm, wh, hps, reg, hm_hp, hm_offset
 
-    def get_output_names(self) -> list[str]:
+    @staticmethod
+    def get_output_names() -> list[str]:
         return ["hm", "wh", "hps", "reg", "hm_hp", "hm_offset"]
 
+    @staticmethod
     def get_input_spec(
-        self,
         batch_size: int = 1,
-        height: int = 512,
-        width: int = 512,
+        height: int = 256,
+        width: int = 256,
     ) -> InputSpec:
         """
         Returns the input specification (name -> (shape, type). This can be
@@ -177,15 +180,17 @@ class CenterNetPose(CenterNet):
         }
 
     def get_evaluator(self) -> BaseEvaluator:
-        return CenternetPoseEvaluator(decode=self.decode)
+        return CenternetPoseEvaluator(
+            decode=self.decode,
+        )
+
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CocoBodyDataset]
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CocoBodyDataset
 
     @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["coco_centernet"]
-
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "coco_centernet"
-
-    def get_channel_last_inputs(self) -> list[str]:
+    def get_channel_last_inputs() -> list[str]:
         return ["image"]

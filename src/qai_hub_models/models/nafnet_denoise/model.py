@@ -9,6 +9,7 @@ from pathlib import Path
 
 from typing_extensions import Self
 
+from qai_hub_models.datasets.sidd import SIDDDataset
 from qai_hub_models.models._shared.nafnet.model import (
     NAFNetModel,
     _load_nafnet_source_model,
@@ -98,10 +99,9 @@ class NafNetDeNoise(NAFNetModel):
     def get_channel_last_outputs(self) -> list[str]:
         return ["denoised_image"]
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["sidd"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type]:
+        return [SIDDDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str | None:
-        return "sidd"
+    def get_calibration_dataset_cls(self) -> type:
+        return SIDDDataset

@@ -12,6 +12,8 @@ from typing_extensions import Self
 from ultralytics.models import YOLO as ultralytics_YOLO
 from ultralytics.nn.tasks import PoseModel
 
+from qai_hub_models.datasets.coco_keypoints import CocoKeypointsDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.models._shared.ultralytics.pose_patches import (
     patch_ultralytics_pose_head,
@@ -161,10 +163,9 @@ class YoloV11PoseDetector(Yolo):
 
         return YoloV11PoseEvaluator()
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["coco_keypoints"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CocoKeypointsDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "coco_keypoints"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CocoKeypointsDataset

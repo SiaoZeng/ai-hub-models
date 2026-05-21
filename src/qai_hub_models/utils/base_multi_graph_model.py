@@ -295,6 +295,11 @@ class MultiGraphCollectionModel(
     def eval_datasets() -> list[str]:
         return []
 
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type]:
+        """Returns list of dataset classes on which this model can be evaluated."""
+        return []
+
     def convert_to_hub_source_model(
         self,
         component_name: str,

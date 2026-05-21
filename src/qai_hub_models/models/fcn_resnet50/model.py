@@ -8,6 +8,8 @@ from __future__ import annotations
 import torchvision.models as tv_models
 from typing_extensions import Self
 
+from qai_hub_models.datasets.coco_voc_seg import CocoVocSegDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.models._shared.deeplab.model import DeepLabV3Model
 
 MODEL_ID = __name__.split(".")[-2]
@@ -25,10 +27,9 @@ class FCN_ResNet50(DeepLabV3Model):
         model.aux_classifier = None
         return cls(model)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["coco_voc_seg"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CocoVocSegDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "coco_voc_seg"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CocoVocSegDataset

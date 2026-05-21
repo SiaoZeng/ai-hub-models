@@ -249,6 +249,9 @@ def test_evaluate(
     expected_metric: float,
     num_samples: int,
 ) -> None:
+    dataset_cls = next(
+        d for d in FP_Model.get_eval_dataset_classes() if d.dataset_name() == task
+    )
     cleanup()
     is_unquantized = checkpoint == "DEFAULT_UNQUANTIZED"
     actual_metric, _ = evaluate(
@@ -256,7 +259,7 @@ def test_evaluate(
         fp_model_cls=FP_Model,
         qnn_model_cls=QNN_Model,
         num_samples=num_samples,
-        task=task,
+        dataset_cls=dataset_cls,
         skip_fp_model_eval=not is_unquantized,
         kwargs=dict(
             checkpoint=checkpoint,
@@ -319,11 +322,16 @@ def test_quantize_demo_eval(tmp_path: Path, capsys: pytest.CaptureFixture[str]) 
 
     # Evaluate tiny_mmlu
     cleanup()
+    tiny_mmlu_cls = next(
+        d
+        for d in FP_Model.get_eval_dataset_classes()
+        if d.dataset_name() == "tiny_mmlu"
+    )
     actual_metric, _ = evaluate(
         quantized_model_cls=Model,
         fp_model_cls=FP_Model,
         qnn_model_cls=QNN_Model,
-        task="tiny_mmlu",
+        dataset_cls=tiny_mmlu_cls,
         num_samples=0,
         kwargs=dict(
             checkpoint=checkpoint_path,

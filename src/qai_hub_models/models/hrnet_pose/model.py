@@ -9,6 +9,9 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.cocobody import CocoBodyDataset
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.mpii import MPIIDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.hrnet_evaluator import HRNetPoseEvaluator
 from qai_hub_models.evaluators.pose_evaluator import MPIIPoseEvaluator
@@ -128,10 +131,9 @@ class HRNetPose(BaseModel):
             return MPIIPoseEvaluator()
         return HRNetPoseEvaluator()
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["cocobody", "mpii"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CocoBodyDataset, MPIIDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "cocobody"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CocoBodyDataset

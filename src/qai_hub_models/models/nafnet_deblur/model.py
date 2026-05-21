@@ -9,6 +9,7 @@ from pathlib import Path
 
 from typing_extensions import Self
 
+from qai_hub_models.datasets.reds import REDSDataset
 from qai_hub_models.models._shared.nafnet.model import (
     NAFNetModel,
     _load_nafnet_source_model,
@@ -96,10 +97,9 @@ class NafNetDeBlur(NAFNetModel):
     def get_channel_last_outputs(self) -> list[str]:
         return ["deblurred_image"]
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["reds"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type]:
+        return [REDSDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str | None:
-        return "reds"
+    def get_calibration_dataset_cls(self) -> type:
+        return REDSDataset

@@ -16,6 +16,8 @@ from easyocr.model.modules import BidirectionalLSTM
 from easyocr.model.vgg_model import Model as VGGRecognizer
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.icdar2015 import ICDAR2015Dataset
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,
@@ -199,6 +201,9 @@ class EasyOCR(PretrainedCollectionModel):
         self.lang_list = lang_list
         self.detector = detector
         self.recognizer = recognizer
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return ICDAR2015Dataset
 
     @classmethod
     def from_pretrained(

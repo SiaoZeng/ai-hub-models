@@ -4,10 +4,11 @@
 # ---------------------------------------------------------------------
 from __future__ import annotations
 
+import inspect
+
 from qai_hub_models.configs.code_gen_yaml import QAIHMModelCodeGen
-from qai_hub_models.datasets import _ALL_DATASETS_IMPORT_ERRORS, DATASET_NAME_MAP
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.models.common import Precision
-from qai_hub_models.utils.base_app import CollectionAppProtocol
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,
@@ -17,8 +18,12 @@ from qai_hub_models.utils.base_multi_graph_model import MultiGraphCollectionMode
 from qai_hub_models.utils.path_helpers import QAIHM_PACKAGE_ROOT
 
 
-def _is_known_dataset(name: str) -> bool:
-    return name in DATASET_NAME_MAP or name in _ALL_DATASETS_IMPORT_ERRORS
+def _is_valid_dataset_class(dataset_cls: type) -> bool:
+    return (
+        isinstance(dataset_cls, type)
+        and issubclass(dataset_cls, BaseDataset)
+        and not inspect.isabstract(dataset_cls)
+    )
 
 
 def _quantized_precision_names(code_gen: QAIHMModelCodeGen) -> list[str]:
@@ -69,7 +74,7 @@ def validate_io_names(instance: BaseModel) -> list[str]:
 
 
 def validate_io_names_collection(
-    model: PretrainedCollectionModel | MultiGraphCollectionModel,
+    model: CollectionModel | MultiGraphCollectionModel,
 ) -> list[str]:
     """
     Run I/O name validation on each component of a collection model.
@@ -94,97 +99,11 @@ def validate_io_names_collection(
     return errors
 
 
-def validate_calibration_dataset(
-    model: BaseModel,
-    code_gen: QAIHMModelCodeGen,
-) -> list[str]:
-    """
-    Validate that non-AIMET models with quantized precisions specify
-    a calibration dataset registered in qai_hub_models/datasets.
-
-    Parameters
-    ----------
-    model
-        The model instance to validate.
-    code_gen
-        The model's code-gen.yaml configuration.
-
-    Returns
-    -------
-    list[str]
-        Error messages for each failing check.
-    """
-    if code_gen.is_aimet:
-        return []
-
-    quantized_precisions = _quantized_precision_names(code_gen)
-    if not quantized_precisions:
-        return []
-
-    dataset_name = model.calibration_dataset_name()
-    if dataset_name is None:
-        return [
-            f"Model supports quantized precisions {quantized_precisions} "
-            "but calibration_dataset_name() returns None."
-        ]
-    if not _is_known_dataset(dataset_name):
-        return [
-            f"calibration_dataset_name() returns '{dataset_name}', "
-            "which is not registered in qai_hub_models/datasets/__init__.py."
-        ]
-    return []
-
-
-def validate_calibration_dataset_collection(
-    code_gen: QAIHMModelCodeGen,
-    app_cls: type | None,
-) -> list[str]:
-    """
-    Validate calibration data for collection models with quantized precisions.
-
-    The App class must implement CollectionAppProtocol with a registered
-    calibration dataset.
-
-    Parameters
-    ----------
-    code_gen
-        The model's code-gen.yaml configuration.
-    app_cls
-        The model's App class, or None if the model does not export one.
-
-    Returns
-    -------
-    list[str]
-        Error messages for each failing check.
-    """
-    if code_gen.is_aimet:
-        return []
-
-    quantized_precisions = _quantized_precision_names(code_gen)
-    if not quantized_precisions:
-        return []
-
-    if app_cls is None or not issubclass(app_cls, CollectionAppProtocol):
-        return [
-            f"Model supports quantized precisions "
-            f"{quantized_precisions} but App does not "
-            "implement CollectionAppProtocol."
-        ]
-
-    dataset_name: str = app_cls.calibration_dataset_name()
-    if not _is_known_dataset(dataset_name):
-        return [
-            f"App.calibration_dataset_name() returns '{dataset_name}', "
-            "which is not registered in qai_hub_models/datasets/__init__.py."
-        ]
-    return []
-
-
 def validate_eval_datasets(
-    model: BaseModel | PretrainedCollectionModel | MultiGraphCollectionModel,
+    model: BaseModel | PretrainedCollectionModel,
 ) -> list[str]:
     """
-    Validate that all names returned by eval_datasets() are registered.
+    Validate that all dataset classes returned by get_eval_dataset_classes() are valid.
 
     Parameters
     ----------
@@ -194,13 +113,13 @@ def validate_eval_datasets(
     Returns
     -------
     list[str]
-        Error messages for each unregistered dataset name.
+        Error messages for each invalid dataset class.
     """
     return [
-        f"eval_datasets() includes '{name}', which is not "
-        "registered in qai_hub_models/datasets/__init__.py."
-        for name in model.eval_datasets()
-        if not _is_known_dataset(name)
+        f"get_eval_dataset_classes() includes '{ds_cls.dataset_name()}', which is not "
+        "a valid BaseDataset subclass."
+        for ds_cls in model.get_eval_dataset_classes()
+        if not _is_valid_dataset_class(ds_cls)
     ]
 
 
@@ -218,13 +137,15 @@ def validate_eval_datasets_have_evaluator(
     Returns
     -------
     list[str]
-        Error messages if eval_datasets() is non-empty but
+        Error messages if get_eval_dataset_classes() is non-empty but
         get_evaluator() is not overridden.
     """
-    if not model.eval_datasets():
+    if not model.get_eval_dataset_classes():
         return []
     if model.get_evaluator is BaseModel.get_evaluator:
-        return ["eval_datasets() is non-empty but get_evaluator() is not implemented."]
+        return [
+            "get_eval_dataset_classes() is non-empty but get_evaluator() is not implemented."
+        ]
     return []
 
 
@@ -304,7 +225,7 @@ def _component_precision_implemented(component: BaseModel) -> bool:
 
 
 def validate_component_precision(
-    model: PretrainedCollectionModel | MultiGraphCollectionModel,
+    model: CollectionModel | MultiGraphCollectionModel,
     code_gen: QAIHMModelCodeGen,
 ) -> list[str]:
     """
@@ -389,18 +310,24 @@ def perform_runtime_model_validation(
     errors: list[str] = []
 
     model = model_cls.from_pretrained()
-    if isinstance(model, (CollectionModel, MultiGraphCollectionModel)):
+    if isinstance(model, MultiGraphCollectionModel):
         errors.extend(validate_io_names_collection(model))
-        errors.extend(validate_calibration_dataset_collection(code_gen, app_cls))
         errors.extend(validate_component_precision(model, code_gen))
+        # MultiGraphCollectionModel doesn't support new dataset API yet, skip dataset validation
+    elif isinstance(model, PretrainedCollectionModel):
+        errors.extend(validate_io_names_collection(model))
+        errors.extend(validate_component_precision(model, code_gen))
+        errors.extend(validate_eval_datasets(model))
+    elif isinstance(model, CollectionModel):
+        errors.extend(validate_io_names_collection(model))
+        errors.extend(validate_component_precision(model, code_gen))
+        # Other CollectionModel types don't support dataset validation yet
     else:
         errors.extend(validate_io_names(model))
-        errors.extend(validate_calibration_dataset(model, code_gen))
         errors.extend(validate_mixed_precision_litemp(model, code_gen))
         errors.extend(validate_labels_file(model))
         errors.extend(validate_eval_datasets_have_evaluator(model))
-
-    errors.extend(validate_eval_datasets(model))
+        errors.extend(validate_eval_datasets(model))
 
     if errors:
         header = (

@@ -10,6 +10,8 @@ from qai_hub.client import Device
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.mpiigaze import MPIIGazeDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.mpigaze_evaluator import MPIIGazeEvaluator
 from qai_hub_models.models.common import (
@@ -94,13 +96,12 @@ class EyeGaze(BaseModel):
         options = " --compute_unit cpu"  # Accuracy no regained on NPU
         return profile_options + options
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["mpiigaze"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [MPIIGazeDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "mpiigaze"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return MPIIGazeDataset
 
     def get_input_spec(
         self,

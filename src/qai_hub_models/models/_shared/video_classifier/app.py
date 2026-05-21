@@ -9,12 +9,10 @@ from pathlib import Path
 
 import torch
 
-from qai_hub_models.models._shared.video_classifier.model import (
+from qai_hub_models.models._shared.video_classifier.model import KineticsClassifier
+from qai_hub_models.models._shared.video_classifier.utils import (
     DEFAULT_NUM_CLIPS,
     DEFAULT_NUM_CROPS,
-    KineticsClassifier,
-)
-from qai_hub_models.models._shared.video_classifier.utils import (
     get_class_name_kinetics_400,
     multi_crop,
     preprocess_video_kinetics_400,

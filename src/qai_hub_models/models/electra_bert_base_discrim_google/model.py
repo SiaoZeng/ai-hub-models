@@ -9,7 +9,7 @@ import torch
 from transformers import ElectraForPreTraining, ElectraTokenizer
 from typing_extensions import Self
 
-from qai_hub_models.datasets import DATASET_NAME_MAP
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.datasets.wikitext_masked import ElectraWikiTextMasked
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.electra_discriminator_evaluator import (
@@ -29,6 +29,10 @@ WEIGHTS_NAME = "google/electra-base-discriminator"
 class ElectraBertBaseDiscrimGoogle(BaseBertModel):
     """Exportable HuggingFace ElectraBertBaseDiscrimGoogle Model"""
 
+    @staticmethod
+    def default_weights() -> str:
+        return WEIGHTS_NAME
+
     @classmethod
     def from_pretrained(cls, weights: str = WEIGHTS_NAME) -> Self:
         """Load HuggingFace Bert Model for Embeddings."""
@@ -40,13 +44,12 @@ class ElectraBertBaseDiscrimGoogle(BaseBertModel):
     def get_evaluator(self) -> BaseEvaluator:
         return ElectraDiscriminatorEvaluator()
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["electra_bert_wikitext_masked"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [ElectraWikiTextMasked]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "electra_bert_wikitext_masked"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return ElectraWikiTextMasked
 
     def forward(
         self,
@@ -94,6 +97,3 @@ class ElectraBertBaseDiscrimGoogle(BaseBertModel):
 
     def get_output_names(self) -> list[str]:
         return ["predictions"]
-
-
-DATASET_NAME_MAP["electra_bert_wikitext_masked"] = ElectraWikiTextMasked

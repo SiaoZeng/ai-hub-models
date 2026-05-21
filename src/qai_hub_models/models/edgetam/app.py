@@ -16,8 +16,7 @@ from qai_hub.client import DatasetEntries
 from sam2.modeling.sam2_base import SAM2Base as Sam2
 from torch.utils.data import DataLoader
 
-from qai_hub_models.datasets import get_dataset_from_name
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.datasets import DatasetSplit, instantiate_dataset
 from qai_hub_models.models._shared.sam2.model_patches import (
     mask_postprocessing,
 )
@@ -145,10 +144,6 @@ class EdgeTAMVideoApp(CollectionAppProtocol):
         sam2.binarize_mask_from_pts_for_mem_enc = True
         self._precompute_backbone_encodings(sam2, encoder_input_img_size)
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "sav"
-
     @classmethod
     def get_calibration_data(
         cls,
@@ -169,9 +164,11 @@ class EdgeTAMVideoApp(CollectionAppProtocol):
         )
         batch_size = get_batch_size(component_spec) or 1
 
-        dataset = get_dataset_from_name(
-            cls.calibration_dataset_name(),
-            split=DatasetSplit.TRAIN,
+        calibration_dataset_cls = collection_model.get_calibration_dataset_cls()
+        assert calibration_dataset_cls is not None
+        dataset = instantiate_dataset(
+            calibration_dataset_cls,
+            DatasetSplit.TRAIN,
             input_spec=encoder_spec,
         )
         num_samples = num_samples or dataset.default_num_calibration_samples()

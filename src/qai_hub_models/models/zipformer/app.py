@@ -12,12 +12,11 @@ import kaldi_native_fbank as knf
 import numpy as np
 import soundfile
 import torch
-from qai_hub.public_rest_api import DatasetEntries
+from qai_hub.client import DatasetEntries
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from qai_hub_models.datasets import get_dataset_from_name
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.datasets import DatasetSplit, instantiate_dataset
 from qai_hub_models.models.zipformer.model import HfZipformer
 from qai_hub_models.utils.base_app import CollectionAppProtocol
 from qai_hub_models.utils.evaluate import sample_dataset
@@ -144,10 +143,6 @@ class ZipformerApp(CollectionAppProtocol):
         }
         return streaming_greedy_search(self.model, origin_fpm, frames)
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "common_voice"
-
     @classmethod
     def get_calibration_data(
         cls,
@@ -170,9 +165,9 @@ class ZipformerApp(CollectionAppProtocol):
         offset = collection_model.offset
         blank_id = collection_model.blank_id
         context_size = collection_model.context_size
-        dataset = get_dataset_from_name(
-            cls.calibration_dataset_name(), DatasetSplit.TRAIN
-        )
+        calibration_dataset_cls = collection_model.get_calibration_dataset_cls()
+        assert calibration_dataset_cls is not None
+        dataset = instantiate_dataset(calibration_dataset_cls, DatasetSplit.TRAIN)
         num_samples = num_samples or dataset.default_samples_per_job()
         num_samples = (num_samples // batch_size) * batch_size
         print(f"Loading {num_samples} calibration samples.")

@@ -12,8 +12,6 @@ For example, a function may take any class that implements FromPretrained.
 The parameter would be typed "FromPretrainedProtocol", as defined in this file.
 
 Protocols may also be inherited to declare that a class must implement said protocol.
-For example, AIMETOnnxQuantizableMixin inherits HubModelProtocol. This informs the type
-checker that the class that inherits the mixin must implement HubModelProtocol.
 
 These are type checked at compile time.
 """
@@ -39,14 +37,6 @@ FromPrecompiledTypeVar = TypeVar(
 @runtime_checkable
 class QuantizableModelProtocol(Protocol):
     """Minimum required methods to export a model that can be quantized."""
-
-    @staticmethod
-    def calibration_dataset_name() -> str | None:
-        """
-        Name of the dataset to use for calibration when quantizing the model.
-
-        Must be registered in qai_hub_models/datasets/__init__.py
-        """
 
 
 @runtime_checkable
@@ -148,14 +138,9 @@ class FromPrecompiledProtocol(Protocol):
 class EvaluatableModelProtocol(ExecutableModelProtocol, Protocol):
     """Models follow this protocol if they can be evaluated using AI Hub Models."""
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        """
-        Returns list of strings with names of all datasets on which
-        this model can be evaluated.
-
-        All names must be registered in qai_hub_models/datasets/__init__.py
-        """
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type]:
+        """Returns list of dataset classes on which this model can be evaluated."""
         ...
 
     def get_evaluator(self) -> BaseEvaluator:

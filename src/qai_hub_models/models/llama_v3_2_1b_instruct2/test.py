@@ -165,6 +165,11 @@ def test_evaluate(
     expected_metric: float,
     num_samples: int,
 ) -> None:
+    dataset_cls = next(
+        d
+        for d in FPSplitModelWrapper.get_eval_dataset_classes()
+        if d.dataset_name() == task
+    )
     Llama3_2_1B_PreSplit.clear_cache()
     Llama3_2_1B_QuantizablePreSplit.clear_cache()
     FPSplitModelWrapper.clear_cache()
@@ -178,7 +183,7 @@ def test_evaluate(
         fp_model_cls=FPSplitModelWrapper,
         qnn_model_cls=LLM_QNN,
         num_samples=num_samples,
-        task=task,
+        dataset_cls=dataset_cls,
         skip_fp_model_eval=not is_unquantized,
         kwargs=dict(
             checkpoint=checkpoint,

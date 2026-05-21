@@ -10,6 +10,7 @@ import torch
 from qai_hub.client import Device
 from transformers import AutoTokenizer
 
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.datasets.wikitext_masked import WikiTextMasked
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.maskedlm_evaluator import MaskedLMEvaluator
@@ -103,12 +104,8 @@ class BaseBertModel(BaseModel):
         return MaskedLMEvaluator()
 
     @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["bert_wikitext_masked"]
-
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "bert_wikitext_masked"
+    def default_weights() -> str:
+        raise NotImplementedError("Subclasses must define default_weights")
 
     @classmethod
     def get_dataset_class(cls, tokenizer_name: str) -> type[WikiTextMasked]:
@@ -118,3 +115,10 @@ class BaseBertModel(BaseModel):
                 super().__init__(tokenizer=tokenizer, **kwargs)
 
         return BertWikiTextMasked
+
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [cls.get_dataset_class(cls.default_weights())]
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return self.__class__.get_dataset_class(self.__class__.default_weights())

@@ -44,7 +44,7 @@ NYUV2_PRIVATE_ASSET = CachedPrivateDatasetAsset(
 )
 
 
-class NyUv2Dataset(BaseDataset):
+class NYUV2Dataset(BaseDataset):
     """Wrapper class around NYU_depth_v2 dataset https://cs.nyu.edu/~fergus/datasets/nyu_depth_v2.html"""
 
     def __init__(

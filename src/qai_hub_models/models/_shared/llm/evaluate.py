@@ -12,8 +12,12 @@ import torch
 from torch.utils.data import DataLoader
 from transformers.cache_utils import DynamicCache
 
-from qai_hub_models.datasets import get_dataset_from_name
-from qai_hub_models.datasets.common import AugmentedLabelDataset, DatasetSplit
+from qai_hub_models.datasets import instantiate_dataset
+from qai_hub_models.datasets.common import (
+    AugmentedLabelDataset,
+    BaseDataset,
+    DatasetSplit,
+)
 from qai_hub_models.models._shared.llm.generator import LLM_Generator
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_CONTEXT_LENGTH,
@@ -37,25 +41,24 @@ from qai_hub_models.utils.checkpoint import (
 
 def get_dataset(
     model: torch.nn.Module,
-    task: str,
+    dataset_cls: type[BaseDataset],
     num_samples: int,
     processor: Any = None,
     image_size: tuple[int, int] | None = None,
 ) -> DataLoader[AugmentedLabelDataset]:
-    # Load dataset.
-    # For VLM tasks, pass the processor so images are included.
     extra_kwargs: dict[str, Any] = {}
     if processor is not None:
         extra_kwargs["processor"] = processor
     if image_size is not None:
         extra_kwargs["image_size"] = image_size
-    dataset = get_dataset_from_name(
-        name=task,
+    dataset = instantiate_dataset(
+        dataset_cls,
+        DatasetSplit.TEST,
+        input_spec=None,
         tokenizer=model.tokenizer,
         block_size=model.sequence_length,
         context_length=model.context_length,
         num_samples=num_samples,
-        split=DatasetSplit.TEST,
         **extra_kwargs,
     )
     return DataLoader(
@@ -68,7 +71,7 @@ def evaluate(
     fp_model_cls: type[LLMBase],
     qnn_model_cls: type[LLM_QNN],
     num_samples: int,
-    task: str,
+    dataset_cls: type[BaseDataset],
     kwargs: Mapping[str, Any],
     prompt_sequence_length: int = DEFAULT_SEQUENCE_LENGTH,
     context_length: int = DEFAULT_CONTEXT_LENGTH,
@@ -137,13 +140,13 @@ def evaluate(
 
     eval_dataloader = get_dataset(
         fp_model,
-        task,
+        dataset_cls,
         num_samples,
         processor=vlm_processor,
         image_size=vlm_image_size,
     )
     evaluator = fp_model.get_evaluator(
-        task,
+        dataset_cls.dataset_name(),
         torch.device("cpu") if not is_fp else host_device,
     )
 
@@ -197,7 +200,7 @@ def evaluate(
     model.eval()
 
     if eval_dataloader is None:
-        eval_dataloader = get_dataset(model, task, num_samples)
+        eval_dataloader = get_dataset(model, dataset_cls, num_samples)
 
     if embedding is None:
         assert fp_model_cls.EmbeddingClass is not None
@@ -267,7 +270,7 @@ def llm_evaluate(
         "--task",
         type=str,
         default="wikitext",
-        choices=fp_model_cls.eval_datasets(),
+        choices=[d.dataset_name() for d in fp_model_cls.get_eval_dataset_classes()],
         help="Tasks for evaluation.",
     )
     parser.add_argument(
@@ -307,12 +310,17 @@ def llm_evaluate(
         if img_h is not None and img_w is not None:
             vlm_image_size = (img_w, img_h)
 
+    eval_dataset_classes = fp_model_cls.get_eval_dataset_classes()
+    task_dataset_cls = next(
+        ds for ds in eval_dataset_classes if ds.dataset_name() == args.task
+    )
+
     _, formatted_accuracy = evaluate(
         quantized_model_cls=quantized_model_cls,
         fp_model_cls=fp_model_cls,
         qnn_model_cls=qnn_model_cls,
         num_samples=args.num_samples,
-        task=args.task,
+        dataset_cls=task_dataset_cls,
         kwargs=kwargs,
         vision_encoder_cls=vision_encoder_cls,
         hf_repo_name=hf_repo_name,

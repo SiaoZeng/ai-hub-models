@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import torch
 
+from qai_hub_models.datasets.bsd300 import BSD300Dataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.superres_evaluator import SuperResolutionOutputEvaluator
 from qai_hub_models.models.common import SampleInputsType
@@ -120,10 +122,9 @@ class SuperResolutionModel(BaseModel):
             image = image.resize((w, h))
         return {"image": [app_to_net_image_inputs(image)[1].numpy()]}
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["bsd300"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [BSD300Dataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "bsd300"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return BSD300Dataset

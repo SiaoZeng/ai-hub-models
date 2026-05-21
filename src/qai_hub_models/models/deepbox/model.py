@@ -10,6 +10,8 @@ import torch
 from torchvision.models import vgg
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.kitti import KittiDataset
 from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.models.deepbox.external_repos.boundingbox_3d.torch_lib import (
     Model as TorchLibModel,
@@ -158,6 +160,9 @@ class DeepBox(PretrainedCollectionModel):
         super().__init__(yolo_2d_det, vgg_3d_det)
         self.yolo_2d_det = yolo_2d_det
         self.vgg_3d_det = vgg_3d_det
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return KittiDataset
 
     @classmethod
     def from_pretrained(

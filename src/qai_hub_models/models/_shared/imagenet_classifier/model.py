@@ -11,6 +11,9 @@ import numpy as np
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.imagenet import ImagenetDataset
+from qai_hub_models.datasets.imagenette import ImagenetteDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.classification_evaluator import ClassificationEvaluator
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
@@ -139,13 +142,12 @@ class ImagenetClassifier(BaseModel):
     def get_channel_last_inputs(self) -> list[str]:
         return ["image_tensor"]
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["imagenet", "imagenette"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [ImagenetDataset, ImagenetteDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "imagenette"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return ImagenetteDataset
 
     @classmethod
     def get_labels_file_name(cls) -> str | None:

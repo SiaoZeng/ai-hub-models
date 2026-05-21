@@ -11,6 +11,8 @@ from tflite import Model
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.human_matting import HumanMattingDataset
 from qai_hub_models.models._shared.selfie_segmentation.model import SelfieSegmentor
 from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.models.mediapipe_selfie.utils import (
@@ -385,10 +387,9 @@ class MediapipeSelfie(SelfieSegmentor):
             image = image.resize((w, h))
         return {"image": [app_to_net_image_inputs(image)[1].numpy()]}
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "human_matting"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return HumanMattingDataset
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["human_matting"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [HumanMattingDataset]

@@ -25,7 +25,7 @@ eg1880_ASSET = CachedWebDatasetAsset.from_asset_store(
 )
 
 
-class eg1800SegmentationDataset(BaseDataset):
+class EG1800SegmentationDataset(BaseDataset):
     """Wrapper class around eg1800 dataset"""
 
     def __init__(

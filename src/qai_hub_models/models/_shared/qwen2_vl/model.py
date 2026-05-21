@@ -763,9 +763,13 @@ class Qwen2VLTextBase_AIMETOnnx(Qwen2Base_AIMETOnnx):
         import numpy as np
         from torch.utils.data import DataLoader
         from tqdm import tqdm
+        from transformers import AutoProcessor
 
-        from qai_hub_models.datasets import get_dataset_from_name
+        from qai_hub_models.datasets import instantiate_dataset
         from qai_hub_models.datasets.common import DatasetSplit
+        from qai_hub_models.datasets.interleaved_aokvqa_wikitext import (
+            InterleavedAOKVQAWikiText,
+        )
         from qai_hub_models.models._shared.llm.generator import LLM_Generator
         from qai_hub_models.utils.qai_hub_helpers import make_hub_dataset_entries
 
@@ -774,8 +778,6 @@ class Qwen2VLTextBase_AIMETOnnx(Qwen2Base_AIMETOnnx):
 
         # Use Interleaved dataset (wikitext + AOKVQA) for VLM calibration.
         # This requires a VLM processor for AOKVQA image processing.
-        from transformers import AutoProcessor
-
         hf_repo = getattr(self, "_hf_repo_name", None)
         if hf_repo is None and self.checkpoint is not None:
             hf_repo = self.checkpoint
@@ -783,9 +785,10 @@ class Qwen2VLTextBase_AIMETOnnx(Qwen2Base_AIMETOnnx):
             hf_repo = self.llm_config._name_or_path
         processor = AutoProcessor.from_pretrained(hf_repo, trust_remote_code=True)
 
-        dataset = get_dataset_from_name(
-            name="interleaved_aokvqa_wikitext",
-            split=DatasetSplit.TRAIN,
+        dataset = instantiate_dataset(
+            InterleavedAOKVQAWikiText,
+            DatasetSplit.TRAIN,
+            input_spec=None,
             tokenizer=self.tokenizer,
             block_size=self.sequence_length,
             context_length=self.context_length,

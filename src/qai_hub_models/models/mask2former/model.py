@@ -17,6 +17,8 @@ from transformers.models.mask2former.modeling_mask2former import (
 from transformers.models.swin.modeling_swin import SwinLayer, SwinSelfAttention
 from typing_extensions import Self
 
+from qai_hub_models.datasets.coco_panoptic_seg import CocoPanopticSegmentationDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.panoptic_segmentation_evaluator import (
     PanopticSegmentationEvaluator,
@@ -146,6 +148,6 @@ class Mask2Former(BaseModel):
     def get_evaluator(self) -> BaseEvaluator:
         return PanopticSegmentationEvaluator(NUM_CLASSES)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["coco_panoptic_seg"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CocoPanopticSegmentationDataset]

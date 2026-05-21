@@ -8,6 +8,9 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 
+from qai_hub_models.datasets.coco import CocoDataset
+from qai_hub_models.datasets.coco_seg import CocoSegDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.models._shared.yolo.utils import (
     get_most_likely_score,
@@ -233,13 +236,12 @@ class Yolo(BaseModel):
     def get_channel_last_inputs(self) -> list[str]:
         return ["image"]
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["coco"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CocoDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "coco"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CocoDataset
 
     @classmethod
     def get_labels_file_name(cls) -> str | None:
@@ -256,10 +258,9 @@ class YoloSegEvalMixin(BaseModel):
         image_height, image_width = self.get_input_spec()["image"][0][2:]
         return YoloSegmentationOutputEvaluator(image_height, image_width, 0.001, 0.7)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["coco_seg"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CocoSegDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "coco_seg"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CocoSegDataset

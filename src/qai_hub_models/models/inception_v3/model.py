@@ -10,8 +10,7 @@ import torchvision.models as tv_models
 import torchvision.transforms as T
 from typing_extensions import Self
 
-from qai_hub_models.datasets import DATASET_NAME_MAP
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.datasets.common import BaseDataset, DatasetSplit
 from qai_hub_models.datasets.imagenet import ImagenetDataset
 from qai_hub_models.datasets.imagenette import ImagenetteDataset
 from qai_hub_models.models._shared.imagenet_classifier.model import (
@@ -41,19 +40,36 @@ INCEPTION_V3_TRANSFORM = make_imagenet_transform(
 )
 
 
+class ImagenetInceptionV3Dataset(ImagenetDataset):
+    def __init__(self, split: DatasetSplit = DatasetSplit.VAL) -> None:
+        super().__init__(split=split, transform=INCEPTION_V3_TRANSFORM)
+
+    @classmethod
+    def dataset_name(cls) -> str:
+        return "imagenet_inception_v3"
+
+
+class ImagenetteInceptionV3Dataset(ImagenetteDataset):
+    def __init__(self, split: DatasetSplit = DatasetSplit.TRAIN) -> None:
+        super().__init__(split=split, transform=INCEPTION_V3_TRANSFORM)
+
+    @classmethod
+    def dataset_name(cls) -> str:
+        return "imagenette_inception_v3"
+
+
 class InceptionNetV3(ImagenetClassifier):
     @classmethod
     def from_pretrained(cls, weights: str = DEFAULT_WEIGHTS) -> Self:
         net = tv_models.inception_v3(weights=weights, transform_input=False)
         return cls(net, transform_input=True)
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "imagenette_inception_v3"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return ImagenetteInceptionV3Dataset
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["imagenet_inception_v3", "imagenette"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [ImagenetInceptionV3Dataset, ImagenetteDataset]
 
     @staticmethod
     def get_input_spec(batch_size: int = 1) -> InputSpec:
@@ -75,33 +91,3 @@ class InceptionNetV3(ImagenetClassifier):
         image = load_image(TEST_IMAGENET_IMAGE)
         tensor = INCEPTION_V3_TRANSFORM(image).unsqueeze(0)
         return dict(image_tensor=[tensor.numpy()])
-
-    @classmethod
-    def get_dataset_class(cls) -> type[ImagenetDataset]:
-        class ImagenetInceptionV3Dataset(ImagenetDataset):
-            def __init__(self, split: DatasetSplit = DatasetSplit.VAL) -> None:
-                super().__init__(split=split, transform=INCEPTION_V3_TRANSFORM)
-
-            @classmethod
-            def dataset_name(cls) -> str:
-                return "imagenet_inception_v3"
-
-        return ImagenetInceptionV3Dataset
-
-    @classmethod
-    def get_imagenette_dataset_class(cls) -> type[ImagenetteDataset]:
-        class ImagenetteInceptionV3Dataset(ImagenetteDataset):
-            def __init__(self, split: DatasetSplit = DatasetSplit.TRAIN) -> None:
-                super().__init__(split=split, transform=INCEPTION_V3_TRANSFORM)
-
-            @classmethod
-            def dataset_name(cls) -> str:
-                return "imagenette_inception_v3"
-
-        return ImagenetteInceptionV3Dataset
-
-
-DATASET_NAME_MAP["imagenet_inception_v3"] = InceptionNetV3.get_dataset_class()
-DATASET_NAME_MAP["imagenette_inception_v3"] = (
-    InceptionNetV3.get_imagenette_dataset_class()
-)

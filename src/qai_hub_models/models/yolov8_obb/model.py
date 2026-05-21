@@ -12,6 +12,8 @@ from typing_extensions import Self
 from ultralytics.models import YOLO as ultralytics_YOLO
 from ultralytics.nn.tasks import OBBModel
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.dota128 import Dota128Dataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.models._shared.ultralytics.obb_patches import (
     patch_ultralytics_obb_head,
@@ -149,13 +151,12 @@ class YoloV8OBB(Yolo):
         """Returns the Lite-MP percentage value for the specified mixed precision quantization."""
         return 10
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["dota128"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type]:
+        return [Dota128Dataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "dota128"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return Dota128Dataset
 
     @staticmethod
     def get_labels_file_name() -> str | None:

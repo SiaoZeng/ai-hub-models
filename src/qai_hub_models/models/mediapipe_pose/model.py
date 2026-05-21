@@ -10,6 +10,8 @@ from collections.abc import Callable
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.human_poses import HumanPosesDataset
 from qai_hub_models.models._shared.mediapipe.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models._shared.mediapipe.external_repos.mediapipe.blazepose import (
     BlazePose,
@@ -338,6 +340,9 @@ class MediaPipePose(PretrainedCollectionModel):
         super().__init__(pose_detector, pose_landmark_detector)
         self.pose_detector = pose_detector
         self.pose_landmark_detector = pose_landmark_detector
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return HumanPosesDataset
 
     @classmethod
     def from_pretrained(

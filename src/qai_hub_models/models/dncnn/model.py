@@ -9,6 +9,8 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.bsd300_denoising import BSD300DenoisingDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.denoising_evaluator import DenoisingEvaluator
 from qai_hub_models.models.dncnn.external_repos.kair.models.network_dncnn import (
@@ -106,13 +108,12 @@ class DnCNN(BaseModel):
     def get_channel_last_outputs(self) -> list[str]:
         return ["denoised_image"]
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["bsd300_denoising"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [BSD300DenoisingDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "bsd300_denoising"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return BSD300DenoisingDataset
 
     def get_evaluator(self) -> BaseEvaluator:
         return DenoisingEvaluator()

@@ -15,6 +15,8 @@ from typing_extensions import Self
 
 from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.configs.model_metadata import ModelMetadata
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.sav import SaVDataset
 from qai_hub_models.models._shared.sam2.model import (
     SAM2Encoder as SAM2EncoderBase,
 )
@@ -264,6 +266,9 @@ class EdgeTAMLoader(SAM2LoaderBase):
 @CollectionModel.add_component(EdgeTAMVideoDecoder, "video_decoder")
 class EdgeTAM(PretrainedCollectionModel):
     """EdgeTAM video object tracking model."""
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return SaVDataset
 
     def __init__(
         self,

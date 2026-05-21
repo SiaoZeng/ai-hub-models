@@ -26,7 +26,7 @@ from typing_extensions import assert_never
 from qai_hub_models.configs.code_gen_yaml import QAIHMModelCodeGen
 from qai_hub_models.configs.release_assets_yaml import QAIHMModelReleaseAssets
 from qai_hub_models.configs.tool_versions import ToolVersions
-from qai_hub_models.datasets import DATASET_NAME_MAP
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.scorecard import (
     ScorecardCompilePath,
@@ -1384,7 +1384,7 @@ def export_test_e2e(
 
 def on_device_inference_for_accuracy_validation(
     model: type[BaseModel | CollectionModel],
-    dataset_name: str,
+    dataset_cls: type[BaseDataset],
     model_id: str,
     precision: Precision,
     scorecard_path: ScorecardProfilePath,
@@ -1398,8 +1398,8 @@ def on_device_inference_for_accuracy_validation(
     ----------
     model
         Model class to run inference on.
-    dataset_name
-        Name of the dataset to use for evaluation.
+    dataset_cls
+        Dataset class to use for evaluation.
     model_id
         Model ID.
     precision
@@ -1440,11 +1440,11 @@ def on_device_inference_for_accuracy_validation(
     jobs_dict: dict[str, hub.InferenceJob] = {}
     for component_name, target_model in target_models_dict.items():
         hub_val_dataset = get_hub_val_dataset(
-            dataset_name,
+            dataset_cls,
             ScorecardArtifact.DATASET_IDS.touch(),
             model,
             apply_channel_transpose=scorecard_path.runtime.channel_last_native_execution,
-            num_samples=get_num_eval_samples(dataset_name),
+            num_samples=get_num_eval_samples(dataset_cls),
         )
         ijob = hub.submit_inference_job(
             device=device.execution_device,
@@ -1466,7 +1466,7 @@ def on_device_inference_for_accuracy_validation(
 
 
 def torch_inference_for_accuracy_validation(
-    model: BaseModel | CollectionModel, dataset_name: str, model_id: str
+    model: BaseModel | CollectionModel, dataset_cls: type[BaseDataset], model_id: str
 ) -> None:
     """
     Runs torch inference job on the given dataset.
@@ -1477,8 +1477,8 @@ def torch_inference_for_accuracy_validation(
     ----------
     model
         Model instance to run inference on.
-    dataset_name
-        Name of the dataset to use for evaluation.
+    dataset_cls
+        Dataset class to use for evaluation.
     model_id
         Model ID.
 
@@ -1492,8 +1492,8 @@ def torch_inference_for_accuracy_validation(
     inputs, *_ = next(
         iter(
             get_torch_val_dataloader(
-                dataset_name,
-                get_num_eval_samples(dataset_name),
+                dataset_cls,
+                get_num_eval_samples(dataset_cls),
                 model.get_input_spec(),
             )
         )
@@ -1736,15 +1736,14 @@ def accuracy_on_sample_inputs_via_export(
 
 
 def _get_dataset_cache_patch(
-    dataset_name: str,
+    dataset_cls: type[BaseDataset],
     scorecard_path: ScorecardProfilePath,
     model_cls: type[BaseModel | CollectionModel],
 ) -> mock._patch:
-    # Patch input eval dataset to use a cached dataset if it exists
     dataset_dir = get_and_sync_datasets_cache_dir(
         scorecard_path.runtime.channel_last_native_execution,
-        dataset_name,
-        get_num_eval_samples(dataset_name),
+        dataset_cls,
+        get_num_eval_samples(dataset_cls),
         model_cls,
     )
     return mock.patch(
@@ -1753,7 +1752,7 @@ def _get_dataset_cache_patch(
     )
 
 
-def get_num_eval_samples(dataset_name: str) -> int:
+def get_num_eval_samples(dataset_cls: type[BaseDataset]) -> int:
     """
     Resolve how many samples to evaluate for a given dataset.
 
@@ -1761,8 +1760,8 @@ def get_num_eval_samples(dataset_name: str) -> int:
 
     Parameters
     ----------
-    dataset_name
-        Name of the dataset.
+    dataset_cls
+        The dataset class.
 
     Returns
     -------
@@ -1770,7 +1769,7 @@ def get_num_eval_samples(dataset_name: str) -> int:
         Number of samples to evaluate.
     """
     return min(
-        DATASET_NAME_MAP[dataset_name].default_samples_per_job(),
+        dataset_cls.default_samples_per_job(),
         DEFAULT_NUM_EVAL_SAMPLES,
     )
 
@@ -1778,7 +1777,7 @@ def get_num_eval_samples(dataset_name: str) -> int:
 def accuracy_on_dataset_via_evaluate_and_export(
     export_model: ExportFunc,
     model: BaseModel,
-    dataset_name: str,
+    dataset_cls: type[BaseDataset],
     torch_val_outputs: list[np.ndarray],
     torch_evaluate_mock_outputs: list[torch.Tensor | tuple[torch.Tensor, ...]],
     model_id: str,
@@ -1796,8 +1795,8 @@ def accuracy_on_dataset_via_evaluate_and_export(
         Code-generated export function from export.py.
     model
         Model instance to run inference on.
-    dataset_name
-        Name of the dataset to use for evaluation.
+    dataset_cls
+        Dataset class to use for evaluation.
     torch_val_outputs
         Torch validation outputs.
     torch_evaluate_mock_outputs
@@ -1812,6 +1811,7 @@ def accuracy_on_dataset_via_evaluate_and_export(
         Scorecard device.
 
     """
+    dataset_name = dataset_cls.dataset_name()
     component_names, graph_names, component_graph_names = (
         _get_components_and_graph_names(model, model_id)
     )
@@ -1829,7 +1829,7 @@ def accuracy_on_dataset_via_evaluate_and_export(
     )
 
     cache_path_patch = _get_dataset_cache_patch(
-        dataset_name, scorecard_path, model.__class__
+        dataset_cls, scorecard_path, model.__class__
     )
 
     cpu_accuracy = load_yaml(ScorecardArtifact.CPU_ACCURACY.touch())
@@ -1846,10 +1846,8 @@ def accuracy_on_dataset_via_evaluate_and_export(
     metric_metadata = None
     num_samples = None
     with suppress(NotImplementedError):
-        dataset_cls = DATASET_NAME_MAP[dataset_name]
         dataset_metadata = dataset_cls.get_dataset_metadata()
-        num_samples = get_num_eval_samples(dataset_name)
-        dataset_metadata = DATASET_NAME_MAP[dataset_name].get_dataset_metadata()
+        num_samples = get_num_eval_samples(dataset_cls)
         metric_metadata = model.get_evaluator().get_metric_metadata()
 
     try:
@@ -1906,7 +1904,7 @@ def accuracy_on_dataset_via_evaluate_and_export(
     )
 
     # Run eval script to collect accuracy metrics
-    num_samples = get_num_eval_samples(dataset_name)
+    num_samples = get_num_eval_samples(dataset_cls)
     with (
         cache_path_patch,
         dataset_download_patch,
@@ -1918,7 +1916,7 @@ def accuracy_on_dataset_via_evaluate_and_export(
             evaluator_func=model.get_evaluator,
             compiled_model=inference_job.model,
             hub_device=inference_job.device,
-            dataset_name=dataset_name,
+            dataset_cls=dataset_cls,
             use_cache=True,
             num_samples=num_samples,
             samples_per_job=num_samples,
@@ -1989,7 +1987,7 @@ def accuracy_on_dataset_via_evaluate_and_export(
 
 def torch_accuracy_on_dataset(
     model: BaseModel,
-    dataset_name: str,
+    dataset_cls: type[BaseDataset],
     torch_evaluate_mock_outputs: list[torch.Tensor | tuple[torch.Tensor, ...]],
     model_id: str,
 ) -> None:
@@ -2001,8 +1999,8 @@ def torch_accuracy_on_dataset(
     ----------
     model
         Model instance to run inference on.
-    dataset_name
-        Name of the dataset to use for evaluation.
+    dataset_cls
+        Dataset class to use for evaluation.
     torch_evaluate_mock_outputs
         The outputs of the torch forward passes in the format
         expected by the evaluate function.
@@ -2021,15 +2019,15 @@ def torch_accuracy_on_dataset(
     )
     scorecard_path = ScorecardProfilePath.ONNX
     cache_path_patch = _get_dataset_cache_patch(
-        dataset_name, scorecard_path, model.__class__
+        dataset_cls, scorecard_path, model.__class__
     )
-    num_samples = get_num_eval_samples(dataset_name)
+    num_samples = get_num_eval_samples(dataset_cls)
     with torch_call_patch, cache_path_patch:
         evaluate_result = evaluate_on_dataset(
             evaluator_func=lambda: evaluator,
             torch_model=model,
             use_cache=True,
-            dataset_name=dataset_name,
+            dataset_cls=dataset_cls,
             num_samples=num_samples,
             samples_per_job=num_samples,
         )
@@ -2042,7 +2040,7 @@ def torch_accuracy_on_dataset(
 
 def sim_accuracy_on_dataset(
     model: BaseModel,
-    dataset_name: str,
+    dataset_cls: type[BaseDataset],
     model_id: str,
     precision: Precision,
 ) -> None:
@@ -2054,8 +2052,8 @@ def sim_accuracy_on_dataset(
     ----------
     model
         Model instance to run inference on.
-    dataset_name
-        Name of the dataset to use for evaluation.
+    dataset_cls
+        Dataset class to use for evaluation.
     model_id
         Model ID.
     precision
@@ -2083,18 +2081,18 @@ def sim_accuracy_on_dataset(
         return
     scorecard_path = ScorecardProfilePath.ONNX
     cache_path_patch = _get_dataset_cache_patch(
-        dataset_name, scorecard_path, model.__class__
+        dataset_cls, scorecard_path, model.__class__
     )
     quantize_sc_jobs = QuantizeScorecardJobYaml.from_test_artifacts().get_all_jobs(
         test_params, raise_if_not_successful=True, raise_if_jobs_are_missing=True
     )
     quantize_jobs = [x.job for x in quantize_sc_jobs.values() if x is not None]
-    num_samples = get_num_eval_samples(dataset_name)
+    num_samples = get_num_eval_samples(dataset_cls)
     with cache_path_patch:
         evaluate_result = evaluate_on_dataset(
             evaluator_func=model.get_evaluator,
             quantized_model=next(iter(quantize_jobs)).get_target_model(),
-            dataset_name=dataset_name,
+            dataset_cls=dataset_cls,
             use_cache=True,
             num_samples=num_samples,
             samples_per_job=num_samples,

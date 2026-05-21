@@ -9,7 +9,6 @@ import re
 import sys
 from argparse import RawTextHelpFormatter
 
-from qai_hub_models.datasets import DATASET_NAME_MAP
 from qai_hub_models.utils import aws, printing
 from qai_hub_models.utils.path_helpers import MODEL_IDS
 
@@ -145,8 +144,6 @@ If a folder already exists at a location to which a folder is being uploaded, th
 
     if is_model and name not in MODEL_IDS:
         raise ValueError(f"{name} is not a valid model ID.")
-    if is_dataset and name not in DATASET_NAME_MAP:
-        raise ValueError(f"{name} is not a valid dataset name.")
 
     # Public / Private bucket and s3 root
     bucket_name = aws.QAIHM_PRIVATE_S3_BUCKET if private else aws.QAIHM_PUBLIC_S3_BUCKET

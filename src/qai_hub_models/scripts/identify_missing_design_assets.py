@@ -17,7 +17,7 @@ import re
 import subprocess
 from pathlib import Path
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 # -----------------------------------------------------------------------------
 # Logging

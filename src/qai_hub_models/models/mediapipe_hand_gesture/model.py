@@ -12,6 +12,8 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.hagrid import PalmDetectorDataset
 from qai_hub_models.models._shared.common import apply_module_function_recursively
 from qai_hub_models.models.common import Precision, SampleInputsType
 from qai_hub_models.models.mediapipe_hand.model import (
@@ -1059,6 +1061,9 @@ class CannedGestureClassifier(BaseModel):
 @CollectionModel.add_component(CannedGestureClassifier, "canned_gesture_classifier")
 class MediaPipeHandGesture(PretrainedCollectionModel):
     """Collection model that wires detector, landmark, embedder, classifier."""
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return PalmDetectorDataset
 
     def __init__(
         self,

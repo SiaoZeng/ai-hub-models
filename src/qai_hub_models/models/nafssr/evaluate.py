@@ -30,7 +30,7 @@ def main() -> None:
     print("WARNING:", UNPUBLISHED_MODEL_WARNING)
     if not query_yes_no("Continue?"):
         return
-    eval_datasets = Model.eval_datasets()
+    eval_dataset_classes = Model.get_eval_dataset_classes()
     supported_precision_runtimes: dict[Precision, list[TargetRuntime]] = {
         Precision.float: [
             TargetRuntime.QNN_CONTEXT_BINARY,
@@ -44,7 +44,7 @@ def main() -> None:
 
     parser = evaluate_parser(
         model_cls=Model,
-        supported_datasets=eval_datasets,
+        supported_dataset_classes=eval_dataset_classes,
         supported_precision_runtimes=supported_precision_runtimes,
         default_device="Samsung Galaxy S25 (Family)",
     )
@@ -53,7 +53,7 @@ def main() -> None:
     model_kwargs = get_model_kwargs(Model, vars(args))
     input_spec_kwargs = get_input_spec_kwargs(Model, vars(args))
 
-    if len(eval_datasets) == 0:
+    if len(eval_dataset_classes) == 0:
         print(
             "Model does not have evaluation dataset specified. Evaluating PSNR on a single sample."
         )
@@ -87,7 +87,7 @@ def main() -> None:
 
     evaluate_on_dataset(
         evaluator_func=torch_model.get_evaluator,
-        dataset_name=args.dataset_name,
+        dataset_cls=args.dataset_cls,
         input_spec=input_spec,
         torch_model=torch_model,
         compiled_model=compiled_model if not args.skip_device_accuracy else None,

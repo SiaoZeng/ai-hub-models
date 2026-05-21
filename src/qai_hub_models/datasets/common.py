@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 from abc import ABC, abstractmethod
 from collections.abc import Sized
@@ -133,10 +134,18 @@ class BaseDataset(Dataset, Sized, ABC):
     @classmethod
     def dataset_name(cls) -> str:
         """
-        Name for the dataset,
-            which by default is set to the filename where the class is defined.
+        CLI-friendly name derived from the class name.
+
+        Strips a trailing "Dataset" suffix (case-insensitive), then splits
+        CamelCase into underscore-separated lowercase chunks. Existing
+        underscores in the class name are preserved as separators.
         """
-        return cls.__module__.split(".")[-1]
+        name = cls.__name__
+        if name.lower().endswith("dataset"):
+            name = name[:-7]
+        name = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
+        name = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
+        return name.lower()
 
     @staticmethod
     @abstractmethod

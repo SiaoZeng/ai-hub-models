@@ -12,6 +12,8 @@ from mmengine.runner import load_checkpoint
 from qai_hub.client import Device
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.nuscenes import NuscenesDataset
 from qai_hub_models.evaluators.nuscenes_evaluator import (
     NuscenesObjectDetectionEvaluator,
 )
@@ -329,13 +331,12 @@ class BEVDet(BaseModel):
     def get_evaluator(self) -> NuscenesObjectDetectionEvaluator:
         return NuscenesObjectDetectionEvaluator(self.bboxcoder)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["nuscenes"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [NuscenesDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "nuscenes"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return NuscenesDataset
 
     def get_hub_litemp_percentage(self, _: Precision) -> float:
         """Returns the Lite-MP percentage value for the specified mixed precision quantization."""

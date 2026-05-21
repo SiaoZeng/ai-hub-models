@@ -10,6 +10,8 @@ from typing import cast
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.datasets.cocowholebody import CocoWholeBodyDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.wholebody_pose_evaluator import WholeBodyPoseEvaluator
 from qai_hub_models.extern.mmengine import patch_mmengine_pkgresources
@@ -130,10 +132,9 @@ class RTMPosebody2d(BaseModel):
         h, w = self.get_input_spec()["image"][0][2:]
         return WholeBodyPoseEvaluator(h, w)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["cocowholebody"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CocoWholeBodyDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "cocowholebody"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CocoWholeBodyDataset

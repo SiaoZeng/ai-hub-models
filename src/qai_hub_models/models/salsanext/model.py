@@ -11,6 +11,8 @@ import torch
 from ruamel.yaml import YAML
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.semantic_kitti import SemanticKittiDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.semantic_kitti_evaluator import SemanticKittiEvaluator
 from qai_hub_models.models.common import SampleInputsType
@@ -121,13 +123,12 @@ class SalsaNext(BaseModel):
     def get_channel_last_inputs(self) -> list[str]:
         return ["lidar"]
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["semantic_kitti"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [SemanticKittiDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "semantic_kitti"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return SemanticKittiDataset
 
     def get_evaluator(self) -> BaseEvaluator:
         with open(DATA_ADDRESS) as f:

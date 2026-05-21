@@ -14,6 +14,8 @@ from transformers import WavLMForCTC
 from transformers.models.wavlm.modeling_wavlm import WavLMGroupNormConvLayer
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.libri_speech import LibriSpeechDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.libri_speech_evaluator import LibriSpeechEvaluator
 from qai_hub_models.models.common import (
@@ -129,9 +131,9 @@ class HuggingFaceWavLMBasePlus(BaseModel):
     def get_evaluator(self) -> BaseEvaluator:
         return LibriSpeechEvaluator()
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["libri_speech"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [LibriSpeechDataset]
 
 
 # Modules used to override Huggingface WavLM to be NPU friendly

@@ -14,10 +14,17 @@ from qai_hub_models.datasets.common import (
     BaseDataset,
     DatasetSplit,
 )
-from qai_hub_models.models.face_attrib_net.model import OUT_NAMES
 from qai_hub_models.utils.image_processing import app_to_net_image_inputs, resize_pad
 from qai_hub_models.utils.input_spec import InputSpec
 from qai_hub_models.utils.private_asset_loaders import CachedPrivateDatasetAsset
+
+OUT_NAMES = [
+    "left_openness",
+    "right_openness",
+    "glasses",
+    "mask",
+    "sunglasses",
+]
 
 FACEATTRIB_DATASET_VERSION = 4
 FACEATTRIB_DATASET_ID = "faceattrib"

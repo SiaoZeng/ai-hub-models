@@ -8,6 +8,8 @@ import torch
 from torch import Tensor, nn
 from typing_extensions import Self
 
+from qai_hub_models.datasets.ade20k import ADE10SegmentationDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.segmentation_evaluator import SegmentationOutputEvaluator
 from qai_hub_models.models._shared.cityscapes_segmentation.model import (
@@ -156,10 +158,9 @@ class PSPNet(CityscapesSegmentor):
     def get_evaluator(self) -> BaseEvaluator:
         return SegmentationOutputEvaluator(NUM_CLASSES, resize_to_gt=True)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["ade20k_10"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [ADE10SegmentationDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "ade20k_10"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return ADE10SegmentationDataset

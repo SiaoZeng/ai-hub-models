@@ -18,8 +18,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing_extensions import Self
 
-from qai_hub_models.datasets import get_dataset_from_name
+from qai_hub_models.datasets import instantiate_dataset
 from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.datasets.wikitext import WikiText
+from qai_hub_models.datasets.wikitext_ja import WikiText_Japanese
 from qai_hub_models.models._shared.llama3.model import (
     Llama3Base,
     Llama3Base_AIMETOnnx,
@@ -321,9 +323,10 @@ class Llama3_Elyza_JP_8B_AIMETOnnx(Llama3Base_AIMETOnnx):
             round(num_samples * 0.95),
             round(num_samples * 0.05),
         )
-        dataset_eng = get_dataset_from_name(
-            name="wikitext",
-            split=DatasetSplit.TRAIN,
+        dataset_eng = instantiate_dataset(
+            WikiText,
+            DatasetSplit.TRAIN,
+            input_spec=None,
             tokenizer=self.tokenizer,
             block_size=self.sequence_length,
             context_length=self.context_length,
@@ -334,9 +337,10 @@ class Llama3_Elyza_JP_8B_AIMETOnnx(Llama3Base_AIMETOnnx):
             batch_size=1,
             collate_fn=dataset_eng.collate_fn,
         )
-        dataset_ja = get_dataset_from_name(
-            name="wikitext_ja",
-            split=DatasetSplit.TRAIN,
+        dataset_ja = instantiate_dataset(
+            WikiText_Japanese,
+            DatasetSplit.TRAIN,
+            input_spec=None,
             tokenizer=self.tokenizer,
             block_size=self.sequence_length,
             context_length=self.context_length,

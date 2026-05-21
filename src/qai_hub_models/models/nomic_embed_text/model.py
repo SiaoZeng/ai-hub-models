@@ -19,6 +19,10 @@ from transformers import AutoModel
 from transformers.utils.hub import HF_MODULES_CACHE
 from typing_extensions import Self
 
+from qai_hub_models.datasets.amazon_counterfactual import (
+    AmazonCounterfactualClassificationDataset,
+)
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.mteb_classification_evaluator import (
     NomicEmbedTextEvaluator,
@@ -172,10 +176,9 @@ class NomicEmbedText(BaseModel):
         model = NomicEmbedText.from_pretrained(self.model_version, self.seq_length)
         return NomicEmbedTextEvaluator(model, self.seq_length)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["amazon_counterfactual"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [AmazonCounterfactualClassificationDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "amazon_counterfactual"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return AmazonCounterfactualClassificationDataset

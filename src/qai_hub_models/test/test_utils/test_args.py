@@ -15,21 +15,6 @@ import pytest
 import qai_hub as hub
 
 from qai_hub_models.models.common import Precision, TargetRuntime
-from qai_hub_models.models.resnet18 import MODEL_ID as RESNET_MODEL_ID
-from qai_hub_models.models.resnet18 import Model as ResnetModel
-from qai_hub_models.models.resnet18.export import export_model as resnet_export
-from qai_hub_models.utils.args import (
-    demo_model_from_cli_args,
-    evaluate_parser,
-    export_parser,
-    get_export_model_name,
-    get_model_cli_parser,
-    get_on_device_demo_parser,
-    validate_on_device_demo_args,
-)
-from qai_hub_models.utils.export_result import ExportResult
-from qai_hub_models.utils.inference import OnDeviceModel, compile_model_from_args
-from qai_hub_models.utils.model_cache import CacheMode
 
 
 class DynamicMockModule(types.ModuleType):
@@ -80,6 +65,44 @@ class _MockFinder(importlib.abc.MetaPathFinder):
 _MOCK_PACKAGES = ["sounddevice", "geffnet", "timm", "transformers", "matplotlib"]
 _finder = _MockFinder(_MOCK_PACKAGES)
 sys.meta_path.insert(0, _finder)
+
+# These imports must come after the mock finder is installed because they
+# transitively import from mocked packages (transformers, timm, etc.)
+from qai_hub_models.datasets.imagenet import ImagenetDataset  # noqa: E402
+from qai_hub_models.models._shared.llm.export import get_llm_parser  # noqa: E402
+from qai_hub_models.models.baichuan2_7b import Model as BaichuanModel  # noqa: E402
+from qai_hub_models.models.baichuan2_7b.export import (  # noqa: E402
+    export_model as baichuan_export,
+)
+from qai_hub_models.models.llama_v3_1_8b_instruct import (  # noqa: E402
+    Model as LlamaModel,
+)
+from qai_hub_models.models.midas import Model as MidasModel  # noqa: E402
+from qai_hub_models.models.resnet18 import MODEL_ID as RESNET_MODEL_ID  # noqa: E402
+from qai_hub_models.models.resnet18 import Model as ResnetModel  # noqa: E402
+from qai_hub_models.models.resnet18.export import (  # noqa: E402
+    export_model as resnet_export,
+)
+from qai_hub_models.models.swin_tiny import Model as SwinModel  # noqa: E402
+from qai_hub_models.models.whisper_base import Model as WhisperModel  # noqa: E402
+from qai_hub_models.models.whisper_base.export import (  # noqa: E402
+    export_model as whisper_export,
+)
+from qai_hub_models.utils.args import (  # noqa: E402
+    demo_model_from_cli_args,
+    evaluate_parser,
+    export_parser,
+    get_export_model_name,
+    get_model_cli_parser,
+    get_on_device_demo_parser,
+    validate_on_device_demo_args,
+)
+from qai_hub_models.utils.export_result import ExportResult  # noqa: E402
+from qai_hub_models.utils.inference import (  # noqa: E402
+    OnDeviceModel,
+    compile_model_from_args,
+)
+from qai_hub_models.utils.model_cache import CacheMode  # noqa: E402
 
 
 def test_parse_resnet18_export() -> None:
@@ -144,20 +167,18 @@ def llama_parser() -> argparse.ArgumentParser:
             return_value=True,
         ),
     ):
-        from qai_hub_models.models._shared.llm.export import get_llm_parser
-        from qai_hub_models.models.llama_v3_1_8b_instruct import Model as LlamaModel
-    return get_llm_parser(
-        model_cls=LlamaModel,
-        supported_precision_runtimes={
-            Precision.w4a16: [
-                TargetRuntime.QNN_CONTEXT_BINARY,
-                TargetRuntime.PRECOMPILED_QNN_ONNX,
-                TargetRuntime.GENIE,
-            ]
-        },
-        default_precision=Precision.w4a16,
-        default_export_device="Snapdragon 8 Elite QRD",
-    )
+        return get_llm_parser(
+            model_cls=LlamaModel,
+            supported_precision_runtimes={
+                Precision.w4a16: [
+                    TargetRuntime.QNN_CONTEXT_BINARY,
+                    TargetRuntime.PRECOMPILED_QNN_ONNX,
+                    TargetRuntime.GENIE,
+                ]
+            },
+            default_precision=Precision.w4a16,
+            default_export_device="Snapdragon 8 Elite QRD",
+        )
 
 
 def test_device_parsing(llama_parser: argparse.ArgumentParser) -> None:
@@ -259,9 +280,6 @@ def test_llama_parser_help(llama_parser: argparse.ArgumentParser) -> None:
 
 
 def test_parse_whisper_export() -> None:
-    from qai_hub_models.models.whisper_base import Model as WhisperModel
-    from qai_hub_models.models.whisper_base.export import export_model as whisper_export
-
     parser = export_parser(model_cls=WhisperModel, export_fn=whisper_export)
     args = parser.parse_args([])
     gt_set = {
@@ -290,11 +308,6 @@ def test_parse_whisper_export() -> None:
 
 
 def test_parse_baichuan_export() -> None:
-    from qai_hub_models.models.baichuan2_7b import Model as BaichuanModel
-    from qai_hub_models.models.baichuan2_7b.export import (
-        export_model as baichuan_export,
-    )
-
     supported_precision_runtimes: dict[Precision, list[TargetRuntime]] = {
         Precision.w4a16: [
             TargetRuntime.QNN_CONTEXT_BINARY,
@@ -328,7 +341,7 @@ def test_parse_baichuan_export() -> None:
 def test_parse_resnet18_evaluate() -> None:
     parser = evaluate_parser(
         model_cls=ResnetModel,
-        supported_datasets=["imagenet"],
+        supported_dataset_classes=[ImagenetDataset],
     )
     args = parser.parse_args([])
     gt_set = {
@@ -345,6 +358,7 @@ def test_parse_resnet18_evaluate() -> None:
         "device_os",
         "samples_per_job",
         "dataset_name",
+        "dataset_cls",
         "num_samples",
         "seed",
         "hub_model_id",
@@ -357,14 +371,13 @@ def test_parse_resnet18_evaluate() -> None:
     assert set(vars(args).keys()) == gt_set
     assert args.device is None
     assert args.dataset_name == "imagenet"
+    assert args.dataset_cls == ImagenetDataset
 
 
 def test_parse_whisper_evaluate() -> None:
-    from qai_hub_models.models.whisper_base import Model as WhisperModel
-
     parser = evaluate_parser(
         model_cls=WhisperModel,
-        supported_datasets=[],
+        supported_dataset_classes=[],
     )
     args = parser.parse_args([])
     gt_set = {
@@ -383,9 +396,6 @@ def test_parse_whisper_evaluate() -> None:
 
 
 def test_get_export_name() -> None:
-    from qai_hub_models.models.midas import Model as MidasModel
-    from qai_hub_models.models.swin_tiny import Model as SwinModel
-
     midas_model_id = "midas"
     swin_model_id = "swin_tiny"
     assert (
@@ -447,7 +457,7 @@ def test_demo_model_from_cli_args() -> None:
 def test_compile_model_from_args() -> None:
     parser = evaluate_parser(
         model_cls=ResnetModel,
-        supported_datasets=["imagenet"],
+        supported_dataset_classes=[ImagenetDataset],
         supported_precision_runtimes={
             Precision.float: [
                 TargetRuntime.TFLITE,
@@ -520,11 +530,6 @@ def test_default_runtime_no_precision_arg() -> None:
     """When there is no --precision arg (BasePrecompiledModel), the default
     runtime should be the first runtime of the first precision.
     """
-    from qai_hub_models.models.baichuan2_7b import Model as BaichuanModel
-    from qai_hub_models.models.baichuan2_7b.export import (
-        export_model as baichuan_export,
-    )
-
     parser = export_parser(
         model_cls=BaichuanModel,
         export_fn=baichuan_export,

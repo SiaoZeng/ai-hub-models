@@ -189,7 +189,7 @@ class Falcon3_7B_AIMETOnnx(Llama3Base_AIMETOnnx):
             **kwargs,
         )
 
-    eval_datasets = Falcon3_7B.eval_datasets
+    get_eval_dataset_classes = Falcon3_7B.get_eval_dataset_classes
 
     @classmethod
     def from_pretrained(

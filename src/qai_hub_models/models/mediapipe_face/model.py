@@ -9,6 +9,8 @@ from collections.abc import Callable
 
 import torch
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.human_faces import HumanFacesDataset
 from qai_hub_models.models._shared.mediapipe.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models._shared.mediapipe.external_repos.mediapipe.blazeface import (
     BlazeFace,
@@ -413,6 +415,9 @@ class MediaPipeFace(PretrainedCollectionModel):
         super().__init__(face_detector, face_landmark_detector)
         self.face_detector = face_detector
         self.face_landmark_detector = face_landmark_detector
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return HumanFacesDataset
 
     @classmethod
     def from_pretrained(

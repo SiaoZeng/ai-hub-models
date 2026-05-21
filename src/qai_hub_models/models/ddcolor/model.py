@@ -8,6 +8,11 @@ from __future__ import annotations
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.imagenet_colorization import ImagenetColorizationDataset
+from qai_hub_models.datasets.imagenette_colorization import (
+    ImagenetteColorizationDataset,
+)
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.colorization_evaluator import ColorizationEvaluator
 from qai_hub_models.models.common import Precision
@@ -83,13 +88,12 @@ class DDColor(BaseModel):
             return options
         return options + " --range_scheme min_max"
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["imagenet_colorization", "imagenette_colorization"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [ImagenetColorizationDataset, ImagenetteColorizationDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "imagenette_colorization"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return ImagenetteColorizationDataset
 
     def get_hub_litemp_percentage(self, _: Precision) -> float:
         """Returns the Lite-MP percentage value for mixed precision quantization."""

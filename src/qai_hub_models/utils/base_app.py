@@ -35,11 +35,6 @@ class BaseCollectionApp(ABC):
 class CollectionAppProtocol(Protocol):
     """Protocol for apps that provide calibration data for CollectionModels."""
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        """Name of the dataset used for calibration across all components."""
-        ...
-
     @classmethod
     def get_calibration_data(
         cls,

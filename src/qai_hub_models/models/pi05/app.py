@@ -525,10 +525,6 @@ class Pi05App(torch.nn.Module):
 
     # TODO: #19258: Pi0.5 calibration data should be available as a dataset
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "libero"
-
     @classmethod
     def get_calibration_data(
         cls,

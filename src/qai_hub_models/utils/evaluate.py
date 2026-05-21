@@ -15,7 +15,7 @@ from collections.abc import Callable, Iterator, Sized
 from dataclasses import dataclass
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import h5py
 import numpy as np
@@ -29,14 +29,11 @@ from tqdm import tqdm
 from typing_extensions import Self
 
 from qai_hub_models.datasets import (
-    DATASET_NAME_MAP,
-    get_dataset_from_name,
-)
-from qai_hub_models.datasets.common import (
     BaseDataset,
     DatasetSplit,
-    get_folder_name,
+    instantiate_dataset,
 )
+from qai_hub_models.datasets.common import get_folder_name
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.models.protocols import ExecutableModelProtocol
 from qai_hub_models.utils.asset_loaders import (
@@ -165,7 +162,7 @@ def get_deterministic_sample(
 
 
 def get_torch_val_dataloader(
-    dataset_name: str,
+    dataset_cls: type[BaseDataset],
     num_samples: int | None = None,
     input_spec: InputSpec | None = None,
 ) -> DataLoader:
@@ -177,8 +174,8 @@ def get_torch_val_dataloader(
 
     Parameters
     ----------
-    dataset_name
-        Name of the dataset. Dataset must be registered in qai_hub_models.datasets.__init__.py
+    dataset_cls
+        Dataset class. Dataset must be registered in qai_hub_models.datasets.__init__.py
     num_samples
         Number of samples to sample from the full dataset.
     input_spec
@@ -189,9 +186,7 @@ def get_torch_val_dataloader(
     dataloader : DataLoader
         Dataloader with validation data.
     """
-    torch_val_dataset = get_dataset_from_name(
-        dataset_name, DatasetSplit.VAL, input_spec
-    )
+    torch_val_dataset = instantiate_dataset(dataset_cls, DatasetSplit.VAL, input_spec)
     num_samples = num_samples or torch_val_dataset.default_samples_per_job()
     return get_deterministic_sample(torch_val_dataset, num_samples)
 
@@ -310,7 +305,9 @@ def _populate_data_cache_impl(
 
 
 def _populate_data_cache(
-    dataset_from_name_args: tuple[Any, ...],
+    dataset_cls: type[BaseDataset],
+    split: DatasetSplit,
+    input_spec: InputSpec | None,
     samples_per_job: int,
     seed: int | None,
     input_names: list[str],
@@ -346,8 +343,12 @@ def _populate_data_cache(
 
     Parameters
     ----------
-    dataset_from_name_args
-        Args to instantiate the pyTorch dataset (if it is not cached) by calling get_dataset_from_name.
+    dataset_cls
+        Dataset class to instantiate (if it is not cached).
+    split
+        Dataset split (train/val/test).
+    input_spec
+        Input spec for the model.
     samples_per_job
         The maximum size of each hub.Dataset.
     seed
@@ -357,8 +358,8 @@ def _populate_data_cache(
     channel_last_input
         Comma separated list of input names to have channel transposed.
     """
-    dataset_name = dataset_from_name_args[0]
-    folder_name = get_folder_name(dataset_name, dataset_from_name_args[2])
+    dataset_name = dataset_cls.dataset_name()
+    folder_name = get_folder_name(dataset_name, input_spec)
     os.makedirs(get_hub_datasets_path() / folder_name, exist_ok=True)
     dataset_ids_path = get_dataset_ids_filepath(folder_name, samples_per_job)
     dataset_ids_valid = _validate_dataset_ids_path(dataset_ids_path)
@@ -377,7 +378,7 @@ def _populate_data_cache(
         os.makedirs(tmp_cache_path)
         if not dataset_ids_valid:
             tmp_dataset_ids_path = Path(tmp_dir) / "dataset_ids.txt"
-            torch_dataset = get_dataset_from_name(*dataset_from_name_args)
+            torch_dataset = instantiate_dataset(dataset_cls, split, input_spec)
             _populate_data_cache_impl(
                 torch_dataset,
                 samples_per_job,
@@ -768,7 +769,7 @@ def evaluate(
 
 
 def evaluate_on_dataset(
-    dataset_name: str,
+    dataset_cls: type[BaseDataset],
     evaluator_func: Callable[..., BaseEvaluator],
     input_spec: InputSpec | None = None,
     torch_model: torch.nn.Module | BaseModel | None = None,
@@ -786,8 +787,8 @@ def evaluate_on_dataset(
 
     Parameters
     ----------
-    dataset_name
-        The name of the dataset to use for evaluation.
+    dataset_cls
+        The dataset class to use for evaluation.
     evaluator_func
         Function that returns a new evaluator instance to use for eval.
     input_spec
@@ -861,10 +862,8 @@ def evaluate_on_dataset(
         else:
             raise ValueError("Cannot extract input spec.")
 
-    dataset_from_name_args = (dataset_name, DatasetSplit.VAL, input_spec)
-    samples_per_job = (
-        samples_per_job or DATASET_NAME_MAP[dataset_name].default_samples_per_job()
-    )
+    dataset_name = dataset_cls.dataset_name()
+    samples_per_job = samples_per_job or dataset_cls.default_samples_per_job()
     num_samples = num_samples or min(samples_per_job, DEFAULT_NUM_EVAL_SAMPLES)
 
     if use_cache:
@@ -880,10 +879,12 @@ def evaluate_on_dataset(
                 )
 
         # When the cache is enabled, we don't want to load the torch dataset unless
-        # the cache is out of date. Therefore we pass the args of get_dataset_from_name to
+        # the cache is out of date. Therefore we pass the dataset class to
         # the function that populates the cache, so it can instantiate the dataset only if necessary.
         _populate_data_cache(
-            dataset_from_name_args,
+            dataset_cls,
+            DatasetSplit.VAL,
+            input_spec,
             samples_per_job,
             seed,
             input_names,
@@ -894,7 +895,7 @@ def evaluate_on_dataset(
             num_samples,
             input_names,
             channel_last_input,
-            dataset_from_name_args[2],
+            input_spec,
         )
         dataloader = DataLoader(
             torch_dataset, batch_size=samples_per_job, shuffle=False
@@ -902,7 +903,9 @@ def evaluate_on_dataset(
         num_samples = len(torch_dataset)
     else:
         try:
-            source_torch_dataset = get_dataset_from_name(*dataset_from_name_args)
+            source_torch_dataset = instantiate_dataset(
+                dataset_cls, DatasetSplit.VAL, input_spec
+            )
         except UnfetchableDatasetError as e:
             if e.installation_steps is None:
                 raise ValueError(
@@ -977,7 +980,7 @@ class EvalMode(Enum):
 def evaluate_session_on_dataset(
     session: onnxruntime.InferenceSession,
     torch_model: BaseModel | CollectionModel,
-    dataset_name: str,
+    dataset_cls: type[BaseDataset],
     num_samples: int | None = None,
 ) -> tuple[float, str]:
     """
@@ -989,8 +992,8 @@ def evaluate_session_on_dataset(
         ONNX session to evaluate.
     torch_model
         The torch model to evaluate locally to compare accuracy.
-    dataset_name
-        The name of the dataset to use for evaluation.
+    dataset_cls
+        The dataset class to use for evaluation.
     num_samples
         The number of samples to use for evaluation.
         If not set, uses the minimum of the samples_per_job and DEFAULT_NUM_EVAL_SAMPLES.
@@ -1005,8 +1008,8 @@ def evaluate_session_on_dataset(
     assert isinstance(torch_model, BaseModel), (
         "Evaluation is not yet supported for CollectionModels."
     )
-    source_torch_dataset = get_dataset_from_name(
-        dataset_name, DatasetSplit.VAL, torch_model.get_input_spec()
+    source_torch_dataset = instantiate_dataset(
+        dataset_cls, DatasetSplit.VAL, torch_model.get_input_spec()
     )
     num_samples = num_samples or DEFAULT_NUM_EVAL_SAMPLES
 

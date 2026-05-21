@@ -19,6 +19,7 @@ from qai_hub.client import Device
 from typing_extensions import Self
 
 from qai_hub_models.configs.model_metadata import ModelMetadata, OutputSpec
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.models.common import (
     Precision,
@@ -305,28 +306,18 @@ class BaseModel(
 
     # -- Subclasses may override these --
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        """
-        Returns list of strings with names of all datasets on which
-        this model can be evaluated.
-
-        All names must be registered in qai_hub_models/datasets/__init__.py
-        """
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        """Returns list of dataset classes on which this model can be evaluated."""
         return []
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset] | None:
+        """Dataset class used for calibration when quantizing the model."""
+        return None
 
     def get_evaluator(self) -> BaseEvaluator:
         """Gets a class for evaluating output of this model."""
         raise NotImplementedError("No evaluator is supported for this model.")
-
-    @staticmethod
-    def calibration_dataset_name() -> str | None:
-        """
-        Name of the dataset to use for calibration when quantizing the model.
-
-        Must be registered in qai_hub_models/datasets/__init__.py
-        """
-        return None
 
     def preferred_hub_source_model_format(
         self, target_runtime: TargetRuntime
@@ -604,9 +595,14 @@ class PretrainedCollectionModel(CollectionModel[BaseModel], FromPretrainedProtoc
 
     # -- Subclasses may override these --
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        """Returns list of dataset classes on which this model can be evaluated."""
         return []
+
+    def get_calibration_dataset_cls(self) -> type[BaseDataset] | None:
+        """Dataset class used for calibration when quantizing collection components."""
+        return None
 
     # -- Per-component getters (delegate to the component) --
 
@@ -818,6 +814,11 @@ class PrecompiledCollectionModel(
     CollectionModel[BasePrecompiledModel], FromPrecompiledProtocol
 ):
     COMPONENT_BASE_TYPES = BasePrecompiledModel
+
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        """Returns list of dataset classes on which this model can be evaluated."""
+        return []
 
     @classmethod
     def from_precompiled(cls, **kwargs: Any) -> Self:

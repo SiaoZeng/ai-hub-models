@@ -9,6 +9,8 @@ import torch
 from transformers import DetrForObjectDetection, PreTrainedModel
 from typing_extensions import Self
 
+from qai_hub_models.datasets.coco91class import Coco91ClassDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.detection_evaluator import DetectionEvaluator
 from qai_hub_models.models.common import SampleInputsType
@@ -184,10 +186,9 @@ class DETR(BaseModel):
             image = image.resize((w, h))
         return {"image": [app_to_net_image_inputs(image)[1].numpy()]}
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["coco91class"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [Coco91ClassDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "coco91class"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return Coco91ClassDataset

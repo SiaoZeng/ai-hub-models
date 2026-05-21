@@ -12,6 +12,8 @@ from typing import TypeVar
 import torch
 from typing_extensions import Self
 
+from qai_hub_models.datasets.cityscapes_lowres import CityscapesLowResDataset
+from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.models._shared.cityscapes_segmentation.model import (
     CityscapesSegmentor,
 )
@@ -103,10 +105,9 @@ class FFNetLowRes(FFNet):
     ) -> InputSpec:
         return super().get_input_spec(batch_size, height, width)
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["cityscapes_lowres"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [CityscapesLowResDataset]
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "cityscapes_lowres"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return CityscapesLowResDataset

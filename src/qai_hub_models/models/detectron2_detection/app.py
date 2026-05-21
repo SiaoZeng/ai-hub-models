@@ -10,11 +10,10 @@ from collections.abc import Callable
 import numpy as np
 import torch
 from PIL import Image
-from qai_hub.public_rest_api import DatasetEntries
+from qai_hub.client import DatasetEntries
 from torch.utils.data import DataLoader
 
-from qai_hub_models.datasets import get_dataset_from_name
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.datasets import DatasetSplit, instantiate_dataset
 from qai_hub_models.models._shared.proposal_based_detection.app import (
     ProposalBasedDetectionApp,
 )
@@ -215,10 +214,6 @@ class Detectron2DetectionApp(ProposalBasedDetectionApp):
 
         return out_images
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "coco"
-
     @classmethod
     def get_calibration_data(
         cls,
@@ -238,9 +233,11 @@ class Detectron2DetectionApp(ProposalBasedDetectionApp):
             "proposal_generator", proposal_generator.get_input_spec()
         )
 
-        dataset = get_dataset_from_name(
-            cls.calibration_dataset_name(),
-            split=DatasetSplit.TRAIN,
+        calibration_dataset_cls = collection_model.get_calibration_dataset_cls()
+        assert calibration_dataset_cls is not None
+        dataset = instantiate_dataset(
+            calibration_dataset_cls,
+            DatasetSplit.TRAIN,
             input_spec=pg_spec,
         )
         num_samples = num_samples or dataset.default_num_calibration_samples()

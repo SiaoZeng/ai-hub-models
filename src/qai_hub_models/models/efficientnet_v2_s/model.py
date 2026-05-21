@@ -10,8 +10,7 @@ import torchvision.models as tv_models
 import torchvision.transforms as T
 from typing_extensions import Self
 
-from qai_hub_models.datasets import DATASET_NAME_MAP
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.datasets.common import BaseDataset, DatasetSplit
 from qai_hub_models.datasets.imagenet import ImagenetDataset
 from qai_hub_models.datasets.imagenette import ImagenetteDataset
 from qai_hub_models.models._shared.imagenet_classifier.model import (
@@ -44,6 +43,24 @@ EFFICIENTNET_V2_S_TRANSFORM = make_imagenet_transform(
 )
 
 
+class ImagenetEfficientNetV2SDataset(ImagenetDataset):
+    def __init__(self, split: DatasetSplit = DatasetSplit.VAL) -> None:
+        super().__init__(split=split, transform=EFFICIENTNET_V2_S_TRANSFORM)
+
+    @classmethod
+    def dataset_name(cls) -> str:
+        return "imagenet_efficientnet_v2_s"
+
+
+class ImagenetteEfficientNetV2SDataset(ImagenetteDataset):
+    def __init__(self, split: DatasetSplit = DatasetSplit.TRAIN) -> None:
+        super().__init__(split=split, transform=EFFICIENTNET_V2_S_TRANSFORM)
+
+    @classmethod
+    def dataset_name(cls) -> str:
+        return "imagenette_efficientnet_v2_s"
+
+
 class EfficientNetV2s(ImagenetClassifier):
     @classmethod
     def from_pretrained(cls, weights: str = DEFAULT_WEIGHTS) -> Self:
@@ -58,13 +75,12 @@ class EfficientNetV2s(ImagenetClassifier):
             return options
         return options + " --range_scheme min_max"
 
-    @staticmethod
-    def calibration_dataset_name() -> str:
-        return "imagenette_efficientnet_v2_s"
+    def get_calibration_dataset_cls(self) -> type[BaseDataset]:
+        return ImagenetteEfficientNetV2SDataset
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["imagenet_efficientnet_v2_s", "imagenette"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [ImagenetEfficientNetV2SDataset, ImagenetteDataset]
 
     @staticmethod
     def get_input_spec(batch_size: int = 1) -> InputSpec:
@@ -86,33 +102,3 @@ class EfficientNetV2s(ImagenetClassifier):
         image = load_image(TEST_IMAGENET_IMAGE)
         tensor = EFFICIENTNET_V2_S_TRANSFORM(image).unsqueeze(0)
         return dict(image_tensor=[tensor.numpy()])
-
-    @classmethod
-    def get_dataset_class(cls) -> type[ImagenetDataset]:
-        class ImagenetEfficientNetV2SDataset(ImagenetDataset):
-            def __init__(self, split: DatasetSplit = DatasetSplit.VAL) -> None:
-                super().__init__(split=split, transform=EFFICIENTNET_V2_S_TRANSFORM)
-
-            @classmethod
-            def dataset_name(cls) -> str:
-                return "imagenet_efficientnet_v2_s"
-
-        return ImagenetEfficientNetV2SDataset
-
-    @classmethod
-    def get_imagenette_dataset_class(cls) -> type[ImagenetteDataset]:
-        class ImagenetteEfficientNetV2SDataset(ImagenetteDataset):
-            def __init__(self, split: DatasetSplit = DatasetSplit.TRAIN) -> None:
-                super().__init__(split=split, transform=EFFICIENTNET_V2_S_TRANSFORM)
-
-            @classmethod
-            def dataset_name(cls) -> str:
-                return "imagenette_efficientnet_v2_s"
-
-        return ImagenetteEfficientNetV2SDataset
-
-
-DATASET_NAME_MAP["imagenet_efficientnet_v2_s"] = EfficientNetV2s.get_dataset_class()
-DATASET_NAME_MAP["imagenette_efficientnet_v2_s"] = (
-    EfficientNetV2s.get_imagenette_dataset_class()
-)

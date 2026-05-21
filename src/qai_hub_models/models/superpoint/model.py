@@ -10,6 +10,8 @@ import torch.nn.functional as F
 from transformers import SuperPointForKeypointDetection
 from typing_extensions import Self
 
+from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.datasets.hpatches import HPatchesDataset
 from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.superpoint_evaluator import SuperPointEvaluator
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
@@ -203,9 +205,9 @@ class SuperPoint(BaseModel):
     def get_output_names(self) -> list[str]:
         return ["keypoints", "scores", "descriptors"]
 
-    @staticmethod
-    def eval_datasets() -> list[str]:
-        return ["hpatches"]
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return [HPatchesDataset]
 
     def get_evaluator(self) -> BaseEvaluator:
         spec = self.get_input_spec()
