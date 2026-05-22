@@ -36,14 +36,14 @@ from onnxsim import simplify
 from qai_hub.client import Device
 from transformers import WhisperConfig
 
-from qai_hub_models.models._shared.hf_whisper.model import (
-    HfWhisperDecoder,
-    HfWhisperEncoder,
-)
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     SampleInputsType,
     TargetRuntime,
+)
+from qai_hub_models.models._shared.hf_whisper.model import (
+    HfWhisperDecoder,
+    HfWhisperEncoder,
 )
 from qai_hub_models.utils.asset_loaders import qaihm_temp_dir
 from qai_hub_models.utils.input_spec import InputSpec, make_torch_inputs

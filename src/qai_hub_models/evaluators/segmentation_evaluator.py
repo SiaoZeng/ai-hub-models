@@ -8,8 +8,8 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import MEAN_IOU, MetricMetadata
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 
 class SegmentationOutputEvaluator(BaseEvaluator):

@@ -10,7 +10,7 @@ from datetime import datetime
 from enum import Enum, unique
 from pathlib import Path
 
-from qai_hub_models.models.common import QAIRTVersion, TargetRuntime
+from qai_hub_models import QAIRTVersion, TargetRuntime
 from qai_hub_models.utils.envvar_bases import (
     QAIHMBoolEnvvar,
     QAIHMDateFormatEnvvar,
@@ -273,7 +273,7 @@ class QAIRTVersionEnvvar(QAIHMStringEnvvar):
     Discussion:
         You can validate the version via this API:
         ```
-        from qai_hub_models.models.common import QAIRTVersion
+        from qai_hub_models import QAIRTVersion
         enabled_devices = QAIRTVersion(QAIRTVersionEnvvar.get())
         ```
     """

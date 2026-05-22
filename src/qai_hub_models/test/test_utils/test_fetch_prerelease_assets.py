@@ -11,8 +11,8 @@ from unittest import mock
 import pytest
 import qai_hub as hub
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.configs.release_assets_yaml import QAIHMModelReleaseAssets
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath
 from qai_hub_models.utils.fetch_prerelease_assets import (
     fetch_prerelease_assets,

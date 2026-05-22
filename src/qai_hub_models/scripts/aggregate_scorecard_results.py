@@ -16,7 +16,7 @@ import pandas as pd
 from qai_hub_models.scorecard.artifacts import ScorecardArtifact
 from qai_hub_models.scorecard.envvars import TableauBranchNameEnvvar
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath
-from qai_hub_models.utils.testing_async_utils import (
+from qai_hub_models.scorecard.utils.testing_async_utils import (
     get_accuracy_columns,
     get_accuracy_metadata_columns,
     get_accuracy_numerics_columns,

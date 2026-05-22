@@ -7,6 +7,7 @@ import os
 
 from PIL.Image import Image
 
+from qai_hub_models import TargetRuntime
 from qai_hub_models.models._shared.cityscapes_segmentation.app import (
     CityscapesSegmentationApp,
 )
@@ -15,7 +16,6 @@ from qai_hub_models.models._shared.cityscapes_segmentation.model import (
     TEST_CITYSCAPES_LIKE_IMAGE_NAME,
     CityscapesSegmentor,
 )
-from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.utils.args import (
     demo_model_from_cli_args,
     get_model_cli_parser,

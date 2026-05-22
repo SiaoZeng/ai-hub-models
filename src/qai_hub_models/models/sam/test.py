@@ -20,8 +20,8 @@ from qai_hub_models.models.sam.model import (
     SAM,
     SAMLoader,
 )
+from qai_hub_models.scorecard.utils.testing import assert_most_close
 from qai_hub_models.utils.asset_loaders import load_image
-from qai_hub_models.utils.testing import assert_most_close
 
 
 def test_e2e_numerical() -> None:

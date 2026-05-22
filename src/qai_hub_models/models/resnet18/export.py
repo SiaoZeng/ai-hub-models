@@ -18,6 +18,7 @@ import qai_hub as hub
 import torch
 
 from qai_hub_models import Precision, TargetRuntime
+from qai_hub_models.common import SampleInputsType
 from qai_hub_models.configs.model_metadata import (
     ChipsetAttributes,
     ModelFileMetadata,
@@ -26,7 +27,6 @@ from qai_hub_models.configs.model_metadata import (
     merge_output_metadata,
 )
 from qai_hub_models.configs.tool_versions import ToolVersions
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.models.resnet18 import MODEL_ID, Model
 from qai_hub_models.utils import quantization as quantization_utils
 from qai_hub_models.utils.args import (

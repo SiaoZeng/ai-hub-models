@@ -44,6 +44,7 @@ from transformers import PretrainedConfig, PreTrainedTokenizer
 from transformers.modeling_attn_mask_utils import AttentionMaskConverter
 from transformers.models.llama import LlamaConfig, modeling_llama
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llama3.model_adaptations import (
     QcLlama_apply_rotary_pos_emb,
     QCLlamaForCausalLM,
@@ -55,7 +56,6 @@ from qai_hub_models.models._shared.llm.model import (
     Embedding,
     PositionProcessorBase,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.aimet.encodings import propagate_memory_encodings
 from qai_hub_models.utils.asset_loaders import ASSET_CONFIG, CachedWebModelAsset
 from qai_hub_models.utils.onnx.helpers import ONNXBundle

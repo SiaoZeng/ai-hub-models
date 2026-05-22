@@ -21,7 +21,7 @@ from pathlib import Path
 
 import torch
 
-from qai_hub_models.models.common import Precision
+from qai_hub_models import Precision
 from qai_hub_models.models.pi05.app import Pi05App
 from qai_hub_models.models.pi05.model import (
     MODEL_ID,

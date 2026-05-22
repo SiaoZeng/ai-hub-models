@@ -10,13 +10,13 @@ from qai_hub_models.models.gkt.app import GKTApp
 from qai_hub_models.models.gkt.demo import CAM_METADATA, CAMERAS
 from qai_hub_models.models.gkt.demo import main as demo_main
 from qai_hub_models.models.gkt.model import GKT, MODEL_ASSET_VERSION, MODEL_ID
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
     load_json,
     load_numpy,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 EXPECTED_OUTPUT = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "bev_output.npy"

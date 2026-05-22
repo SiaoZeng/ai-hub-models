@@ -40,7 +40,7 @@ def _run_fetch(args: argparse.Namespace) -> None:
         )
 
     # Import here to avoid overhead for CLI
-    from qai_hub_models.models.common import Precision, TargetRuntime
+    from qai_hub_models import Precision, TargetRuntime
     from qai_hub_models.utils.fetch_prerelease_assets import fetch_prerelease_assets
 
     # Map CLI string values to models types.

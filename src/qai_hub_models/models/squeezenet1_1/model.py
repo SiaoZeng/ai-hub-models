@@ -8,8 +8,8 @@ from __future__ import annotations
 import torchvision.models as tv_models
 from typing_extensions import Self
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.imagenet_classifier.model import ImagenetClassifier
-from qai_hub_models.models.common import Precision
 
 MODEL_ID = "squeezenet1_1"
 DEFAULT_WEIGHTS = "IMAGENET1K_V1"

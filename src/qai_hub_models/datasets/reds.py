@@ -11,11 +11,11 @@ import cv2
 import lmdb
 import torch
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.datasets.sidd import (
     _get_image_from_lmdb,
     _paired_paths_from_lmdb,
 )
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.utils.image_processing import (
     numpy_image_to_torch,
     resize_pad,

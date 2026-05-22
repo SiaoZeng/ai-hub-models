@@ -32,9 +32,9 @@ from qai_hub_models.models.{{ model_name }}.export import (
     quantize_model,
 )
 {%- if has_skipped_runtime or is_aimet or can_use_quantize_job %}
-from qai_hub_models.models.common import TargetRuntime
+from qai_hub_models.common import TargetRuntime
 {%- endif %}
-from qai_hub_models.models.common import Precision
+from qai_hub_models.common import Precision
 from qai_hub_models.scorecard import (
     ScorecardCompilePath,
     ScorecardDevice,
@@ -59,28 +59,28 @@ import qai_hub_models.models.{{ model_name }} as _model_module
 {%- if not separate_quantize_script %}
 from qai_hub_models.utils.args import get_model_kwargs
 {%- endif %}
-from qai_hub_models.utils.testing import skip_invalid_runtime_device
-from qai_hub_models.utils.testing_export_eval import (
+from qai_hub_models.scorecard.utils.testing import skip_invalid_runtime_device
+from qai_hub_models.scorecard.utils.testing_export_eval import (
     compile_via_export,
     link_via_export,
     profile_via_export,
     export_test_e2e,
 )
 {%- if can_use_quantize_job %}
-from qai_hub_models.utils.testing_export_eval import (
+from qai_hub_models.scorecard.utils.testing_export_eval import (
     pre_quantize_compile_via_export,
     quantize_via_export,
 )
 {%- if not is_collection_model %}
-from qai_hub_models.utils.testing_export_eval import sim_accuracy_on_dataset
+from qai_hub_models.scorecard.utils.testing_export_eval import sim_accuracy_on_dataset
 {%- endif %}
 {%- endif %}
 {%- if not is_collection_model %}
-from qai_hub_models.utils.testing_export_eval import torch_accuracy_on_dataset
+from qai_hub_models.scorecard.utils.testing_export_eval import torch_accuracy_on_dataset
 {%- endif %}
 
 from qai_hub_models.scorecard.errors import CachedScorecardJobError
-from qai_hub_models.utils.testing_export_eval import (
+from qai_hub_models.scorecard.utils.testing_export_eval import (
     inference_via_export,
     accuracy_on_sample_inputs_via_export,
     accuracy_on_dataset_via_evaluate_and_export,

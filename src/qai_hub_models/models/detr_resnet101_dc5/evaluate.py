@@ -11,7 +11,7 @@ import warnings
 
 import qai_hub as hub
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models.common import Precision, TargetRuntime
 from qai_hub_models.models.detr_resnet101_dc5 import MODEL_ID, Model
 from qai_hub_models.models.detr_resnet101_dc5.export import export_model
 from qai_hub_models.utils.args import (

@@ -11,9 +11,9 @@ import warnings
 
 import qai_hub as hub
 
+from qai_hub_models.common import Precision, TargetRuntime
 from qai_hub_models.models.albert_base_v2_hf import MODEL_ID, Model
 from qai_hub_models.models.albert_base_v2_hf.export import export_model
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.utils.args import (
     evaluate_parser,
     get_input_spec_kwargs,

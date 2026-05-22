@@ -7,10 +7,10 @@ import os
 
 import pytest
 
+from qai_hub_models import Precision
 from qai_hub_models.configs.devices_and_chipsets_yaml import load_similar_devices
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
-from qai_hub_models.models.common import Precision
 from qai_hub_models.scorecard.device import cs_8_gen_3
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath
 from qai_hub_models.scorecard.results.scorecard_summary import (

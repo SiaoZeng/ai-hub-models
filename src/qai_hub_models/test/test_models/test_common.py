@@ -13,7 +13,7 @@ import pytest
 from qai_hub import QuantizeDtype
 from qai_hub.public_api_pb2 import Framework
 
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     InferenceEngine,
     Precision,
     QAIRTVersion,
@@ -45,7 +45,7 @@ def reset_hub_frameworks_patches(
         return QAIRTVersion(default_qaihm_version or "0.0")
 
     version_patch = mock.patch(
-        "qai_hub_models.models.common.InferenceEngine.default_qairt_version",
+        "qai_hub_models.common.InferenceEngine.default_qairt_version",
         new=ConfigurationPropertyMock(side_effect=get_default_qairt_version),
     )
     api_url_patch = (
@@ -55,13 +55,11 @@ def reset_hub_frameworks_patches(
     )
     with (
         mock.patch(
-            "qai_hub_models.models.common.get_framework_list",
+            "qai_hub_models.common.get_framework_list",
             mock.MagicMock(return_value=mock.MagicMock(frameworks=frameworks)),
         ),
-        mock.patch("qai_hub_models.models.common.QAIRTVersion._FRAMEWORKS", {}),
-        mock.patch(
-            "qai_hub_models.models.common.QAIRTVersion._HUB_DEFAULT_FRAMEWORK", {}
-        ),
+        mock.patch("qai_hub_models.common.QAIRTVersion._FRAMEWORKS", {}),
+        mock.patch("qai_hub_models.common.QAIRTVersion._HUB_DEFAULT_FRAMEWORK", {}),
         mock.patch(
             "qai_hub.hub._global_client.config.api_url",
             "https://workbench.aihub.qualcomm.com",

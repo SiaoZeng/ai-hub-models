@@ -11,7 +11,7 @@ import warnings
 
 import qai_hub as hub
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models.common import Precision, TargetRuntime
 from qai_hub_models.models.mobilenet_v3_small import MODEL_ID, Model
 from qai_hub_models.models.mobilenet_v3_small.export import export_model
 from qai_hub_models.utils.args import (

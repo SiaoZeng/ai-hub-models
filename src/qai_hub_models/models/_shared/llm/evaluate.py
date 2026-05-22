@@ -12,12 +12,8 @@ import torch
 from torch.utils.data import DataLoader
 from transformers.cache_utils import DynamicCache
 
+from qai_hub_models import Precision
 from qai_hub_models.datasets import instantiate_dataset
-from qai_hub_models.datasets.common import (
-    AugmentedLabelDataset,
-    BaseDataset,
-    DatasetSplit,
-)
 from qai_hub_models.models._shared.llm.generator import LLM_Generator
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_CONTEXT_LENGTH,
@@ -28,11 +24,15 @@ from qai_hub_models.models._shared.llm.model import (
     LLMDynamic_AIMETOnnx,
     LLMDynamicBase,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.args import (
     add_input_spec_args,
     get_model_cli_parser,
     get_model_kwargs,
+)
+from qai_hub_models.utils.base_dataset import (
+    AugmentedLabelDataset,
+    BaseDataset,
+    DatasetSplit,
 )
 from qai_hub_models.utils.checkpoint import (
     CheckpointType,
@@ -212,7 +212,7 @@ def evaluate(
     # Load vision encoder for VLM evaluation
     vision_encoder = None
     if vision_encoder_cls is not None:
-        from qai_hub_models.models.common import Precision
+        from qai_hub_models import Precision
 
         veg_kwargs: dict[str, Any] = {}
         if vlm_image_size is not None:

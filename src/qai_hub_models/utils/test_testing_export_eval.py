@@ -5,7 +5,7 @@
 import numpy as np
 import pytest
 
-from qai_hub_models.utils.testing_export_eval import _pad_and_concatenate
+from qai_hub_models.scorecard.utils.testing_export_eval import _pad_and_concatenate
 
 
 def test_pad_and_concatenate_no_padding() -> None:

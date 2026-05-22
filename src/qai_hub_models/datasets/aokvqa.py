@@ -9,7 +9,7 @@ from typing import Any
 
 from datasets import load_dataset
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetMetadata, DatasetSplit
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetMetadata, DatasetSplit
 
 AOKVQA_HF_REPO = "HuggingFaceM4/A-OKVQA"
 AOKVQA_URL = f"https://huggingface.co/datasets/{AOKVQA_HF_REPO}"

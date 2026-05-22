@@ -10,8 +10,8 @@ import numpy as np
 import torch
 from sklearn.metrics import average_precision_score
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import MEAN_AVERAGE_PRECISION, MetricMetadata
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 
 class AudioSetOutputEvaluator(BaseEvaluator):

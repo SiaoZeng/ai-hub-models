@@ -13,7 +13,7 @@ from stereonet.model import StereoNet as StereoNetModel
 from torch import nn
 from typing_extensions import Self
 
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     TargetRuntime,
 )

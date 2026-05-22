@@ -9,8 +9,8 @@ import torchvision.models as tv_models
 from typing_extensions import Self
 
 from qai_hub_models.datasets.coco_voc_seg import CocoVocSegDataset
-from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.models._shared.deeplab.model import DeepLabV3Model
+from qai_hub_models.utils.base_dataset import BaseDataset
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1

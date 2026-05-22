@@ -11,8 +11,8 @@ import torch
 import torch.nn.functional as F
 from typing_extensions import Self
 
+from qai_hub_models import Precision
 from qai_hub_models.extern.mmdet import patch_mmdet_no_build_deps
-from qai_hub_models.models.common import Precision
 
 with patch_mmdet_no_build_deps():
     from mmdet.apis import init_detector

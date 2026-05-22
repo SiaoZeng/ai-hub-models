@@ -14,7 +14,7 @@ import qai_hub as hub
 import torch
 
 import qai_hub_models.models.maskrcnn as _model_module
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models.common import Precision, TargetRuntime
 from qai_hub_models.models.maskrcnn import MODEL_ID, Model
 from qai_hub_models.models.maskrcnn.export import (
     compile_model,
@@ -40,8 +40,8 @@ from qai_hub_models.scorecard.execution_helpers import (
     needs_pre_quantize_compile,
     pytest_device_idfn,
 )
-from qai_hub_models.utils.testing import skip_invalid_runtime_device
-from qai_hub_models.utils.testing_export_eval import (
+from qai_hub_models.scorecard.utils.testing import skip_invalid_runtime_device
+from qai_hub_models.scorecard.utils.testing_export_eval import (
     accuracy_on_sample_inputs_via_export,
     compile_via_export,
     export_test_e2e,

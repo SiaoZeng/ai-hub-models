@@ -7,9 +7,8 @@ from __future__ import annotations
 
 import torch
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import SampleInputsType
 from qai_hub_models.datasets.kinetics400 import Kinetics400Dataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.video_classification_evaluator import (
     VideoClassificationEvaluator,
 )
@@ -18,8 +17,9 @@ from qai_hub_models.models._shared.video_classifier.utils import (
     preprocess_video_kinetics_400,
     read_video_at_fps,
 )
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import (
     ColorFormat,

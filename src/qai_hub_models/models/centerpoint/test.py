@@ -10,11 +10,14 @@ from qai_hub_models.models.centerpoint import App, Model
 from qai_hub_models.models.centerpoint.demo import INPUT_ASSET
 from qai_hub_models.models.centerpoint.demo import main as demo_main
 from qai_hub_models.models.centerpoint.model import MODEL_ASSET_VERSION, MODEL_ID
+from qai_hub_models.scorecard.utils.testing import (
+    assert_most_same,
+    skip_clone_repo_check,
+)
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
 )
-from qai_hub_models.utils.testing import assert_most_same, skip_clone_repo_check
 
 TEST_IMAGE = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "test_pp/_image.png"

@@ -9,8 +9,8 @@ import stat
 
 from torchvision.datasets import ImageNet
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.utils.image_processing import IMAGENET_TRANSFORM
 
 IMAGENETTE_FOLDER_NAME = "imagenette2-320"

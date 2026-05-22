@@ -11,9 +11,9 @@ from panopticapi.evaluation import PQStat
 from panopticapi.utils import rgb2id
 
 from qai_hub_models.datasets.coco_panoptic_seg import CocoPanopticSegmentationDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import PANOPTIC_QUALITY, MetricMetadata
 from qai_hub_models.models.mask2former.app import Mask2FormerApp as app
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 
 class PanopticSegmentationEvaluator(BaseEvaluator):

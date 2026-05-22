@@ -6,8 +6,8 @@
 
 from __future__ import annotations
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.models._shared.llm.export import export_main
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.models.phi_3_5_mini_instruct_recipe import (
     MODEL_ID,
     FP_Model,

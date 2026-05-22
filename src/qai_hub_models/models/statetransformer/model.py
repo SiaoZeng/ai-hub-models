@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from qai_hub.client import Device
 from typing_extensions import Self
 
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     TargetRuntime,
 )

@@ -13,7 +13,7 @@ import warnings
 
 from qai_hub_models.models.{{ model_name }} import Model
 
-{{- "\nfrom qai_hub_models.utils.testing import skip_clone_repo_check" if skip_clone_repo else "" }}
+{{- "\nfrom qai_hub_models.scorecard.utils.testing import skip_clone_repo_check" if skip_clone_repo else "" }}
 
 
 def pytest_configure(config: pytest.Config) -> None:

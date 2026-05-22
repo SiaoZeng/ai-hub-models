@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import warnings
 
+from qai_hub_models import TargetRuntime
 from qai_hub_models.models._shared.llm.export import export_model, get_llm_parser
-from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.models.qwen2_5_7b_instruct import MODEL_ID, Model
 from qai_hub_models.models.qwen2_5_7b_instruct.model import (
     DEFAULT_PRECISION,

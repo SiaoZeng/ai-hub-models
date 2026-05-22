@@ -12,9 +12,8 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models import SampleInputsType
 from qai_hub_models.datasets.coco import CocoDataset
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.centernet_detection_evaluator import (
     CenternetDetectionEvaluator,
 )
@@ -22,8 +21,9 @@ from qai_hub_models.models._shared.centernet.external_repos.centernet.src.lib.mo
     ctdet_decode,
 )
 from qai_hub_models.models._shared.centernet.model import CenterNet
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.image_processing import pre_process_with_affine
 from qai_hub_models.utils.input_spec import InputSpec
 

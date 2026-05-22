@@ -13,7 +13,7 @@ import torch
 from datasets import load_dataset
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetMetadata, DatasetSplit
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetMetadata, DatasetSplit
 
 
 class WikiTextMasked(BaseDataset):

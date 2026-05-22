@@ -15,7 +15,6 @@ from PIL import Image
 from qai_hub.public_rest_api import DatasetEntries
 
 from qai_hub_models.datasets import instantiate_dataset
-from qai_hub_models.datasets.common import DatasetSplit
 from qai_hub_models.models.deepbox.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models.deepbox.external_repos.boundingbox_3d.library.Math import (
     calc_location,
@@ -32,6 +31,7 @@ from qai_hub_models.models.deepbox.model import (
     VGG3DDetection,
     Yolo2DDetection,
 )
+from qai_hub_models.utils.base_dataset import DatasetSplit
 from qai_hub_models.utils.base_model import CollectionModel, PretrainedCollectionModel
 from qai_hub_models.utils.bounding_box_processing import batched_nms
 from qai_hub_models.utils.image_processing import app_to_net_image_inputs

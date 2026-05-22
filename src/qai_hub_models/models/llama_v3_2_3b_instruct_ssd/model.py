@@ -12,6 +12,7 @@ from typing import Any
 import torch
 from typing_extensions import Self
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llama3.model import (
     Llama3Base,
     Llama3Base_AIMETOnnx,
@@ -28,7 +29,6 @@ from qai_hub_models.models._shared.llm.model import (
     DEFAULT_EXPORT_CONTEXT_LENGTHS as GLOBAL_DEFAULT_EXPORT_CONTEXT_LENGTHS,
 )
 from qai_hub_models.models._shared.llm_ssd.model import LLM_SSD_AIMETOnnx, LLM_SSD_Base
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.input_spec import InputSpec
 

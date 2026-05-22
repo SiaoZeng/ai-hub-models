@@ -20,6 +20,7 @@ from qai_hub_models_cli.proto.shared import (
     tensor_spec_pb2,
 )
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.configs._info_yaml_enums import (
     MODEL_DOMAIN,
     MODEL_LICENSE,
@@ -45,7 +46,6 @@ from qai_hub_models.configs.tensor_spec import (
     ColorFormat,
     IoType,
 )
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.scorecard.device import ScorecardDevice
 
 _ALL_PRECISIONS = [

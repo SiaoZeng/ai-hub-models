@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, create_autospec, patch
 import pytest
 import qai_hub as hub
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models import Precision, TargetRuntime
 
 
 class DynamicMockModule(types.ModuleType):

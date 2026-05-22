@@ -7,13 +7,13 @@ from __future__ import annotations
 import pytest
 import torch
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm.common import cleanup
 from qai_hub_models.models._shared.llm.export import export_model
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_EXPORT_CONTEXT_LENGTHS,
     DEFAULT_EXPORT_SEQUENCE_LENGTHS,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.models.qwen2_5_7b_instruct import MODEL_ID, Model
 from qai_hub_models.models.qwen2_5_7b_instruct.model import (
     MODEL_ASSET_VERSION,
@@ -25,7 +25,7 @@ from qai_hub_models.scorecard import (
     ScorecardDevice,
 )
 from qai_hub_models.scorecard.device import cs_8_elite_gen_5
-from qai_hub_models.utils.testing_export_eval import run_llm_compile
+from qai_hub_models.scorecard.utils.testing_export_eval import run_llm_compile
 
 
 @pytest.mark.skipif(

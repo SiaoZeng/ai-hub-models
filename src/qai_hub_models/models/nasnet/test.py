@@ -11,7 +11,7 @@ from qai_hub_models.models._shared.imagenet_classifier.test_utils import (
 )
 from qai_hub_models.models.nasnet.demo import main as demo_main
 from qai_hub_models.models.nasnet.model import MODEL_ASSET_VERSION, MODEL_ID, NASNet
-from qai_hub_models.utils.testing import skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 
 
 @skip_clone_repo_check

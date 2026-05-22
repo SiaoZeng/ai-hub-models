@@ -10,8 +10,11 @@ from qai_hub_models.models._shared.repaint.app import RepaintMaskApp
 from qai_hub_models.models.aotgan.demo import IMAGE_ADDRESS, MASK_ADDRESS
 from qai_hub_models.models.aotgan.demo import main as demo_main
 from qai_hub_models.models.aotgan.model import AOTGAN, MODEL_ASSET_VERSION, MODEL_ID
+from qai_hub_models.scorecard.utils.testing import (
+    assert_most_close,
+    skip_clone_repo_check,
+)
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
-from qai_hub_models.utils.testing import assert_most_close, skip_clone_repo_check
 
 OUTPUT_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "test_images/test_output.png"

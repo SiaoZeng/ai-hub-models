@@ -19,7 +19,7 @@ from lerobot.policies.pi05.modeling_pi05 import PI05Policy
 from lerobot.processor import PolicyProcessorPipeline
 from tqdm import tqdm
 
-from qai_hub_models.models.common import TargetRuntime
+from qai_hub_models import TargetRuntime
 from qai_hub_models.models.pi05 import Model
 from qai_hub_models.models.pi05.app import Pi05App, Pi05AppConfig
 from qai_hub_models.models.pi05.demo import (

@@ -15,9 +15,9 @@ from unittest import mock
 import pytest
 import torch
 
+from qai_hub_models import Precision, QAIRTVersion, TargetRuntime
 from qai_hub_models.models._shared.llm import export
 from qai_hub_models.models._shared.llm.model import LLM_AIMETOnnx
-from qai_hub_models.models.common import Precision, QAIRTVersion, TargetRuntime
 from qai_hub_models.utils.args import QAIHMArgumentParser
 from qai_hub_models.utils.input_spec import InputSpec
 from qai_hub_models.utils.model_cache import CacheMode

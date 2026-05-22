@@ -22,7 +22,7 @@ import torch
 from qai_hub.client import Device
 from qai_hub.public_rest_api import DatasetEntries
 
-from qai_hub_models.models.common import Precision, QAIRTVersion, TargetRuntime
+from qai_hub_models import Precision, QAIRTVersion, TargetRuntime
 from qai_hub_models.utils.asset_loaders import qaihm_temp_dir
 from qai_hub_models.utils.export_result import (
     ComponentGroup,

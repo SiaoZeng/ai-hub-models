@@ -17,6 +17,10 @@ from qai_hub.public_rest_api import DatasetEntries
 from transformers import AutoConfig, PretrainedConfig
 from typing_extensions import Self
 
+from qai_hub_models import (
+    Precision,
+    TargetRuntime,
+)
 from qai_hub_models.models._shared.llama.model import LlamaMixin
 from qai_hub_models.models._shared.llama3.model import Llama3Base
 from qai_hub_models.models._shared.llm.common import LLMIOType
@@ -26,10 +30,6 @@ from qai_hub_models.models._shared.llm.model import (
     get_tokenizer,
 )
 from qai_hub_models.models._shared.qwen2.model import Qwen2Base
-from qai_hub_models.models.common import (
-    Precision,
-    TargetRuntime,
-)
 from qai_hub_models.utils.aimet.encodings import propagate_memory_encodings
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.input_spec import InputSpec

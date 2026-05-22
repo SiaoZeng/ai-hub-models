@@ -34,7 +34,7 @@ from transformers import PretrainedConfig, PreTrainedTokenizer
 from transformers.modeling_attn_mask_utils import AttentionMaskConverter
 from transformers.models.phi3 import Phi3Config, modeling_phi3
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import Precision
 from qai_hub_models.datasets.tricky_llm_prompts import TrickyLLMPromptsPhi35
 from qai_hub_models.models._shared.llm.common import LLMIOType
 from qai_hub_models.models._shared.llm.model import (
@@ -47,8 +47,8 @@ from qai_hub_models.models._shared.phi.model_adaptations import (
     QCPhi3ForCausalLM,
     QCPhi3MLP,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.aimet.encodings import propagate_memory_encodings
+from qai_hub_models.utils.base_dataset import BaseDataset
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1

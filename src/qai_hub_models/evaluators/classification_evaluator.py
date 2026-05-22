@@ -8,8 +8,8 @@ from __future__ import annotations
 import torch
 from torch.types import Number
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import ACCURACY_TOP1, MetricMetadata
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 
 class ClassificationEvaluator(BaseEvaluator):

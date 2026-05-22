@@ -16,11 +16,11 @@ from tqdm import tqdm
 from transformers import PreTrainedTokenizerBase
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-from qai_hub_models.evaluators.base_evaluators import (
+from qai_hub_models.evaluators.metrics import KL_DIVERGENCE, MetricMetadata
+from qai_hub_models.utils.base_evaluator import (
     BaseEvaluator,
     _DataLoader,
 )
-from qai_hub_models.evaluators.metrics import KL_DIVERGENCE, MetricMetadata
 
 if TYPE_CHECKING:
     from qai_hub_models.models._shared.llm.generator import LLM_Generator

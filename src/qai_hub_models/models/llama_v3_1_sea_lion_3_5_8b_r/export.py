@@ -6,8 +6,8 @@
 
 from __future__ import annotations
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.models._shared.llm.export import export_main
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.models.llama_v3_1_sea_lion_3_5_8b_r import (
     MODEL_ID,
     FP_Model,

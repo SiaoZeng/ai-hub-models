@@ -10,6 +10,10 @@ import os
 import torch
 from PIL import Image
 
+from qai_hub_models import (
+    Precision,
+    TargetRuntime,
+)
 from qai_hub_models.models._shared.controlnet.model import (
     ControlNetBase,
     ControlUnetBase,
@@ -26,10 +30,6 @@ from qai_hub_models.models._shared.stable_diffusion.model import (
     VaeDecoderBase,
 )
 from qai_hub_models.models._shared.stable_diffusion.utils import make_canny
-from qai_hub_models.models.common import (
-    Precision,
-    TargetRuntime,
-)
 from qai_hub_models.utils.args import (
     demo_model_components_from_cli_args,
     get_model_cli_parser,

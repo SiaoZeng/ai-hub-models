@@ -16,8 +16,11 @@ from qai_hub_models.models.track_anything.model import (
     MODEL_ID,
     TrackAnythingWrapper,
 )
+from qai_hub_models.scorecard.utils.testing import (
+    assert_most_close,
+    skip_clone_repo_check,
+)
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_numpy
-from qai_hub_models.utils.testing import assert_most_close, skip_clone_repo_check
 
 INPUT_MASK = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "input_mask.npy"

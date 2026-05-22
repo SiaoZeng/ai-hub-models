@@ -10,8 +10,8 @@ import torch
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 
 from qai_hub_models.models._shared.sam2.app import SAM2App, SAM2InputImageLayout
+from qai_hub_models.scorecard.utils.testing import assert_most_close
 from qai_hub_models.utils.asset_loaders import load_image
-from qai_hub_models.utils.testing import assert_most_close
 
 
 def run_sam2_numerical_test(

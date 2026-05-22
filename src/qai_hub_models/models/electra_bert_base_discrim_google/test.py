@@ -17,7 +17,7 @@ from qai_hub_models.models.electra_bert_base_discrim_google.demo import (
 from qai_hub_models.models.electra_bert_base_discrim_google.model import (
     ElectraBertBaseDiscrimGoogle,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 
 
 @skip_clone_repo_check

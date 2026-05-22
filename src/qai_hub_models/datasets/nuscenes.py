@@ -12,11 +12,11 @@ import numpy as np
 import torch
 from PIL import Image
 
-from qai_hub_models.datasets.common import (
+from qai_hub_models.utils.asset_loaders import load_json
+from qai_hub_models.utils.base_dataset import (
     BaseDataset,
     DatasetSplit,
 )
-from qai_hub_models.utils.asset_loaders import load_json
 from qai_hub_models.utils.image_processing import (
     app_to_net_image_inputs,
     get_post_rot_and_tran,

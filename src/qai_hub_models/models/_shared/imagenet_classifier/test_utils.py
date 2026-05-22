@@ -14,12 +14,12 @@ from qai_hub_models.models._shared.imagenet_classifier.model import (
     MODEL_ASSET_VERSION,
     ImagenetClassifier,
 )
+from qai_hub_models.scorecard.utils.testing import assert_most_close
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
     load_numpy,
 )
-from qai_hub_models.utils.testing import assert_most_close
 
 GROUP_NAME = "imagenet_classifier"
 TEST_IMAGENET_IMAGE = CachedWebModelAsset.from_asset_store(

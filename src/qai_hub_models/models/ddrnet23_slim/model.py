@@ -9,10 +9,10 @@ import torch
 from qai_hub.client import Device
 from typing_extensions import Self
 
+from qai_hub_models import Precision, SampleInputsType, TargetRuntime
 from qai_hub_models.models._shared.cityscapes_segmentation.model import (
     CityscapesSegmentor,
 )
-from qai_hub_models.models.common import Precision, SampleInputsType, TargetRuntime
 from qai_hub_models.models.ddrnet23_slim.external_repos.ddrnet_pytorch.lib.models.ddrnet_23_slim import (
     BasicBlock,
     DualResNet,

@@ -9,7 +9,7 @@ import torch
 from qai_hub_models.models.dncnn.demo import main as demo_main
 from qai_hub_models.models.dncnn.demo import make_noisy_image
 from qai_hub_models.models.dncnn.model import DnCNN
-from qai_hub_models.utils.testing import skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 
 
 @skip_clone_repo_check

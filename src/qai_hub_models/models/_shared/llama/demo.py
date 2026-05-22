@@ -10,6 +10,7 @@ from typing import Any
 
 import qai_hub as hub
 
+from qai_hub_models import TargetRuntime
 from qai_hub_models.models._shared.llama.app import ChatApp as App
 from qai_hub_models.models._shared.llama.app import (
     LlamaModelPipeline,
@@ -20,7 +21,6 @@ from qai_hub_models.models._shared.llama.model import (
     DEFAULT_INPUT_SEQ_LEN,
     Llama2BundledModel,
 )
-from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.utils.args import (
     get_model_cli_parser,
     get_on_device_demo_parser,

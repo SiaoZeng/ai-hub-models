@@ -12,7 +12,7 @@ from typing_extensions import Self
 
 # isort: off
 # This verifies aimet is installed, and this must be included first.
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.quantization_aimet_onnx import (
     AIMETOnnxQuantizableMixin,
 )
@@ -35,12 +35,12 @@ from huggingface_hub import hf_hub_download
 from onnxsim import simplify
 from qai_hub.client import Device
 
+from qai_hub_models import TargetRuntime
 from qai_hub_models.models._shared.stable_diffusion import utils
 from qai_hub_models.models._shared.stable_diffusion.model_adaptation import (
     get_timestep_embedding,
     monkey_patch_model,
 )
-from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.utils.aimet.config_loader import get_aimet_config_path
 from qai_hub_models.utils.base_model import (
     BaseModel,

@@ -8,8 +8,8 @@ import torch
 import torchaudio
 from torch.nn import functional as F
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetMetadata, DatasetSplit
 
 LIBRISPEECH_FOLDER_NAME = "librispeech"
 LIBRISPEECH_VERSION = 2

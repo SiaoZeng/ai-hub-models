@@ -9,6 +9,7 @@ import os
 import shutil
 from pathlib import Path
 
+from qai_hub_models import TargetRuntime
 from qai_hub_models.configs.model_metadata import ModelMetadata
 from qai_hub_models.models._shared.hf_whisper.model import (
     SAMPLE_RATE,
@@ -19,7 +20,6 @@ from qai_hub_models.models._shared.hf_whisper.whisper_metadata_json import (
     WhisperCapabilities,
     create_whisper_metadata,
 )
-from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 
 

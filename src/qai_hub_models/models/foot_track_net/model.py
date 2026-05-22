@@ -11,9 +11,7 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.datasets.foot_track_dataset import FootTrackDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.foot_track_evaluator import FootTrackNetEvaluator
 from qai_hub_models.models.foot_track_net.layers import (
     CBAModule,
@@ -23,6 +21,8 @@ from qai_hub_models.models.foot_track_net.layers import (
     UpModule,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import (
     ColorFormat,

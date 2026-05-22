@@ -14,12 +14,12 @@ from qai_hub_models.models.centernet_3d.model import (
     MODEL_ID,
     CenterNet3D,
 )
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
     load_numpy,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 OUTPUT = CachedWebModelAsset.from_asset_store(MODEL_ID, MODEL_ASSET_VERSION, "dets.npy")
 

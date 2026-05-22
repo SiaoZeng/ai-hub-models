@@ -13,8 +13,8 @@ from qai_hub_models.models.huggingface_wavlm_base_plus.model import (
     SAMPLE_INPUTS,
     HuggingFaceWavLMBasePlus,
 )
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import load_numpy
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 
 def _test_impl(app: HuggingFaceWavLMBasePlusApp) -> None:

@@ -12,9 +12,12 @@ from qai_hub_models.models.maskrcnn.app import MaskRCNNApp
 from qai_hub_models.models.maskrcnn.demo import IMAGE_ADDRESS
 from qai_hub_models.models.maskrcnn.demo import main as demo_main
 from qai_hub_models.models.maskrcnn.model import MaskRCNN
+from qai_hub_models.scorecard.utils.testing import (
+    assert_most_close,
+    skip_clone_repo_check,
+)
 from qai_hub_models.utils.asset_loaders import load_image
 from qai_hub_models.utils.image_processing import preprocess_PIL_image
-from qai_hub_models.utils.testing import assert_most_close, skip_clone_repo_check
 
 
 def run_source_model() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:

@@ -13,11 +13,11 @@ import torch
 # podm comes from the object-detection-metrics pip package
 from podm.metrics import BoundingBox, MetricPerClass, get_pascal_voc_metrics
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import (
     MEAN_AVERAGE_PRECISION_IOU_5_95,
     MetricMetadata,
 )
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.bounding_box_processing import batched_nms
 
 

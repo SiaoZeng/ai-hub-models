@@ -16,7 +16,7 @@ from qai_hub_models.models.albert_base_v2_hf.demo import main as demo_main
 from qai_hub_models.models.albert_base_v2_hf.model import (
     AlbertBaseV2Hf,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 
 
 @skip_clone_repo_check

@@ -16,12 +16,12 @@ import torch.nn.functional as F
 from torch.utils.data.dataloader import default_collate
 from torchvision.datasets.coco import CocoDetection
 
-from qai_hub_models.datasets.common import (
+from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset
+from qai_hub_models.utils.base_dataset import (
     BaseDataset,
     DatasetMetadata,
     DatasetSplit,
 )
-from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset
 from qai_hub_models.utils.image_processing import (
     app_to_net_image_inputs,
     resize_pad,

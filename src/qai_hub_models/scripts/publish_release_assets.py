@@ -7,10 +7,10 @@ import threading
 
 from mypy_boto3_s3.service_resource import Bucket
 
+from qai_hub_models import Precision
 from qai_hub_models._version import __version__
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
 from qai_hub_models.configs.release_assets_yaml import QAIHMModelReleaseAssets
-from qai_hub_models.models.common import Precision
 from qai_hub_models.scorecard import ScorecardProfilePath
 from qai_hub_models.scorecard.envvars import EnabledModelsEnvvar, SpecialModelSetting
 from qai_hub_models.scorecard.static.list_models import (

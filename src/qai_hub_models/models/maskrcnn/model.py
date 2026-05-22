@@ -14,7 +14,7 @@ from torchvision.models.detection.image_list import ImageList
 from torchvision.ops import poolers
 from typing_extensions import Self
 
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     TargetRuntime,
 )

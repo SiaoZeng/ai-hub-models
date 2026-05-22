@@ -8,7 +8,7 @@ from __future__ import annotations
 import torch
 from PIL.Image import Image
 
-from qai_hub_models.models.protocols import ExecutableModelProtocol
+from qai_hub_models.protocols import ExecutableModelProtocol
 from qai_hub_models.utils.image_processing import (
     IMAGENET_TRANSFORM,
     normalize_image_transform,

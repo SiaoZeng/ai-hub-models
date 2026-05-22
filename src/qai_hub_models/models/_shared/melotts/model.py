@@ -22,8 +22,12 @@ from transformers import (
 )
 from typing_extensions import Self
 
+from qai_hub_models import (
+    Precision,
+    SampleInputsType,
+    TargetRuntime,
+)
 from qai_hub_models.configs.model_metadata import ModelMetadata
-from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.datasets.common_voice import CommonVoiceText
 from qai_hub_models.models._shared.common import replace_module_recursively
 from qai_hub_models.models._shared.melotts.meloTTS_encoder import (
@@ -47,11 +51,7 @@ from qai_hub_models.models._shared.voiceai_tts.t5_g2p import (
 from qai_hub_models.models._shared.voiceai_tts.t5_g2p import (
     T5Encoder as _T5EncoderBase,
 )
-from qai_hub_models.models.common import (
-    Precision,
-    SampleInputsType,
-    TargetRuntime,
-)
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import (
     BaseModel,
     PretrainedCollectionModel,

@@ -11,7 +11,7 @@ import warnings
 
 import qai_hub as hub
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models.common import Precision, TargetRuntime
 from qai_hub_models.models.huggingface_wavlm_base_plus import MODEL_ID, Model
 from qai_hub_models.models.huggingface_wavlm_base_plus.export import export_model
 from qai_hub_models.utils.args import (

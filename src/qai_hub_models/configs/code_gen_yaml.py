@@ -10,8 +10,8 @@ from pathlib import Path
 
 from pydantic import Field, model_validator
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.configs.model_disable_reasons import ModelDisableReasonsMapping
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.scorecard.device import (
     CANARY_DEVICES,
     DEFAULT_EXPORT_DEVICE,

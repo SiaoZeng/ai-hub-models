@@ -20,10 +20,10 @@ from qai_hub_models.models.yolov8_seg.model import (
     MODEL_ID,
     YoloV8Segmentor,
 )
+from qai_hub_models.scorecard.utils.testing import assert_most_close
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
 from qai_hub_models.utils.image_processing import preprocess_PIL_image
 from qai_hub_models.utils.set_env import set_temp_env
-from qai_hub_models.utils.testing import assert_most_close
 
 WEIGHTS = "yolov8n-seg.pt"
 OUTPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(

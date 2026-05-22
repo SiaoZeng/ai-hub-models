@@ -18,10 +18,12 @@ from typing import Any, TypeVar, cast
 import onnx
 from packaging.version import Version
 
+from qai_hub_models.models._shared.llm.split_onnx_utils.split_onnx import (
+    OnnxSplitter,
+    save_model,
+)
 from qai_hub_models.utils.asset_loaders import PathLike
 from qai_hub_models.utils.onnx.helpers import ONNXBundle
-
-from .split_onnx import OnnxSplitter, save_model
 
 
 def _target_name(

@@ -13,12 +13,12 @@ from qai_hub_models.models.face_attrib_net.model import (
     MODEL_ID,
     FaceAttribNet,
 )
+from qai_hub_models.scorecard.utils.testing import assert_most_close
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
     load_json,
 )
-from qai_hub_models.utils.testing import assert_most_close
 
 OUTPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "output_sample_probability.json"

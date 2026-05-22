@@ -15,8 +15,8 @@ from torch.autograd import Variable
 from torch.nn.functional import adaptive_avg_pool2d
 from torchvision import models
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import SSIM, MetricMetadata
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 
 class InpaintEvaluator(BaseEvaluator):

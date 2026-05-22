@@ -8,8 +8,8 @@ import numpy as np
 import torch
 from torchvision import transforms
 
-from qai_hub_models.datasets.common import DatasetSplit
 from qai_hub_models.datasets.imagenet import ImagenetDataset
+from qai_hub_models.utils.base_dataset import DatasetSplit
 
 TRANSFORM = transforms.Compose(
     [

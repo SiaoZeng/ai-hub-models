@@ -11,12 +11,12 @@ from typing import cast
 
 from typing_extensions import assert_never
 
-from qai_hub_models.configs.tool_versions import ToolVersions
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     QAIRTVersion,
     TargetRuntime,
 )
+from qai_hub_models.configs.tool_versions import ToolVersions
 from qai_hub_models.scorecard.envvars import (
     DeploymentEnvvar,
     EnabledPathsEnvvar,

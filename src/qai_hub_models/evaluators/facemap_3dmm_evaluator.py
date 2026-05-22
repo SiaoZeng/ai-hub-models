@@ -8,12 +8,12 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import NORMALIZED_MEAN_ERROR, MetricMetadata
 from qai_hub_models.models.facemap_3dmm.utils import (
     project_landmark,
     transform_landmark_coordinates,
 )
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 
 class FaceMap3DMMEvaluator(BaseEvaluator):

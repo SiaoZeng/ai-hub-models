@@ -6,8 +6,8 @@
 
 from torchvision import transforms
 
-from qai_hub_models.datasets.common import DatasetSplit
 from qai_hub_models.datasets.imagenette import ImagenetteDataset
+from qai_hub_models.utils.base_dataset import DatasetSplit
 
 IMAGENET_DIM = 256
 IMAGENET_256TRANSFORM = transforms.Compose(

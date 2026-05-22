@@ -18,12 +18,12 @@ from qai_hub_models.models.segformer_base.model import (
     INPUT_IMAGE_ADDRESS,
     SegformerBase,
 )
+from qai_hub_models.scorecard.utils.testing import assert_most_close
 from qai_hub_models.utils.asset_loaders import load_image
 from qai_hub_models.utils.image_processing import (
     normalize_image_transform,
     preprocess_PIL_image,
 )
-from qai_hub_models.utils.testing import assert_most_close
 
 WEIGHTS = "nvidia/segformer-b0-finetuned-ade-512-512"
 

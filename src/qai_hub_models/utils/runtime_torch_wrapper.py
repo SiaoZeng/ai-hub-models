@@ -14,7 +14,7 @@ import numpy as np
 import torch
 from numpy.typing import ArrayLike, NDArray
 
-from qai_hub_models.models.protocols import ExecutableModelProtocol
+from qai_hub_models.protocols import ExecutableModelProtocol
 from qai_hub_models.utils.transpose_channel import (
     transpose_channel_first_to_last_np,
     transpose_channel_last_to_first_np,

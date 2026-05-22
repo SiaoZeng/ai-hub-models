@@ -7,7 +7,7 @@ import os
 
 from qai_hub.public_api_pb2 import Framework
 
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     InferenceEngine,
     QAIRTVersion,
     TargetRuntime,

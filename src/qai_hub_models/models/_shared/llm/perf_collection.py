@@ -18,10 +18,10 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
+from qai_hub_models import Precision
 from qai_hub_models.configs.code_gen_yaml import QAIHMModelCodeGen
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
-from qai_hub_models.models.common import Precision
 from qai_hub_models.scorecard import ScorecardDevice
 from qai_hub_models.scorecard.device import sanitize_chipset_name
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath

@@ -9,13 +9,13 @@ from qai_hub_models.models.bevfusion_det.app import BEVFusionApp
 from qai_hub_models.models.bevfusion_det.demo import CAMERAS, INPUTS
 from qai_hub_models.models.bevfusion_det.demo import main as demo_main
 from qai_hub_models.models.bevfusion_det.model import MODEL_ID, BEVFusion
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
     load_json,
     load_numpy,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 OUTPUT = CachedWebModelAsset.from_asset_store(MODEL_ID, 5, "outputs/corners.npy")
 

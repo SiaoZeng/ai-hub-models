@@ -12,8 +12,8 @@ from pydantic import Field
 from qai_hub_models_cli.proto import numerics_pb2
 from qai_hub_models_cli.proto.shared import range_pb2
 
+from qai_hub_models import Precision
 from qai_hub_models.configs.proto_helpers import precision_to_proto, runtime_to_proto
-from qai_hub_models.models.common import Precision
 from qai_hub_models.scorecard import ScorecardProfilePath
 from qai_hub_models.scorecard.device import ScorecardDevice
 from qai_hub_models.utils.base_config import BaseQAIHMConfig

@@ -17,8 +17,8 @@ import numpy as np
 import qai_hub as hub
 import torch
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm.model import LLM_AIMETOnnx, LLMBase
-from qai_hub_models.models.common import Precision
 
 with contextlib.suppress(ImportError):
     from transformers import PretrainedConfig

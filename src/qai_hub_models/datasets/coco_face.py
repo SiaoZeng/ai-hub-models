@@ -12,7 +12,7 @@ import cv2
 import torch
 
 from qai_hub_models.datasets.cocobody import CocoBodyDataset
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.utils.base_dataset import DatasetSplit
 from qai_hub_models.utils.input_spec import InputSpec
 
 

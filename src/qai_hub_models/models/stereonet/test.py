@@ -13,12 +13,15 @@ from qai_hub_models.models.stereonet.app import StereoNetApp
 from qai_hub_models.models.stereonet.demo import DEFAULT_LEFT_IMAGE, DEFAULT_RIGHT_IMAGE
 from qai_hub_models.models.stereonet.demo import main as demo_main
 from qai_hub_models.models.stereonet.model import DEFAULT_CKPT, StereoNet
+from qai_hub_models.scorecard.utils.testing import (
+    assert_most_close,
+    skip_clone_repo_check,
+)
 from qai_hub_models.utils.asset_loaders import load_image
 from qai_hub_models.utils.image_processing import (
     app_to_net_image_inputs,
     resize_pad,
 )
-from qai_hub_models.utils.testing import assert_most_close, skip_clone_repo_check
 
 
 def run_source_model(

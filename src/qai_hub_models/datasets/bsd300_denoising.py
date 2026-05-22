@@ -12,7 +12,7 @@ import torch
 from PIL import Image
 
 from qai_hub_models.datasets.bsd300 import BSD300Dataset
-from qai_hub_models.datasets.common import DatasetMetadata, DatasetSplit
+from qai_hub_models.utils.base_dataset import DatasetMetadata, DatasetSplit
 from qai_hub_models.utils.image_processing import pil_resize_pad, preprocess_PIL_image
 from qai_hub_models.utils.input_spec import InputSpec
 

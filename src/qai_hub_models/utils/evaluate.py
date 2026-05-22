@@ -33,15 +33,15 @@ from qai_hub_models.datasets import (
     DatasetSplit,
     instantiate_dataset,
 )
-from qai_hub_models.datasets.common import get_folder_name
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
-from qai_hub_models.models.protocols import ExecutableModelProtocol
+from qai_hub_models.protocols import ExecutableModelProtocol
 from qai_hub_models.utils.asset_loaders import (
     get_hub_datasets_path,
     load_h5,
     load_raw_file,
     qaihm_temp_dir,
 )
+from qai_hub_models.utils.base_dataset import get_folder_name
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel, CollectionModel
 from qai_hub_models.utils.envvars import IsOnCIEnvvar
 from qai_hub_models.utils.inference import (

@@ -18,8 +18,8 @@ from qai_hub.public_api_pb2 import (
 )
 
 import qai_hub_models._version as pkg_version
+from qai_hub_models import QAIRTVersion, TargetRuntime
 from qai_hub_models.configs.tool_versions import ToolVersions
-from qai_hub_models.models.common import QAIRTVersion, TargetRuntime
 
 RESULTS_PATCH_TARGET = "qai_hub_models.configs.tool_versions.get_job_results"
 

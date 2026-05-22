@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.configs.model_metadata import (
     ModelFileMetadata,
     ModelMetadata,
@@ -23,7 +24,6 @@ from qai_hub_models.configs.tensor_spec import (
     TensorSpec,
 )
 from qai_hub_models.configs.tool_versions import ToolVersions
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.utils.asset_loaders import load_json, load_yaml
 from qai_hub_models.utils.input_spec import InputSpec
 

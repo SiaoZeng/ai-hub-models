@@ -7,9 +7,9 @@ import cv2
 import numpy as np
 import torch
 
-from qai_hub_models.datasets.common import DatasetSplit
 from qai_hub_models.datasets.imagenet_colorization import TRANSFORM
 from qai_hub_models.datasets.imagenette import ImagenetteDataset
+from qai_hub_models.utils.base_dataset import DatasetSplit
 
 
 class ImagenetteColorizationDataset(ImagenetteDataset):

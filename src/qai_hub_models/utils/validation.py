@@ -6,9 +6,9 @@ from __future__ import annotations
 
 import inspect
 
+from qai_hub_models import Precision
 from qai_hub_models.configs.code_gen_yaml import QAIHMModelCodeGen
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.models.common import Precision
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,

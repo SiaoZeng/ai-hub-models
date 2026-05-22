@@ -5,7 +5,7 @@
 
 import pytest
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.scorecard.envvars import (
     EnabledPathsEnvvar,
     EnabledPrecisionsEnvvar,

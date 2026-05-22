@@ -11,7 +11,6 @@ from pathlib import Path
 import pandas as pd
 import torch
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.models._shared.video_classifier.utils import (
     DEFAULT_NUM_CLIPS,
     DEFAULT_NUM_CROPS,
@@ -25,6 +24,7 @@ from qai_hub_models.models._shared.video_classifier.utils import (
     sample_video,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.utils.input_spec import InputSpec
 
 KINETICS400_FOLDER_NAME = "kinetics400"

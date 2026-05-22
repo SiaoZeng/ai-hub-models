@@ -17,6 +17,7 @@ from typing import Any, cast
 import qai_hub as hub
 
 from qai_hub_models import Precision, TargetRuntime
+from qai_hub_models.common import SampleInputsType
 from qai_hub_models.configs.model_metadata import (
     ChipsetAttributes,
     ModelFileMetadata,
@@ -24,7 +25,6 @@ from qai_hub_models.configs.model_metadata import (
     merge_input_metadata,
 )
 from qai_hub_models.configs.tool_versions import ToolVersions
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.models.llama_v3_2_1b_instruct2 import (
     DEFAULT_PRECISION,
     MODEL_ID,

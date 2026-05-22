@@ -9,8 +9,7 @@ import torch
 from qai_hub.client import Device
 from typing_extensions import Self
 
-from qai_hub_models import TargetRuntime
-from qai_hub_models.models.common import Precision
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.models.crestereo.external_repos.crestereo_pytorch.nets import (
     Model,
 )

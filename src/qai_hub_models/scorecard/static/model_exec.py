@@ -22,7 +22,7 @@ from qai_hub import (
 from qai_hub.client import Client
 from qai_hub.hub import _global_client
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.scorecard.device import ScorecardDevice, cs_universal
 from qai_hub_models.scorecard.execution_helpers import ScorecardPathTypeVar
 from qai_hub_models.scorecard.params import ScExportTestParams, ScJobParams
@@ -33,7 +33,7 @@ from qai_hub_models.scorecard.results.yaml import (
     InferenceScorecardJobYaml,
     ProfileScorecardJobYaml,
 )
-from qai_hub_models.utils.testing_export_eval import (
+from qai_hub_models.scorecard.utils.testing_export_eval import (
     fetch_cached_jobs_if_compile_jobs_are_identical,
 )
 

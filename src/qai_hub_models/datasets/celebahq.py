@@ -14,12 +14,12 @@ import torch
 from numpy.typing import NDArray
 from PIL import Image, ImageDraw
 
-from qai_hub_models.datasets.common import (
+from qai_hub_models.models._shared.repaint.utils import preprocess_inputs
+from qai_hub_models.utils.base_dataset import (
     BaseDataset,
     DatasetMetadata,
     DatasetSplit,
 )
-from qai_hub_models.models._shared.repaint.utils import preprocess_inputs
 from qai_hub_models.utils.image_processing import app_to_net_image_inputs
 from qai_hub_models.utils.private_asset_loaders import CachedPrivateDatasetAsset
 

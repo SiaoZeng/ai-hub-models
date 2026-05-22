@@ -22,14 +22,14 @@ from typing import Any, TypeVar
 import qai_hub as hub
 from numpydoc.docscrape import FunctionDoc
 
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.models.common import Precision, TargetRuntime
-from qai_hub_models.models.protocols import (
+from qai_hub_models import Precision, TargetRuntime
+from qai_hub_models.protocols import (
     FromPrecompiledProtocol,
     FromPrecompiledTypeVar,
     FromPretrainedProtocol,
     FromPretrainedTypeVar,
 )
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import (
     BaseModel,
     BasePrecompiledModel,

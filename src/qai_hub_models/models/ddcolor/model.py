@@ -8,15 +8,15 @@ from __future__ import annotations
 import torch
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import Precision
 from qai_hub_models.datasets.imagenet_colorization import ImagenetColorizationDataset
 from qai_hub_models.datasets.imagenette_colorization import (
     ImagenetteColorizationDataset,
 )
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.colorization_evaluator import ColorizationEvaluator
-from qai_hub_models.models.common import Precision
 from qai_hub_models.models.ddcolor.external_repos.ddcolor.infer_hf import DDColorHF
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import (
     ColorFormat,

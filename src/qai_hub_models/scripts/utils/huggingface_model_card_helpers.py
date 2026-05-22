@@ -12,13 +12,13 @@ from typing import Any
 import jinja2
 import ruamel.yaml
 
+from qai_hub_models import Precision
 from qai_hub_models._version import __version__ as qaihm_version
 from qai_hub_models.configs._info_yaml_llm_details import LLM_CALL_TO_ACTION
 from qai_hub_models.configs.devices_and_chipsets_yaml import DevicesAndChipsetsYaml
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
 from qai_hub_models.configs.release_assets_yaml import QAIHMModelReleaseAssets
-from qai_hub_models.models.common import Precision
 from qai_hub_models.scorecard.device import ScorecardDevice
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath
 from qai_hub_models.scorecard.results.chipset_helpers import WEBSITE_CHIPSET_ORDER

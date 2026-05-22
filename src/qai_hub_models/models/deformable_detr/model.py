@@ -8,9 +8,9 @@ from __future__ import annotations
 from torch import nn
 from transformers import DeformableDetrForObjectDetection
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.detection_evaluator import DetectionEvaluator
 from qai_hub_models.models._shared.detr.model import DETR
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1

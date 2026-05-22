@@ -13,8 +13,11 @@ from qai_hub.client import Device
 from torch import Tensor
 from typing_extensions import Self
 
+from qai_hub_models import (
+    Precision,
+    TargetRuntime,
+)
 from qai_hub_models.configs.model_metadata import ModelMetadata
-from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.datasets.common_voice import CommonVoiceText
 from qai_hub_models.models._shared.pipertts.pipertts_metadata_json import (
     write_pipertts_supplementary_files,
@@ -27,11 +30,8 @@ from qai_hub_models.models._shared.voiceai_tts.t5_g2p import (
     T5Decoder,
     T5Encoder,
 )
-from qai_hub_models.models.common import (
-    Precision,
-    TargetRuntime,
-)
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import (
     BaseModel,
     PretrainedCollectionModel,

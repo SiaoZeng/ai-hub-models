@@ -10,13 +10,13 @@ from typing import Any
 import numpy as np
 import torch
 
-from qai_hub_models.datasets.common import (
-    BaseDataset,
-    DatasetSplit,
-)
 from qai_hub_models.utils.asset_loaders import (
     CachedWebDatasetAsset,
     load_image,
+)
+from qai_hub_models.utils.base_dataset import (
+    BaseDataset,
+    DatasetSplit,
 )
 from qai_hub_models.utils.image_processing import pre_process_with_affine
 from qai_hub_models.utils.input_spec import InputSpec

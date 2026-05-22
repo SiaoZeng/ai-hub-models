@@ -9,10 +9,10 @@ from typing import Generic, final
 
 from qai_hub import JobType
 
+from qai_hub_models import Precision
 from qai_hub_models.configs.devices_and_chipsets_yaml import DevicesAndChipsetsYaml
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
-from qai_hub_models.models.common import Precision
 from qai_hub_models.scorecard import (
     ScorecardDevice,
     ScorecardProfilePath,

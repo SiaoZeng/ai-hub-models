@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from typing_extensions import Self
 
+from qai_hub_models import SampleInputsType
 from qai_hub_models.models._shared.mediapipe.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models._shared.mediapipe.external_repos.mediapipe.blazehand_landmark import (
     BlazeHandLandmark,
@@ -21,7 +22,6 @@ from qai_hub_models.models._shared.mediapipe.external_repos.mediapipe.blazepalm 
 from qai_hub_models.models._shared.mediapipe.utils import (
     mediapipe_detector_postprocess,
 )
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_numpy
 from qai_hub_models.utils.base_model import (
     BaseModel,

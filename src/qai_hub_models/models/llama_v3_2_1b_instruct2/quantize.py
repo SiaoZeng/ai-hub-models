@@ -57,12 +57,12 @@ from pathlib import Path
 import onnxruntime
 import torch
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_CALIBRATION_SEQ_LEN,
     DEFAULT_CONTEXT_LENGTH,
 )
 from qai_hub_models.models._shared.llm.quantize import save_command_args
-from qai_hub_models.models.common import Precision
 from qai_hub_models.models.llama_v3_2_1b_instruct2.model import (
     HF_REPO_NAME,
     MODEL_ID,

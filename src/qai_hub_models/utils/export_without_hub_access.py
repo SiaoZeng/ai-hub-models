@@ -9,9 +9,9 @@ from pathlib import Path
 
 import qai_hub as hub
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.configs.devices_and_chipsets_yaml import DevicesAndChipsetsYaml
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.scorecard.device import ScorecardDevice
 from qai_hub_models.utils.fetch_static_assets import fetch_static_assets
 from qai_hub_models.utils.printing import print_profile_metrics, print_with_box

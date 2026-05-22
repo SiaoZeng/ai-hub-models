@@ -11,7 +11,7 @@ import shutil
 import numpy as np
 import torch
 
-from qai_hub_models.datasets.common import (
+from qai_hub_models.utils.base_dataset import (
     BaseDataset,
     DatasetMetadata,
     DatasetSplit,

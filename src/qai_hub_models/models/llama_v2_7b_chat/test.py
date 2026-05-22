@@ -12,8 +12,8 @@ import pytest
 import qai_hub as hub
 import torch
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm.common import cleanup
-from qai_hub_models.models.common import Precision
 from qai_hub_models.models.llama_v2_7b_chat import Model
 from qai_hub_models.models.llama_v2_7b_chat.export import (
     ALL_COMPONENTS,
@@ -28,9 +28,9 @@ from qai_hub_models.scorecard import (
     ScorecardDevice,
 )
 from qai_hub_models.scorecard.device import cs_x_elite
+from qai_hub_models.scorecard.utils.testing import patch_qai_hub
+from qai_hub_models.scorecard.utils.testing_export_eval import run_llm_compile
 from qai_hub_models.utils.model_cache import CacheMode
-from qai_hub_models.utils.testing import patch_qai_hub
-from qai_hub_models.utils.testing_export_eval import run_llm_compile
 
 
 def _mock_from_pretrained() -> Mock:

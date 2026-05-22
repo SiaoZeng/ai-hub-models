@@ -10,7 +10,7 @@ from typing import Any
 import torch
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import SampleInputsType
 from qai_hub_models.datasets.kinetics400 import Kinetics400Dataset
 from qai_hub_models.models._shared.video_classifier.model import (
     INPUT_VIDEO_PATH,
@@ -21,11 +21,11 @@ from qai_hub_models.models._shared.video_classifier.utils import (
     preprocess_video_224,
     read_video_per_second,
 )
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.models.video_mae.external_repos.videomae.modeling_finetune import (
     vit_base_patch16_224,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.image_processing import normalize_image_torchvision
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 

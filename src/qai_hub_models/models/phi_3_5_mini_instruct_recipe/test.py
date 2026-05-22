@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 import qai_hub as hub
 
+from qai_hub_models import TargetRuntime
 from qai_hub_models.models._shared.llm import test
-from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.models.phi_3_5_mini_instruct_recipe import (
     MODEL_ID,
     Model,

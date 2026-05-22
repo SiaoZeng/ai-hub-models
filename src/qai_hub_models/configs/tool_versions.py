@@ -10,7 +10,7 @@ from qai_hub.public_rest_api import get_job_results
 from qai_hub_models_cli.proto.shared import tool_versions_pb2
 
 import qai_hub_models._version as pkg_version
-from qai_hub_models.models.common import QAIRTVersion, TargetRuntime
+from qai_hub_models import QAIRTVersion, TargetRuntime
 from qai_hub_models.utils.base_config import BaseQAIHMConfig
 from qai_hub_models.utils.job_options import extract_job_options
 

@@ -11,7 +11,7 @@ from typing import Generic, TypeVar, cast, final
 
 from qai_hub import JobType
 
-from qai_hub_models.models.common import Precision
+from qai_hub_models import Precision
 from qai_hub_models.scorecard import (
     ScorecardCompilePath,
     ScorecardDevice,

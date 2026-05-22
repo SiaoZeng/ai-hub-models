@@ -15,7 +15,7 @@ from qai_hub_models.models.internimage.model import (
     MODEL_ID,
     InternImageClassifier,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 
 
 @skip_clone_repo_check

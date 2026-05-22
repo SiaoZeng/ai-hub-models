@@ -17,8 +17,8 @@ from qai_hub_models.models.sixd_repnet.model import (
     MODEL_ID,
     SixDRepNet,
 )
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_numpy
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 EXPECTED_OUTPUT = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "expected_output.npy"

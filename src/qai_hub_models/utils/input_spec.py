@@ -10,6 +10,7 @@ from typing import Any, TypeGuard
 import numpy as np
 import torch
 
+from qai_hub_models import SampleInputsType
 from qai_hub_models.configs.tensor_spec import (
     BboxFormat,
     BboxMetadata,
@@ -18,7 +19,6 @@ from qai_hub_models.configs.tensor_spec import (
     IoType,
     TensorSpec,
 )
-from qai_hub_models.models.common import SampleInputsType
 
 # ---------------------------------------------------------------------------
 # InputSpec Type Definition

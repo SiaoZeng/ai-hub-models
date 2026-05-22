@@ -12,14 +12,14 @@ from typing_extensions import Self
 from ultralytics.models import YOLO as ultralytics_YOLO
 from ultralytics.nn.tasks import PoseModel
 
+from qai_hub_models import Precision
 from qai_hub_models.datasets.coco_keypoints import CocoKeypointsDataset
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.models._shared.ultralytics.pose_patches import (
     patch_ultralytics_pose_head,
 )
 from qai_hub_models.models._shared.yolo.model import Yolo, yolo_detect_postprocess
-from qai_hub_models.models.common import Precision
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.input_spec import (
     BboxFormat,
     BboxMetadata,

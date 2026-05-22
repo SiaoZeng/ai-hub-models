@@ -26,7 +26,7 @@ from qai_hub_models.models.pi05.model import (
     Pi05PaliGemmaVision,
     load_checkpoint,
 )
-from qai_hub_models.models.protocols import ExecutableModelProtocol
+from qai_hub_models.protocols import ExecutableModelProtocol
 from qai_hub_models.utils.asset_loaders import ASSET_CONFIG
 from qai_hub_models.utils.base_model import PretrainedCollectionModel
 from qai_hub_models.utils.image_processing import resize_pad

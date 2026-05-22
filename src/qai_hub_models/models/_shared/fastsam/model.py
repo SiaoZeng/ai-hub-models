@@ -11,10 +11,10 @@ from typing_extensions import Self
 from ultralytics.models import FastSAM
 from ultralytics.nn.tasks import SegmentationModel
 
+from qai_hub_models import SampleInputsType
 from qai_hub_models.models._shared.ultralytics.segmentation_model import (
     UltralyticsSingleClassSegmentor,
 )
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
 from qai_hub_models.utils.image_processing import app_to_net_image_inputs
 from qai_hub_models.utils.input_spec import InputSpec

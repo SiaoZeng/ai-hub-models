@@ -10,9 +10,9 @@ from typing import Any
 import numpy as np
 import torch
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import NORMALIZED_MEAN_ERROR, MetricMetadata
 from qai_hub_models.models.hrnet_face.app import refine_keypoints_from_heatmaps
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.image_processing import denormalize_coordinates_affine
 
 

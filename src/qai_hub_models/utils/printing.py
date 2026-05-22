@@ -18,13 +18,13 @@ from prettytable import PrettyTable
 from qai_hub.public_rest_api import DatasetEntries
 from tabulate import tabulate
 
+from qai_hub_models import TargetRuntime
 from qai_hub_models.configs.devices_and_chipsets_yaml import (
     DeviceDetailsYaml,
     DevicesAndChipsetsYaml,
 )
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
 from qai_hub_models.configs.tool_versions import ToolVersions
-from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.scorecard.device import ScorecardDevice
 from qai_hub_models.utils.compare import METRICS_FUNCTIONS, generate_comparison_metrics
 

@@ -10,14 +10,14 @@ import torch
 from qai_hub.client import Device
 from transformers import AutoTokenizer
 
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.datasets.wikitext_masked import WikiTextMasked
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
-from qai_hub_models.evaluators.maskedlm_evaluator import MaskedLMEvaluator
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     TargetRuntime,
 )
+from qai_hub_models.datasets.wikitext_masked import WikiTextMasked
+from qai_hub_models.evaluators.maskedlm_evaluator import MaskedLMEvaluator
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import InputSpec, TensorSpec
 

@@ -10,15 +10,15 @@ import torchvision.models as tv_models
 import torchvision.transforms as T
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetSplit
+from qai_hub_models import Precision
 from qai_hub_models.datasets.imagenet import ImagenetDataset
 from qai_hub_models.datasets.imagenette import ImagenetteDataset
 from qai_hub_models.models._shared.imagenet_classifier.model import (
     TEST_IMAGENET_IMAGE,
     ImagenetClassifier,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.asset_loaders import load_image
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetSplit
 from qai_hub_models.utils.image_processing import make_imagenet_transform
 from qai_hub_models.utils.input_spec import (
     ColorFormat,

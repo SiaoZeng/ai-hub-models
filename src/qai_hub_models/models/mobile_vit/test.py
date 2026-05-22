@@ -9,12 +9,12 @@ import torch
 from qai_hub_models.models.mobile_vit.app import MobileVITApp
 from qai_hub_models.models.mobile_vit.demo import demo as demo_main
 from qai_hub_models.models.mobile_vit.model import MODEL_ID, MobileVIT
+from qai_hub_models.scorecard.utils.testing import assert_most_close
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
     load_numpy,
 )
-from qai_hub_models.utils.testing import assert_most_close
 
 GROUP_NAME = "mobile_vit"
 MODEL_ASSET_VERSION = 2

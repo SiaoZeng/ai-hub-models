@@ -22,6 +22,10 @@ import qai_hub as hub
 import torch
 from qai_hub.public_rest_api import DatasetEntries
 
+from qai_hub_models import (
+    Precision,
+    TargetRuntime,
+)
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
 from qai_hub_models.configs.tool_versions import ToolVersions
 from qai_hub_models.models._shared.llm.model import (
@@ -29,10 +33,6 @@ from qai_hub_models.models._shared.llm.model import (
     PositionProcessorBase,
 )
 from qai_hub_models.models._shared.llm.split_onnx_utils import utils
-from qai_hub_models.models.common import (
-    Precision,
-    TargetRuntime,
-)
 from qai_hub_models.utils.args import (
     get_export_model_name,
     get_model_kwargs,

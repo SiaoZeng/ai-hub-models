@@ -6,13 +6,13 @@ from __future__ import annotations
 
 import torch
 
+from qai_hub_models import TargetRuntime
 from qai_hub_models.models._shared.imagenet_classifier.app import ImagenetClassifierApp
 from qai_hub_models.models._shared.imagenet_classifier.model import (
     MODEL_ASSET_VERSION,
     MODEL_ID,
     ImagenetClassifier,
 )
-from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.utils.args import (
     demo_model_from_cli_args,
     get_model_cli_parser,

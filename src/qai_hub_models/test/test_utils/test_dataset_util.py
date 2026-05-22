@@ -6,7 +6,7 @@
 import numpy as np
 import pytest
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.dataset_util import dataset_entries_to_dataloader
 
 

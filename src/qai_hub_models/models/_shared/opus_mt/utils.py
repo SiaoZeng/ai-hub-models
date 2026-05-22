@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from qai_hub_models import TargetRuntime
 from qai_hub_models.configs.model_metadata import ModelMetadata
 from qai_hub_models.models._shared.opus_mt.model import (
     MAX_SEQ_LEN_DEC,
@@ -18,7 +19,6 @@ from qai_hub_models.models._shared.opus_mt.model import (
 from qai_hub_models.models._shared.opus_mt.opusmt_metadata_json import (
     create_t2t_metadata,
 )
-from qai_hub_models.models.common import TargetRuntime
 
 # Language code to name mapping for supplementary file descriptions
 LANGUAGE_NAMES = {

@@ -17,8 +17,8 @@ from transformers import (
 )
 from transformers.cache_utils import DynamicCache
 
-from .generator import Generator, VLM_Generator
-from .utils.layer_cache import (
+from qai_hub_models.models._shared.lm_driver.generator import Generator, VLM_Generator
+from qai_hub_models.models._shared.lm_driver.utils.layer_cache import (
     LayerCacheDescriptor,
     attention_mask_input_names,
     cache_state_names,

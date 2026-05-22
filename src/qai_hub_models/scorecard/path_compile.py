@@ -9,7 +9,7 @@ from enum import Enum, unique
 
 from typing_extensions import assert_never
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.scorecard.envvars import (
     DeploymentEnvvar,
     QAIRTVersionEnvvar,

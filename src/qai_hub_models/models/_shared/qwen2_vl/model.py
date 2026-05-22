@@ -49,11 +49,11 @@ if TYPE_CHECKING:
 
 from qai_hub.public_rest_api import DatasetEntries
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm._utils import (
     _apply_int8_kv_cache_tying_and_lm_head,
     _get_kv_io_map,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.system_info import has_recommended_memory
 
 logger = logging.getLogger(__name__)
@@ -766,11 +766,11 @@ class Qwen2VLTextBase_AIMETOnnx(Qwen2Base_AIMETOnnx):
         from transformers import AutoProcessor
 
         from qai_hub_models.datasets import instantiate_dataset
-        from qai_hub_models.datasets.common import DatasetSplit
         from qai_hub_models.datasets.interleaved_aokvqa_wikitext import (
             InterleavedAOKVQAWikiText,
         )
         from qai_hub_models.models._shared.llm.generator import LLM_Generator
+        from qai_hub_models.utils.base_dataset import DatasetSplit
         from qai_hub_models.utils.qai_hub_helpers import make_hub_dataset_entries
 
         if num_samples == 0:

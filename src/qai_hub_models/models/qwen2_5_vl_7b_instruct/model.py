@@ -45,6 +45,12 @@ import torch
 from qai_hub.client import Device
 from typing_extensions import Self
 
+from qai_hub_models import (
+    Precision,
+    SampleInputsType,
+    SourceModelFormat,
+    TargetRuntime,
+)
 from qai_hub_models.configs.model_metadata import ModelMetadata
 from qai_hub_models.datasets.imagenette import IMAGENETTE_ASSET
 from qai_hub_models.models._shared.llm.common import LLMIOType
@@ -67,12 +73,6 @@ from qai_hub_models.models._shared.qwen2_vl.model import (
 )
 from qai_hub_models.models._shared.qwen2_vl.vision_encoder import (
     Qwen2VLVisionEncoder,
-)
-from qai_hub_models.models.common import (
-    Precision,
-    SampleInputsType,
-    SourceModelFormat,
-    TargetRuntime,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import (

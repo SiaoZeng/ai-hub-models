@@ -9,8 +9,8 @@ import torch
 from transformers import AutoModelForDepthEstimation
 from typing_extensions import Self
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.depth_estimation.model import DepthEstimationModel
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.image_processing import normalize_image_torchvision
 from qai_hub_models.utils.input_spec import (
     ColorFormat,

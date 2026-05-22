@@ -10,14 +10,14 @@ import os
 import torch
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import Precision
 from qai_hub_models.datasets.eg1800 import EG1800SegmentationDataset
 from qai_hub_models.models._shared.selfie_segmentation.model import SelfieSegmentor
-from qai_hub_models.models.common import Precision
 from qai_hub_models.models.sinet.external_repos.ext_portrait_segmentation.models.SINet import (
     SINet as SINetModel,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
+from qai_hub_models.utils.base_dataset import BaseDataset
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 2

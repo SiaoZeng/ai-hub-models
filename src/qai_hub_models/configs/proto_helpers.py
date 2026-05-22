@@ -7,6 +7,7 @@ from __future__ import annotations
 from qai_hub_models_cli.proto import info_pb2, platform_pb2
 from qai_hub_models_cli.proto.shared import precision_pb2, runtime_pb2
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.configs._info_yaml_enums import (
     MODEL_DOMAIN,
     MODEL_LICENSE,
@@ -15,7 +16,6 @@ from qai_hub_models.configs._info_yaml_enums import (
     MODEL_USE_CASE,
 )
 from qai_hub_models.configs._info_yaml_llm_details import LLM_CALL_TO_ACTION
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.scorecard.device import ScorecardDevice
 
 _PRECISION_TO_PROTO: dict[str, int] = {

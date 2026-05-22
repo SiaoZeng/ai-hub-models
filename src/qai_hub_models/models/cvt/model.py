@@ -14,15 +14,13 @@ from torch import nn
 from typing_extensions import Self
 
 import qai_hub_models.models.cvt.external_repos.cross_view_transformers as cvt_repo
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.datasets.nuscenes_bev import NuscenesBevCVTDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
-from qai_hub_models.evaluators.nuscenes_bev_evaluator import (
-    NuscenesBevSegmentationEvaluator,
-)
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     TargetRuntime,
+)
+from qai_hub_models.datasets.nuscenes_bev import NuscenesBevCVTDataset
+from qai_hub_models.evaluators.nuscenes_bev_evaluator import (
+    NuscenesBevSegmentationEvaluator,
 )
 from qai_hub_models.models.cvt.external_repos.cross_view_transformers.cross_view_transformer.common import (
     remove_prefix,
@@ -32,6 +30,8 @@ from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_torch,
 )
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.external_repo import rewrite_hydra_targets
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec

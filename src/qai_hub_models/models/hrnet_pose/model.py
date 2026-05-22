@@ -9,19 +9,19 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models import SampleInputsType
 from qai_hub_models.datasets.cocobody import CocoBodyDataset
-from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.datasets.mpii import MPIIDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.hrnet_evaluator import HRNetPoseEvaluator
 from qai_hub_models.evaluators.pose_evaluator import MPIIPoseEvaluator
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.models.hrnet_pose.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models.hrnet_pose.external_repos.hrnet.lib.config import cfg
 from qai_hub_models.models.hrnet_pose.external_repos.hrnet.lib.models.pose_hrnet import (
     PoseHighResolutionNet,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_numpy
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.image_processing import normalize_image_torchvision
 from qai_hub_models.utils.input_spec import (

@@ -13,7 +13,7 @@ from pydantic import GetCoreSchemaHandler
 from pydantic_core import core_schema
 from typing_extensions import assert_never
 
-from qai_hub_models.models.common import InferenceEngine, Precision, TargetRuntime
+from qai_hub_models import InferenceEngine, Precision, TargetRuntime
 from qai_hub_models.scorecard.envvars import (
     EnabledDevicesEnvvar,
     SpecialDeviceSetting,

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 
+from qai_hub_models import Precision
 from qai_hub_models.configs._info_yaml_enums import MODEL_STATUS
 from qai_hub_models.configs.code_gen_yaml import QAIHMModelCodeGen
 from qai_hub_models.configs.devices_and_chipsets_yaml import DevicesAndChipsetsYaml
@@ -18,7 +19,6 @@ from qai_hub_models.configs.model_disable_reasons import (
 from qai_hub_models.configs.numerics_yaml import QAIHMModelNumerics
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
 from qai_hub_models.configs.release_assets_yaml import QAIHMModelReleaseAssets
-from qai_hub_models.models.common import Precision
 from qai_hub_models.scorecard import (
     ScorecardDevice,
     ScorecardProfilePath,

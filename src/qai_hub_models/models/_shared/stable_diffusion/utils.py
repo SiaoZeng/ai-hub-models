@@ -24,7 +24,7 @@ from qai_hub_models.models._shared.stable_diffusion.app import (
     UNET_EXTRA_INPUT_NAMES,
     run_diffusion_steps_on_latents,
 )
-from qai_hub_models.models.protocols import ExecutableModelProtocol
+from qai_hub_models.protocols import ExecutableModelProtocol
 
 
 def clip_extreme_values(

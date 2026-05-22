@@ -9,8 +9,8 @@ from qai_hub_models.models._shared.super_resolution.app import SuperResolutionAp
 from qai_hub_models.models._shared.super_resolution.model import IMAGE_ADDRESS
 from qai_hub_models.models.xlsr.demo import main as demo_main
 from qai_hub_models.models.xlsr.model import MODEL_ASSET_VERSION, MODEL_ID, XLSR
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 OUTPUT_IMAGE_LOCAL_PATH = "xlsr_demo_output.png"
 OUTPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(

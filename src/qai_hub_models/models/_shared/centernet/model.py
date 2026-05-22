@@ -12,6 +12,10 @@ from qai_hub.client import Device
 from torch import nn
 from typing_extensions import Self
 
+from qai_hub_models import (
+    Precision,
+    TargetRuntime,
+)
 from qai_hub_models.models._shared.centernet.external_repos.centernet.src.lib.models.networks.DCNv2.dcn_v2 import (
     DCN,
 )
@@ -19,10 +23,6 @@ from qai_hub_models.models._shared.centernet.external_repos.centernet.src.lib.mo
     get_pose_net,
 )
 from qai_hub_models.models._shared.centernet.model_patches import custom_dcn_forward
-from qai_hub_models.models.common import (
-    Precision,
-    TargetRuntime,
-)
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import (
     ColorFormat,

@@ -13,7 +13,6 @@ import torch
 from qai_hub.public_rest_api import DatasetEntries
 
 from qai_hub_models.datasets import instantiate_dataset
-from qai_hub_models.datasets.common import DatasetSplit
 from qai_hub_models.models._shared.mediapipe.app import MediaPipeApp
 from qai_hub_models.models.mediapipe_face.model import (
     DETECT_DSCALE,
@@ -25,6 +24,7 @@ from qai_hub_models.models.mediapipe_face.model import (
     ROTATION_VECTOR_OFFSET_RADS,
     MediaPipeFace,
 )
+from qai_hub_models.utils.base_dataset import DatasetSplit
 from qai_hub_models.utils.base_model import CollectionModel, PretrainedCollectionModel
 from qai_hub_models.utils.image_processing import torch_image_to_numpy
 from qai_hub_models.utils.input_spec import InputSpec

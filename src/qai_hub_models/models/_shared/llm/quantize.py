@@ -13,6 +13,7 @@ from typing import Any
 
 import torch
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm.common import TORCH_DYNAMIC_SHAPE_MIN_VERSION
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_CALIBRATION_SEQ_LEN,
@@ -22,7 +23,6 @@ from qai_hub_models.models._shared.llm.model import (
     LLMBase,
     LLMDynamicBase,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.args import get_quantize_action_with_default
 from qai_hub_models.utils.dataset_util import dataset_entries_to_dataloader
 from qai_hub_models.utils.version_helpers import ensure_supported_version

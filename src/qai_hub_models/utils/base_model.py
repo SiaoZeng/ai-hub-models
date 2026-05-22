@@ -18,21 +18,21 @@ import torch
 from qai_hub.client import Device
 from typing_extensions import Self
 
-from qai_hub_models.configs.model_metadata import ModelMetadata, OutputSpec
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     SampleInputsType,
     SourceModelFormat,
     TargetRuntime,
 )
-from qai_hub_models.models.protocols import (
+from qai_hub_models.configs.model_metadata import ModelMetadata, OutputSpec
+from qai_hub_models.protocols import (
     EvaluatableModelProtocol,
     FromPrecompiledProtocol,
     FromPretrainedProtocol,
     QuantizableModelProtocol,
 )
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.checkpoint import CheckpointSpec
 from qai_hub_models.utils.export_result import ComponentGroup
 from qai_hub_models.utils.input_spec import (

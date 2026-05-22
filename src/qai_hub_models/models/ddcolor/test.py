@@ -9,8 +9,11 @@ from qai_hub_models.models.ddcolor.app import DDColorApp
 from qai_hub_models.models.ddcolor.demo import INPUT_IMAGE_ADDRESS
 from qai_hub_models.models.ddcolor.demo import main as demo_main
 from qai_hub_models.models.ddcolor.model import MODEL_ASSET_VERSION, MODEL_ID, DDColor
+from qai_hub_models.scorecard.utils.testing import (
+    assert_most_close,
+    skip_clone_repo_check,
+)
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
-from qai_hub_models.utils.testing import assert_most_close, skip_clone_repo_check
 
 OUTPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "output_image.png"

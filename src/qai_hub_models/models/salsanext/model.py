@@ -11,11 +11,9 @@ import torch
 from ruamel.yaml import YAML
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import SampleInputsType
 from qai_hub_models.datasets.semantic_kitti import SemanticKittiDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.semantic_kitti_evaluator import SemanticKittiEvaluator
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.models.salsanext.external_repos.salsanext.train.common.laserscan import (
     SemLaserScan,
 )
@@ -23,6 +21,8 @@ from qai_hub_models.models.salsanext.external_repos.salsanext.train.tasks.semant
     SalsaNext as SalsaNextModel,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 

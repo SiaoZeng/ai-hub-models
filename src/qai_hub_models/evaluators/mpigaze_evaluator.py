@@ -9,8 +9,8 @@ from collections.abc import Collection
 import numpy as np
 import torch
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import MEAN_ANGULAR_ERROR, MetricMetadata
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 
 class MPIIGazeEvaluator(BaseEvaluator):

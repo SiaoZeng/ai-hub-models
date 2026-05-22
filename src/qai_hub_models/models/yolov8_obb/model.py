@@ -12,9 +12,8 @@ from typing_extensions import Self
 from ultralytics.models import YOLO as ultralytics_YOLO
 from ultralytics.nn.tasks import OBBModel
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import Precision
 from qai_hub_models.datasets.dota128 import Dota128Dataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.models._shared.ultralytics.obb_patches import (
     patch_ultralytics_obb_head,
 )
@@ -22,7 +21,8 @@ from qai_hub_models.models._shared.yolo.model import (
     Yolo,
     yolo_obb_postprocess,
 )
-from qai_hub_models.models.common import Precision
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 MODEL_ASSET_VERSION = 1
 MODEL_ID = __name__.split(".")[-2]

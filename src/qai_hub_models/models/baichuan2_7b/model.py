@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 
-from qai_hub_models.models.common import TargetRuntime
+from qai_hub_models import TargetRuntime
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import (
     BasePrecompiledModel,

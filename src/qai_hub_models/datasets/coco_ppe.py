@@ -12,13 +12,13 @@ from pathlib import Path
 import torch
 from PIL import Image
 
-from qai_hub_models.datasets.common import (
+from qai_hub_models.utils.asset_loaders import (
+    ASSET_CONFIG,
+)
+from qai_hub_models.utils.base_dataset import (
     BaseDataset,
     DatasetMetadata,
     DatasetSplit,
-)
-from qai_hub_models.utils.asset_loaders import (
-    ASSET_CONFIG,
 )
 from qai_hub_models.utils.image_processing import (
     app_to_net_image_inputs,

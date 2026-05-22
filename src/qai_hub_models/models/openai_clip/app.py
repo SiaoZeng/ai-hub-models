@@ -12,7 +12,7 @@ from typing import Any
 import torch
 from PIL.Image import Image
 
-from qai_hub_models.models.protocols import ExecutableModelProtocol
+from qai_hub_models.protocols import ExecutableModelProtocol
 from qai_hub_models.utils.asset_loaders import load_image
 
 

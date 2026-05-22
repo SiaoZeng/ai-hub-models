@@ -9,14 +9,14 @@ import torch
 from typing_extensions import Self
 
 from qai_hub_models.datasets.celebahq import CelebAHQDataset
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.inpaint_evaluator import InpaintEvaluator
 from qai_hub_models.models._shared.repaint.model import RepaintModel
 from qai_hub_models.models.aotgan.external_repos.aotgan.src.model.aotgan import (
     InpaintGenerator,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 MODEL_ID = __name__.split(".")[-2]
 SUPPORTED_PRETRAINED_MODELS = {"celebahq", "places2"}

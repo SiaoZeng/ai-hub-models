@@ -21,6 +21,7 @@ from sam2.modeling.sam2_base import SAM2Base as Sam2
 from sam2.modeling.sam2_utils import MLP as SAM2MaskDecoderMLP
 from sam2.modeling.sam2_utils import LayerNorm2d
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.sam.model_patches import (
     Conv2DInplaceLinearSAMMaskDecoderMLP,
     SplitHeadSAMDecoderAttention,
@@ -32,7 +33,6 @@ from qai_hub_models.models._shared.sam2.model_patches import (
     sam_decoder_predict_masks,
     sam_prompt_encoder_embed_points,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import (
     ColorFormat,

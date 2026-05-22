@@ -25,7 +25,7 @@ from qai_hub_models.models._shared.hf_whisper.model import (
     get_feature_extractor,
     get_tokenizer,
 )
-from qai_hub_models.models.protocols import ExecutableModelProtocol
+from qai_hub_models.protocols import ExecutableModelProtocol
 
 
 class HfWhisperApp:

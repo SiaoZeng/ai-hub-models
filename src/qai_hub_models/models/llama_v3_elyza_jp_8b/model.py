@@ -18,8 +18,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from typing_extensions import Self
 
+from qai_hub_models import Precision
 from qai_hub_models.datasets import instantiate_dataset
-from qai_hub_models.datasets.common import DatasetSplit
 from qai_hub_models.datasets.wikitext import WikiText
 from qai_hub_models.datasets.wikitext_ja import WikiText_Japanese
 from qai_hub_models.models._shared.llama3.model import (
@@ -41,8 +41,8 @@ from qai_hub_models.models._shared.llm.model import (
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_EXPORT_SEQUENCE_LENGTHS as GLOBAL_DEFAULT_EXPORT_SEQUENCE_LENGTHS,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
+from qai_hub_models.utils.base_dataset import DatasetSplit
 from qai_hub_models.utils.input_spec import InputSpec
 from qai_hub_models.utils.qai_hub_helpers import make_hub_dataset_entries
 

@@ -666,7 +666,7 @@ def get_resnet(
             raise ValueError(
                 "Parameter `model_name` should be properly initialized for loading pretrained model."
             )
-        from .model_store import download_model
+        from qai_hub_models.models.facemap_3dmm.model_store import download_model
 
         download_model(net=net, model_name=model_name, local_model_store_dir_path=root)
 

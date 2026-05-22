@@ -40,6 +40,11 @@ from qai_hub.client import Device
 from transformers import AutoConfig, AutoTokenizer
 from typing_extensions import Self
 
+from qai_hub_models import (
+    Precision,
+    SampleInputsType,
+    TargetRuntime,
+)
 from qai_hub_models.configs.model_metadata import ModelMetadata
 from qai_hub_models.models._shared.llama3.model import (
     Llama3DynamicBase,
@@ -60,11 +65,6 @@ from qai_hub_models.models._shared.llm.model import (
 )
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_EXPORT_SEQUENCE_LENGTHS as GLOBAL_DEFAULT_EXPORT_SEQUENCE_LENGTHS,
-)
-from qai_hub_models.models.common import (
-    Precision,
-    SampleInputsType,
-    TargetRuntime,
 )
 from qai_hub_models.utils.base_multi_graph_model import MultiGraphCollectionModel
 from qai_hub_models.utils.checkpoint import CheckpointType

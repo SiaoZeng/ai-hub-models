@@ -9,12 +9,12 @@ import cv2
 import torch
 
 from qai_hub_models.datasets.cocobody import CocoBodyDataset
-from qai_hub_models.datasets.common import DatasetSplit
 from qai_hub_models.extern.mmengine import patch_mmengine_pkgresources
 from qai_hub_models.extern.mmpose import patch_mmpose_no_build_deps
 from qai_hub_models.models._shared.mmpose.silence import (
     set_mmpose_inferencer_show_progress,
 )
+from qai_hub_models.utils.base_dataset import DatasetSplit
 from qai_hub_models.utils.image_processing import app_to_net_image_inputs
 from qai_hub_models.utils.input_spec import InputSpec
 

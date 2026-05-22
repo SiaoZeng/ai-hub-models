@@ -10,7 +10,6 @@ from pathlib import Path
 
 import torch
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.denoising_evaluator import DenoisingEvaluator
 from qai_hub_models.models._shared.nafnet.model_patches import (
     AutoLayerNorm2d,
@@ -22,6 +21,7 @@ from qai_hub_models.utils.asset_loaders import (
     SourceAsRoot,
     load_yaml,
 )
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 
 MODEL_ID = __name__.split(".")[-2]

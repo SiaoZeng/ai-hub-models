@@ -10,8 +10,8 @@ import json
 import torch
 from typing_extensions import Self
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.imagenet_classifier.model import ImagenetClassifier
-from qai_hub_models.models.common import Precision
 from qai_hub_models.models.mobilenet_v2.external_repos.pytorch_mobilenet_v2.MobileNetV2 import (
     MobileNetV2 as _MobileNetV2,
 )

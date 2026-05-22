@@ -16,8 +16,8 @@ from typing import Any
 import qai_hub as hub
 from ruamel.yaml import YAML
 
+from qai_hub_models import TargetRuntime
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
-from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.utils.asset_loaders import qaihm_temp_dir
 from qai_hub_models.utils.export_result import (
     CollectionExportResult,

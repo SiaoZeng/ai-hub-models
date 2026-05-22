@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from qai_hub_models import Precision
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
-from qai_hub_models.models.common import Precision
 from qai_hub_models.scorecard.device import ScorecardDevice, cs_8_gen_3
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath
 from qai_hub_models.scorecard.results.performance_diff import PerformanceDiff

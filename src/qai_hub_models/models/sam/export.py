@@ -19,6 +19,7 @@ import torch
 from torch.utils import mobile_optimizer
 
 from qai_hub_models import Precision, TargetRuntime
+from qai_hub_models.common import SampleInputsType
 from qai_hub_models.configs.model_metadata import (
     ChipsetAttributes,
     ModelFileMetadata,
@@ -27,7 +28,6 @@ from qai_hub_models.configs.model_metadata import (
     merge_output_metadata,
 )
 from qai_hub_models.configs.tool_versions import ToolVersions
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.models.sam import MODEL_ID, App, Model
 from qai_hub_models.utils import quantization as quantization_utils
 from qai_hub_models.utils.args import (

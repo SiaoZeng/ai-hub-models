@@ -12,7 +12,7 @@ from qai_hub_models.utils.args import evaluate_parser, get_model_kwargs, get_inp
 from qai_hub_models.utils.evaluate import evaluate_on_dataset
 from qai_hub_models.utils.input_spec import InputSpec
 from qai_hub_models.utils.inference import compile_model_from_args
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models.common import Precision, TargetRuntime
 from qai_hub_models.models.{{ model_name }}.export import export_model
 {%- if model_status != "published" %}
 from qai_hub_models.utils.asset_loaders import query_yes_no, UNPUBLISHED_MODEL_WARNING

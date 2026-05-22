@@ -12,8 +12,8 @@ from omegaconf import OmegaConf
 from qai_hub.client import Device
 from typing_extensions import Self
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.models._shared.repaint.model import RepaintModel
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.models.lama_dilated.external_repos.lama.saicinpainting.training.trainers.default import (
     DefaultInpaintingTrainingModule,
 )

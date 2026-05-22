@@ -10,7 +10,7 @@ import numpy as np
 import torch
 
 from qai_hub_models.datasets.cocobody import CocoBodyDataset
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.utils.base_dataset import DatasetSplit
 from qai_hub_models.utils.image_processing import pre_process_with_affine
 from qai_hub_models.utils.input_spec import InputSpec
 from qai_hub_models.utils.printing import suppress_stdout

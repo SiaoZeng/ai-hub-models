@@ -13,13 +13,13 @@ from qai_hub_models.models.gear_guard_net.model import (
     MODEL_ID,
     GearGuardNet,
 )
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
     load_raw_file,
 )
 from qai_hub_models.utils.bounding_box_processing import get_iou
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 INPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "test_image.jpg"

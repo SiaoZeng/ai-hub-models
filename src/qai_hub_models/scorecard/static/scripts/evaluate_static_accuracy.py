@@ -27,6 +27,7 @@ from qai_hub_models.scorecard.static.list_models import (
     validate_and_split_enabled_models,
 )
 from qai_hub_models.scorecard.static.model_config import ScorecardModelConfig
+from qai_hub_models.scorecard.utils.testing_async_utils import write_accuracy
 from qai_hub_models.utils.asset_loaders import qaihm_temp_dir
 from qai_hub_models.utils.compare import compute_psnr
 from qai_hub_models.utils.onnx.torch_wrapper import OnnxModelTorchWrapper
@@ -34,7 +35,6 @@ from qai_hub_models.utils.qai_hub_helpers import (
     download_model_in_memory,
     parse_compile_options,
 )
-from qai_hub_models.utils.testing_async_utils import write_accuracy
 from qai_hub_models.utils.transpose_channel import transpose_channel_last_to_first
 
 

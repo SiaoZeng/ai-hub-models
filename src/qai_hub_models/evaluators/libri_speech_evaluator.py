@@ -8,9 +8,9 @@ from __future__ import annotations
 import jiwer
 import torch
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import WORD_ERROR_RATE, MetricMetadata
 from qai_hub_models.models.huggingface_wavlm_base_plus.app import get_processor
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 
 class LibriSpeechEvaluator(BaseEvaluator):

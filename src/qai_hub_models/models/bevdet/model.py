@@ -12,7 +12,7 @@ from mmengine.runner import load_checkpoint
 from qai_hub.client import Device
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import Precision, SampleInputsType, TargetRuntime
 from qai_hub_models.datasets.nuscenes import NuscenesDataset
 from qai_hub_models.evaluators.nuscenes_evaluator import (
     NuscenesObjectDetectionEvaluator,
@@ -35,11 +35,11 @@ from qai_hub_models.models.bevdet.model_patches import (
     CenterHead,
     LSSViewTransformerOptimized,
 )
-from qai_hub_models.models.common import Precision, SampleInputsType, TargetRuntime
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_torch,
 )
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 

@@ -16,7 +16,7 @@ from qai_hub_models.models.mobile_bert_uncased_google.demo import main as demo_m
 from qai_hub_models.models.mobile_bert_uncased_google.model import (
     MobileBertUncasedGoogle,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 
 
 @skip_clone_repo_check

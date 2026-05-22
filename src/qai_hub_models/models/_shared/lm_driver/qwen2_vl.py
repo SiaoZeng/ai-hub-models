@@ -8,10 +8,10 @@ import torch
 from transformers import AutoConfig, AutoProcessor, PreTrainedModel, ProcessorMixin
 from transformers.models.qwen2_5_vl import modeling_qwen2_5_vl
 
-from .base import VLM
-from .generator import VLM_Generator
-from .utils.compat import PositionIdContext
-from .utils.layer_cache import LayerCacheDescriptor
+from qai_hub_models.models._shared.lm_driver.base import VLM
+from qai_hub_models.models._shared.lm_driver.generator import VLM_Generator
+from qai_hub_models.models._shared.lm_driver.utils.compat import PositionIdContext
+from qai_hub_models.models._shared.lm_driver.utils.layer_cache import LayerCacheDescriptor
 
 
 def compute_vision_input_shapes(

@@ -17,7 +17,10 @@ from sam2.build_sam import build_sam2
 from sam2.modeling.sam2_base import SAM2Base as Sam2
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import (
+    Precision,
+    TargetRuntime,
+)
 from qai_hub_models.datasets.sav import SaVDataset
 from qai_hub_models.models._shared.sam2.model import (
     SAM2Decoder as SAM2DecoderBase,
@@ -28,12 +31,9 @@ from qai_hub_models.models._shared.sam2.model import (
 from qai_hub_models.models._shared.sam2.model import (
     SAM2Loader as SAM2LoaderBase,
 )
-from qai_hub_models.models.common import (
-    Precision,
-    TargetRuntime,
-)
 from qai_hub_models.models.sam2.utils import copy_configs
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import (
     CollectionModel,
     PretrainedCollectionModel,

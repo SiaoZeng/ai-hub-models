@@ -12,7 +12,7 @@ import diffusers
 import torch
 from transformers import CLIPTokenizer
 
-from qai_hub_models.models.protocols import ExecutableModelProtocol
+from qai_hub_models.protocols import ExecutableModelProtocol
 from qai_hub_models.utils.inference import OnDeviceModel
 
 OUT_H, OUT_W = 512, 512

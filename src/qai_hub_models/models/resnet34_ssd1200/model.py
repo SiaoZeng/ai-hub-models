@@ -9,13 +9,13 @@ from pathlib import Path
 import torch
 from qai_hub.client import Device
 
-from qai_hub_models.models._shared.yolo.model import (
-    Yolo,
-)
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     SampleInputsType,
     TargetRuntime,
+)
+from qai_hub_models.models._shared.yolo.model import (
+    Yolo,
 )
 from qai_hub_models.models.resnet34_ssd1200.external_repos.inference.vision.classification_and_detection.python.models.ssd_r34 import (
     SSD_R34,

@@ -12,8 +12,8 @@ from qai_hub_models.models.openai_clip.model import (
     MODEL_ID,
     OpenAIClip,
 )
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "image1.jpg"

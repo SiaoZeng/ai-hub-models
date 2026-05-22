@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from qai_hub_models.utils.base_model import BaseModel
 from transformers import GenerationConfig, TextStreamer, set_seed
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_EXPORT_SEQUENCE_LENGTHS,
     LLM_QNN,
@@ -23,7 +24,6 @@ from qai_hub_models.models._shared.llm.model import (
     LLMBase,
     get_llm_config,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.checkpoint import CheckpointSpec
 
 

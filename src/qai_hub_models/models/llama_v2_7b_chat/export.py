@@ -13,7 +13,7 @@ from typing import Any, cast
 
 import qai_hub as hub
 
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     TargetRuntime,
 )

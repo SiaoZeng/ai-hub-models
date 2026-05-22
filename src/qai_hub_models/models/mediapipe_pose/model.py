@@ -10,7 +10,7 @@ from collections.abc import Callable
 import torch
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import Precision, SampleInputsType
 from qai_hub_models.datasets.human_poses import HumanPosesDataset
 from qai_hub_models.models._shared.mediapipe.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models._shared.mediapipe.external_repos.mediapipe.blazepose import (
@@ -22,11 +22,11 @@ from qai_hub_models.models._shared.mediapipe.external_repos.mediapipe.blazepose_
 from qai_hub_models.models._shared.mediapipe.utils import (
     mediapipe_detector_postprocess,
 )
-from qai_hub_models.models.common import Precision, SampleInputsType
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_numpy,
 )
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,

@@ -14,12 +14,12 @@ from qai_hub_models.models.deeplabv3_resnet50.model import (
     MODEL_ID,
     DeepLabV3_ResNet50,
 )
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
     load_numpy,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 OUTPUT_IMAGE_MASK = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "deeplab_output_mask.npy"

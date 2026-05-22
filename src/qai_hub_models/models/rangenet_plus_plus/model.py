@@ -13,7 +13,7 @@ from ruamel.yaml import YAML
 from torch import nn
 from typing_extensions import Self
 
-from qai_hub_models.models.common import SampleInputsType
+from qai_hub_models import SampleInputsType
 from qai_hub_models.models.rangenet_plus_plus.external_repos.lidar_bonnetal.train.tasks.semantic.modules.segmentator import (
     Segmentator,
 )

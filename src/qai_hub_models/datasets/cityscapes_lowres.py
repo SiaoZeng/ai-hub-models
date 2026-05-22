@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from qai_hub_models.datasets.cityscapes import CityscapesDataset
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.utils.base_dataset import DatasetSplit
 
 
 class CityscapesLowResDataset(CityscapesDataset):

@@ -15,7 +15,7 @@ from qai_hub_models.models.mobilenet_v2.model import (
     MODEL_ID,
     MobileNetV2,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 
 
 @skip_clone_repo_check

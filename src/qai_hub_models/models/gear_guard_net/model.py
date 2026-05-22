@@ -11,13 +11,13 @@ import torch
 from typing_extensions import Self
 
 from qai_hub_models.datasets.coco_ppe import CocoPPEDataset
-from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.datasets.gear_guard_dataset import GearGuardDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.detection_evaluator import DetectionEvaluator
 from qai_hub_models.models._shared.yolo.utils import detect_postprocess
 from qai_hub_models.models.gear_guard_net.layers import build_gear_guard_net_model
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import (
     ColorFormat,

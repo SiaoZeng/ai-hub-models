@@ -12,6 +12,7 @@ from typing import Any
 import torch
 from typing_extensions import Self
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm.common import LLMIOType
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_CONTEXT_LENGTH,
@@ -24,7 +25,6 @@ from qai_hub_models.models._shared.phi.model import (
     Phi35Base_AIMETOnnx,
     Phi35Base_QNN,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.input_spec import InputSpec
 

@@ -22,6 +22,7 @@ from qai_hub_models.models.bevdet.demo import (
 )
 from qai_hub_models.models.bevdet.demo import main as demo_main
 from qai_hub_models.models.bevdet.model import MODEL_ASSET_VERSION, MODEL_ID, BEVDet
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
@@ -29,7 +30,6 @@ from qai_hub_models.utils.asset_loaders import (
     load_numpy,
 )
 from qai_hub_models.utils.bounding_box_processing_3d import transform_to_matrix
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 OUTPUT_PYTORCH_34MINUS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "corners.npy"

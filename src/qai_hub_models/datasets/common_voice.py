@@ -8,15 +8,15 @@ from pathlib import Path
 
 import pandas as pd
 
-from qai_hub_models.datasets.common import (
-    BaseDataset,
-    DatasetSplit,
-)
 from qai_hub_models.models._shared.voiceai_tts.language import (
     LANG_CODE_MAP,
     TTSLanguage,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset
+from qai_hub_models.utils.base_dataset import (
+    BaseDataset,
+    DatasetSplit,
+)
 from qai_hub_models.utils.input_spec import InputSpec
 
 CommonVoice_VERSION = 2

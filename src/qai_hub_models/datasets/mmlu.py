@@ -11,7 +11,7 @@ import torch
 from datasets import IterableDataset, load_dataset
 from transformers import PreTrainedTokenizerBase
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetMetadata, DatasetSplit
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetMetadata, DatasetSplit
 
 
 class MMLU(BaseDataset):

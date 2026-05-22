@@ -10,14 +10,12 @@ from qai_hub.client import Device
 from torch import nn
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.datasets.mpiigaze import MPIIGazeDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
-from qai_hub_models.evaluators.mpigaze_evaluator import MPIIGazeEvaluator
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     TargetRuntime,
 )
+from qai_hub_models.datasets.mpiigaze import MPIIGazeDataset
+from qai_hub_models.evaluators.mpigaze_evaluator import MPIIGazeEvaluator
 from qai_hub_models.models.eyegaze.external_repos.gaze_estimation.models.eyenet import (
     EyeNet,
 )
@@ -25,6 +23,8 @@ from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_torch,
 )
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 

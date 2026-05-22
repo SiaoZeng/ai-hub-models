@@ -56,7 +56,7 @@ from qai_hub_models.utils.args import (
     get_model_kwargs,
     {%- endif %}
 )
-from qai_hub_models.models.common import SampleInputsType
+from qai_hub_models.common import SampleInputsType
 {%- if is_collection_model and has_multi_graph %}
 from qai_hub_models.utils.export_result import MultiGraphCollectionExportResult, MultiGraphComponentGroup, ComponentGroup
 {%- elif is_collection_model %}

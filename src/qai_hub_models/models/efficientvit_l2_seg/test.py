@@ -15,9 +15,12 @@ from qai_hub_models.models.efficientvit_l2_seg.model import (
     MODEL_ID,
     EfficientViT,
 )
+from qai_hub_models.scorecard.utils.testing import (
+    assert_most_same,
+    skip_clone_repo_check,
+)
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
 from qai_hub_models.utils.input_spec import to_hub_input_specs
-from qai_hub_models.utils.testing import assert_most_same, skip_clone_repo_check
 
 # This image showcases the Cityscapes classes (but is not from the dataset)
 TEST_CITYSCAPES_LIKE_IMAGE_NAME = "cityscapes_like_demo_2048x1024.jpg"

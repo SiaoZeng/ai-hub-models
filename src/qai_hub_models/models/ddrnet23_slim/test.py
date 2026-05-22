@@ -14,8 +14,11 @@ from qai_hub_models.models.ddrnet23_slim.model import (
     MODEL_ID,
     DDRNet,
 )
+from qai_hub_models.scorecard.utils.testing import (
+    assert_most_same,
+    skip_clone_repo_check,
+)
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
-from qai_hub_models.utils.testing import assert_most_same, skip_clone_repo_check
 
 OUTPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "test_output_image.png"

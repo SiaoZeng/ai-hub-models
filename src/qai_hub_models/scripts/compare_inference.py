@@ -23,7 +23,7 @@ from typing import Any
 
 import qai_hub as hub
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.utils.args import (
     _add_device_args,
     add_precision_arg,

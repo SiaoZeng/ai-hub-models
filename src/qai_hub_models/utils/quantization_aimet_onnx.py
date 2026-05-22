@@ -36,11 +36,11 @@ from qai_hub.public_rest_api import DatasetEntries
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm
 
-from qai_hub_models.evaluators.base_evaluators import _DataLoader
-from qai_hub_models.models.common import Precision, SampleInputsType
-from qai_hub_models.models.protocols import FromPrecompiledProtocol
+from qai_hub_models import Precision, SampleInputsType
+from qai_hub_models.protocols import FromPrecompiledProtocol
 from qai_hub_models.utils.aimet.aimet_dummy_model import zip_aimet_model
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, qaihm_temp_dir
+from qai_hub_models.utils.base_evaluator import _DataLoader
 from qai_hub_models.utils.base_model import WorkbenchModel
 from qai_hub_models.utils.dataset_util import dataset_entries_to_dataloader
 from qai_hub_models.utils.input_spec import InputSpec

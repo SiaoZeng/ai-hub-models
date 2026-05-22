@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 import qai_hub as hub
 
+from qai_hub_models import Precision, QAIRTVersion, TargetRuntime
 from qai_hub_models.configs.tool_versions import ToolVersions
 from qai_hub_models.models._shared.llm.common import cleanup
 from qai_hub_models.models._shared.llm.model import (
@@ -28,12 +29,11 @@ from qai_hub_models.models._shared.llm.model import (
 )
 from qai_hub_models.models._shared.llm.perf_collection import update_perf_yaml
 from qai_hub_models.models._shared.llm.quantize import quantize
-from qai_hub_models.models.common import Precision, QAIRTVersion, TargetRuntime
 from qai_hub_models.scorecard import ScorecardDevice
+from qai_hub_models.scorecard.utils.testing import patch_qai_hub
 from qai_hub_models.utils.asset_loaders import ASSET_CONFIG
 from qai_hub_models.utils.model_cache import CacheMode
 from qai_hub_models.utils.onnx.helpers import ONNXBundle
-from qai_hub_models.utils.testing import patch_qai_hub
 
 GENIE_BUNDLES_ROOT = "genie_bundles"
 

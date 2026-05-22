@@ -56,7 +56,7 @@ from qai_hub_models.configs.tensor_spec import (
     TensorSpec,
 )
 from qai_hub_models.configs.tool_versions import ToolVersions
-from qai_hub_models.datasets.common import BaseDataset, DatasetSplit
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetSplit
 from qai_hub_models.utils.onnx.torch_wrapper import (
     OnnxModelTorchWrapper,
     _verify_onnxruntime_qnn_installed,
@@ -78,6 +78,12 @@ except ImportError:
 from qai_hub.public_rest_api import DatasetEntries
 from typing_extensions import Self
 
+from qai_hub_models import (
+    Precision,
+    SampleInputsType,
+    SourceModelFormat,
+    TargetRuntime,
+)
 from qai_hub_models.models._shared.llm.common import (
     TORCH_DYNAMIC_SHAPE_MIN_VERSION,
     LLMIOType,
@@ -88,12 +94,6 @@ from qai_hub_models.models._shared.llm.sha_dynamic_kvcache import (
     SHADynamicCacheNewValueOnly,
 )
 from qai_hub_models.models._shared.llm.split_onnx_utils.utils import split_onnx
-from qai_hub_models.models.common import (
-    Precision,
-    SampleInputsType,
-    SourceModelFormat,
-    TargetRuntime,
-)
 from qai_hub_models.utils.aimet.config_loader import get_aimet_config_path
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import BaseModel
@@ -138,7 +138,7 @@ except (ImportError, ModuleNotFoundError):
     )
 
 if TYPE_CHECKING:
-    from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
+    from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 MIN_TRANSFORMER_VERSION = "4.45.0"
 MIN_AIMET_ONNX_VERSION = "2.8.0"

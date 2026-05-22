@@ -12,8 +12,8 @@ from unittest import mock
 import pytest
 import qai_hub as hub
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.configs.devices_and_chipsets_yaml import DevicesAndChipsetsYaml
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.utils.fetch_static_assets import fetch_static_assets
 
 

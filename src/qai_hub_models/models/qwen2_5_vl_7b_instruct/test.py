@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 import torch
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm import test
 from qai_hub_models.models._shared.llm.evaluate import evaluate
 from qai_hub_models.models._shared.llm.model import (
@@ -23,7 +24,6 @@ from qai_hub_models.models._shared.llm.perf_collection import (
     get_llm_perf_parametrization,
 )
 from qai_hub_models.models._shared.llm.test import CompileJobCache
-from qai_hub_models.models.common import Precision
 from qai_hub_models.models.qwen2_5_vl_7b_instruct import (
     MODEL_ID,
     Model,

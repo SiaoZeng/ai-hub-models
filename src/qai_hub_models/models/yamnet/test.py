@@ -6,7 +6,7 @@
 from qai_hub_models.models.yamnet.app import YamNetApp
 from qai_hub_models.models.yamnet.demo import main as demo_main
 from qai_hub_models.models.yamnet.model import INPUT_AUDIO_ADDRESS, YamNet
-from qai_hub_models.utils.testing import skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 
 
 # Verify that the output from Torch is as expected.

@@ -5,7 +5,7 @@
 from qai_hub_models_cli import common as cli_common
 from qai_hub_models_cli import fetch as cli_fetch
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.utils.asset_loaders import ASSET_CONFIG
 
 

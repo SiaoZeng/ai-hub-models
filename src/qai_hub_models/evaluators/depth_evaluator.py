@@ -9,8 +9,8 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import DELTA_THRESHOLD_ACCURACY, MetricMetadata
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 
 
 class DepthEvaluator(BaseEvaluator):

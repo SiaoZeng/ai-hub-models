@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import Field, model_serializer, model_validator
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.utils.base_config import BaseQAIHMConfig
 
 

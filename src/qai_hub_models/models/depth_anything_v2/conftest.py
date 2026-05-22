@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 
 from qai_hub_models.models.depth_anything_v2 import Model
-from qai_hub_models.utils.testing import skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 
 
 def pytest_configure(config: pytest.Config) -> None:

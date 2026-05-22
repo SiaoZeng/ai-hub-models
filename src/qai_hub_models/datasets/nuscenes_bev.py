@@ -13,9 +13,9 @@ import numpy as np
 import torch
 from PIL import Image
 
-from qai_hub_models.datasets.common import DatasetSplit
 from qai_hub_models.datasets.nuscenes import NuscenesDataset
 from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset
+from qai_hub_models.utils.base_dataset import DatasetSplit
 from qai_hub_models.utils.bounding_box_processing_3d import transform_to_matrix
 from qai_hub_models.utils.input_spec import InputSpec
 

@@ -14,8 +14,8 @@ from qai_hub_models.models.fcn_resnet50.model import (
     MODEL_ID,
     FCN_ResNet50,
 )
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 OUTPUT_IMAGE_LOCAL_PATH = "fcn_demo_output.png"
 OUTPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(

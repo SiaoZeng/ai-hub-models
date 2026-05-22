@@ -11,12 +11,11 @@ from qai_hub.client import Device
 from ruamel.yaml import YAML
 from torch import Tensor, nn
 
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.datasets.common_voice import CommonVoiceDataset
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     TargetRuntime,
 )
+from qai_hub_models.datasets.common_voice import CommonVoiceDataset
 from qai_hub_models.models.zipformer.external_repos.icefall.egs.librispeech.ASR.pruned_transducer_stateless7_streaming.decoder import (
     Decoder,
 )
@@ -38,6 +37,7 @@ from qai_hub_models.models.zipformer.external_repos.icefall.icefall.checkpoint i
 from qai_hub_models.models.zipformer.model_adaption import (
     Modify_EncoderModule,
 )
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,

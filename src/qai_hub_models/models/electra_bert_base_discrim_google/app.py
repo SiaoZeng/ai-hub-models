@@ -7,7 +7,7 @@ from __future__ import annotations
 import torch
 from transformers import PreTrainedTokenizer
 
-from qai_hub_models.models.protocols import ExecutableModelProtocol
+from qai_hub_models.protocols import ExecutableModelProtocol
 
 
 class ElectraBertApp:

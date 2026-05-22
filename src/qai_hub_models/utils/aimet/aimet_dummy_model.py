@@ -16,9 +16,9 @@ from onnx import load_model as load_onnx_model
 from onnx import save_model as save_onnx_model
 from packaging.version import Version
 
-from qai_hub_models.evaluators.base_evaluators import _DataLoader
-from qai_hub_models.models.protocols import AIMETQuantizableModelProtocol
+from qai_hub_models.protocols import AIMETQuantizableModelProtocol
 from qai_hub_models.utils.asset_loaders import qaihm_temp_dir
+from qai_hub_models.utils.base_evaluator import _DataLoader
 from qai_hub_models.utils.base_model import WorkbenchModel
 from qai_hub_models.utils.input_spec import InputSpec, make_torch_inputs
 from qai_hub_models.utils.onnx.helpers import (

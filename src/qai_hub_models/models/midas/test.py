@@ -10,8 +10,8 @@ from qai_hub_models.models._shared.depth_estimation.app import DepthEstimationAp
 from qai_hub_models.models.midas.demo import INPUT_IMAGE_ADDRESS
 from qai_hub_models.models.midas.demo import main as demo_main
 from qai_hub_models.models.midas.model import MODEL_ASSET_VERSION, MODEL_ID, Midas
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 OUTPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "midas_output.png"

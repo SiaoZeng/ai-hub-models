@@ -10,7 +10,7 @@ import torch
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetSplit
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetSplit
 
 
 class AmazonCounterfactualClassificationDataset(BaseDataset):

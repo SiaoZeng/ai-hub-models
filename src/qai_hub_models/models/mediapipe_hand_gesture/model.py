@@ -12,16 +12,16 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import Precision, SampleInputsType
 from qai_hub_models.datasets.hagrid import PalmDetectorDataset
 from qai_hub_models.models._shared.common import apply_module_function_recursively
-from qai_hub_models.models.common import Precision, SampleInputsType
 from qai_hub_models.models.mediapipe_hand.model import (
     DETECT_MIN_SCORE_THRESH,
     DETECT_SCORE_CLIPPING_THRESHOLD,
     HandDetector,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_numpy
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,

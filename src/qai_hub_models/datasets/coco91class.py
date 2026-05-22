@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from qai_hub_models.datasets.coco import CocoDataset, CocoDatasetClass
-from qai_hub_models.datasets.common import DatasetSplit
+from qai_hub_models.utils.base_dataset import DatasetSplit
 from qai_hub_models.utils.input_spec import InputSpec
 
 

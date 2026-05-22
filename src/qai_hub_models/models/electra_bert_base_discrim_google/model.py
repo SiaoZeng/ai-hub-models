@@ -9,9 +9,7 @@ import torch
 from transformers import ElectraForPreTraining, ElectraTokenizer
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.datasets.wikitext_masked import ElectraWikiTextMasked
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.electra_discriminator_evaluator import (
     ElectraDiscriminatorEvaluator,
 )
@@ -19,6 +17,8 @@ from qai_hub_models.models._shared.bert_hf.model import BaseBertModel
 from qai_hub_models.models._shared.bert_hf.model_patches import (
     patch_get_extended_attention_mask,
 )
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
 MODEL_ID = __name__.split(".")[-2]

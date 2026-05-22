@@ -13,8 +13,8 @@ from torch_audioset.data.torch_input_processing import (
     WaveformToInput as TorchTransform,
 )
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetSplit
 from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetSplit
 
 AUDIOSET_FOLDER_NAME = "audioset"
 AUDIOSET_VERSION = 2

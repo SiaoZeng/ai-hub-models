@@ -16,7 +16,7 @@ from qai_hub_models.models.bert_base_uncased_hf.demo import main as demo_main
 from qai_hub_models.models.bert_base_uncased_hf.model import (
     BertBaseUncasedHf,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 
 
 @skip_clone_repo_check

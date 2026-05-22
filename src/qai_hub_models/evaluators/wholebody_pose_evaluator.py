@@ -12,7 +12,6 @@ import numpy as np
 import torch
 
 from qai_hub_models.datasets.cocowholebody import CocoWholeBodyDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.metrics import MEAN_AVERAGE_PRECISION, MetricMetadata
 from qai_hub_models.evaluators.utils.pose import (
     BODY_SIGMAS,
@@ -23,6 +22,7 @@ from qai_hub_models.evaluators.utils.pose import (
 )
 from qai_hub_models.extern.mmpose import patch_mmpose_no_build_deps
 from qai_hub_models.extern.xtcocotools.cocoeval import COCOeval
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.printing import suppress_stdout
 
 with patch_mmpose_no_build_deps():

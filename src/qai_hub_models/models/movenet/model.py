@@ -10,19 +10,19 @@ import os
 import torch
 from typing_extensions import Self
 
-from qai_hub_models.datasets.cocobody import CocoBodyDataset
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
-from qai_hub_models.evaluators.movenet_evaluator import MovenetPoseEvaluator
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     TargetRuntime,
 )
+from qai_hub_models.datasets.cocobody import CocoBodyDataset
+from qai_hub_models.evaluators.movenet_evaluator import MovenetPoseEvaluator
 from qai_hub_models.models.movenet.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models.movenet.external_repos.movenet_pytorch.movenet.models.model_factory import (
     load_model,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import (
     ColorFormat,

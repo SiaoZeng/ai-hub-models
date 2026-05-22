@@ -8,6 +8,7 @@ from __future__ import annotations
 from functools import partial
 from typing import Any
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm.app import ChatApp as App
 from qai_hub_models.models._shared.llm.model import (
     LLM_QNN,
@@ -16,7 +17,6 @@ from qai_hub_models.models._shared.llm.model import (
     LLMDynamicBase,
     get_tokenizer,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.args import add_input_spec_args, get_model_cli_parser
 from qai_hub_models.utils.checkpoint import (
     CheckpointSpec,

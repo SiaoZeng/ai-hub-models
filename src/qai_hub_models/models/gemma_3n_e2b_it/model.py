@@ -16,6 +16,7 @@ from transformers.modeling_attn_mask_utils import AttentionMaskConverter
 from transformers.models.gemma3n import Gemma3nForCausalLM, modeling_gemma3n
 from typing_extensions import Self
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm.common import LLMIOType
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_CONTEXT_LENGTH,
@@ -26,7 +27,6 @@ from qai_hub_models.models._shared.llm.model import (
     LLMBase,
     PositionProcessorBase,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.input_spec import InputSpec
 
 MODEL_ID = __name__.split(".")[-2]

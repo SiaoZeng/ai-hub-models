@@ -9,11 +9,9 @@ import torch
 from torch import nn
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
+from qai_hub_models import Precision
 from qai_hub_models.datasets.face_det_lite import FaceDetLiteDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.face_det_lite_evaluator import FaceDetLiteEvaluator
-from qai_hub_models.models.common import Precision
 from qai_hub_models.models.face_det_lite.layers import (
     CBAModule,
     DetectModule,
@@ -22,6 +20,8 @@ from qai_hub_models.models.face_det_lite.layers import (
     UpModule,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import (
     ColorFormat,

@@ -9,13 +9,13 @@ from collections.abc import Callable
 
 from PIL import Image
 
+from qai_hub_models import TargetRuntime
 from qai_hub_models.models._shared.yolo.app import (
     YoloOBBApp,
     YoloObjectDetectionApp,
     YoloPoseApp,
     YoloSegmentationApp,
 )
-from qai_hub_models.models.common import TargetRuntime
 from qai_hub_models.utils.args import (
     demo_model_from_cli_args,
     get_model_cli_parser,

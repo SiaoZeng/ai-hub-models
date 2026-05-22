@@ -13,8 +13,8 @@ from qai_hub_models.models.nomic_embed_text.model import (
     MODEL_ID,
     NomicEmbedText,
 )
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_numpy
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 EMBEDDINGS_GT = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "embeddings.npy"

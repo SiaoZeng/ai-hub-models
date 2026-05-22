@@ -13,7 +13,7 @@ import pytest
 import qai_hub as hub
 import torch
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models.common import Precision, TargetRuntime
 from qai_hub_models.models.resnet_3d import MODEL_ID, Model
 from qai_hub_models.models.resnet_3d.export import (
     compile_model,
@@ -39,9 +39,8 @@ from qai_hub_models.scorecard.execution_helpers import (
     needs_pre_quantize_compile,
     pytest_device_idfn,
 )
-from qai_hub_models.utils.args import get_model_kwargs
-from qai_hub_models.utils.testing import skip_invalid_runtime_device
-from qai_hub_models.utils.testing_export_eval import (
+from qai_hub_models.scorecard.utils.testing import skip_invalid_runtime_device
+from qai_hub_models.scorecard.utils.testing_export_eval import (
     accuracy_on_dataset_via_evaluate_and_export,
     accuracy_on_sample_inputs_via_export,
     compile_via_export,
@@ -58,6 +57,7 @@ from qai_hub_models.utils.testing_export_eval import (
     torch_inference_for_accuracy_validation,
     torch_inference_for_accuracy_validation_outputs,
 )
+from qai_hub_models.utils.args import get_model_kwargs
 from qai_hub_models.utils.validation import perform_runtime_model_validation
 
 # All runtime + precision pairs that are enabled for testing and are compatibile with this model.

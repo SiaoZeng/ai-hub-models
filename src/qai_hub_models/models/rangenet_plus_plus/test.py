@@ -16,7 +16,10 @@ from qai_hub_models.models.rangenet_plus_plus.model import (
     SAMPLE_POINT_CLOUD_ADDRESS,
     RangeNetPlusPlus,
 )
-from qai_hub_models.utils.testing import assert_most_same, skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import (
+    assert_most_same,
+    skip_clone_repo_check,
+)
 
 
 @skip_clone_repo_check

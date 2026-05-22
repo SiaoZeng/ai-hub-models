@@ -19,10 +19,10 @@ from transformers import (
 from transformers.models.whisper.modeling_whisper import WhisperDecoder, WhisperEncoder
 from typing_extensions import Self
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.models._shared.hf_whisper.model_adaptation import (
     monkey_patch_model,
 )
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
 )

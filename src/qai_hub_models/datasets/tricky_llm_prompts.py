@@ -8,7 +8,7 @@ from __future__ import annotations
 import torch
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetSplit
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetSplit
 
 
 def collate_fn(

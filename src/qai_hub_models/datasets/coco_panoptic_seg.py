@@ -12,8 +12,8 @@ import torch
 from PIL import Image
 
 from qai_hub_models.datasets.coco import COCO_VAL_DATASET, DATASET_ASSET_VERSION
-from qai_hub_models.datasets.common import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset, extract_zip_file
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.utils.image_processing import app_to_net_image_inputs
 
 COCO_FOLDER_NAME = "coco-panoptic"

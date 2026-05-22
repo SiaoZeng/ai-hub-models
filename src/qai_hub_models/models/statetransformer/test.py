@@ -15,14 +15,14 @@ from qai_hub_models.models.statetransformer.model import (
     MODEL_PATH,
     StateTransformer,
 )
-from qai_hub_models.utils.asset_loaders import (
-    CachedWebModelAsset,
-    load_image,
-)
-from qai_hub_models.utils.testing import (
+from qai_hub_models.scorecard.utils.testing import (
     assert_most_close,
     assert_most_same,
     skip_clone_repo_check,
+)
+from qai_hub_models.utils.asset_loaders import (
+    CachedWebModelAsset,
+    load_image,
 )
 
 TRACE_ASSET = CachedWebModelAsset.from_asset_store(

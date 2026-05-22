@@ -40,7 +40,7 @@ from qai_hub.util.dataset_entries_converters import h5_to_dataset_entries
 from schema import And, Schema, SchemaError
 from tqdm import tqdm
 
-from qai_hub_models.models.common import Precision, TargetRuntime
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.utils.aws import can_access_private_s3
 from qai_hub_models.utils.envvars import DevModeEnvvar, IsOnCIEnvvar
 from qai_hub_models.utils.version_helpers import QAIHMVersion

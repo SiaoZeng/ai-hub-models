@@ -12,9 +12,9 @@ import numpy as np
 import scipy.io as sio
 import torch
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.models.eyegaze.app import preprocess_eye_crop
 from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.utils.input_spec import InputSpec
 
 MPII_GAZE_VERSION = 2

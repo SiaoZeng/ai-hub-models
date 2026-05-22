@@ -10,8 +10,8 @@ import subprocess
 import torch
 from torchvision.datasets import ImageNet
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.utils.asset_loaders import CachedWebDatasetAsset
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetMetadata, DatasetSplit
 from qai_hub_models.utils.image_processing import IMAGENET_TRANSFORM
 
 IMAGENET_FOLDER_NAME = "imagenet"

@@ -14,7 +14,7 @@ import pytest
 import torch.jit._trace
 
 from qai_hub_models.models.mask2former import Model
-from qai_hub_models.utils.testing import skip_clone_repo_check
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 
 
 def pytest_configure(config: pytest.Config) -> None:

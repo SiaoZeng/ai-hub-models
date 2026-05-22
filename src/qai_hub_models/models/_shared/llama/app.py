@@ -18,7 +18,7 @@ from qai_hub_models.models._shared.llama.model import (
     RopeEmbedding,
     get_past_keyval_with_shift,
 )
-from qai_hub_models.models.protocols import ExecutableModelProtocol
+from qai_hub_models.protocols import ExecutableModelProtocol
 from qai_hub_models.utils.base_model import BaseModel, CollectionModel
 from qai_hub_models.utils.inference import OnDeviceModel
 from qai_hub_models.utils.model_adapters import suppress_warnings

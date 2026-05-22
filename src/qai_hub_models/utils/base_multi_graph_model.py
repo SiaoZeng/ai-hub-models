@@ -11,13 +11,13 @@ from typing import Any
 
 from qai_hub.client import Device
 
-from qai_hub_models.configs.model_metadata import OutputSpec
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     SampleInputsType,
     TargetRuntime,
 )
-from qai_hub_models.models.protocols import FromPretrainedProtocol
+from qai_hub_models.configs.model_metadata import OutputSpec
+from qai_hub_models.protocols import FromPretrainedProtocol
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,

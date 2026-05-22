@@ -13,8 +13,8 @@ from qai_hub_models.models.real_esrgan_general_x4v3.model import (
     MODEL_ID,
     Real_ESRGAN_General_x4v3,
 )
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 OUTPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "real_esrgan_general_x4v3_demo_output.png"

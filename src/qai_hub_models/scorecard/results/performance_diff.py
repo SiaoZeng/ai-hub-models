@@ -11,9 +11,9 @@ from typing import Any, NamedTuple
 from prettytable import PrettyTable
 from pydantic import ConfigDict, Field, model_validator
 
+from qai_hub_models import Precision
 from qai_hub_models.configs.devices_and_chipsets_yaml import DevicesAndChipsetsYaml
 from qai_hub_models.configs.perf_yaml import QAIHMModelPerf
-from qai_hub_models.models.common import Precision
 from qai_hub_models.scorecard.device import ScorecardDevice
 from qai_hub_models.scorecard.envvars import DeploymentEnvvar
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath

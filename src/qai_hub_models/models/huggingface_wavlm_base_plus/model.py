@@ -14,16 +14,16 @@ from transformers import WavLMForCTC
 from transformers.models.wavlm.modeling_wavlm import WavLMGroupNormConvLayer
 from typing_extensions import Self
 
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.datasets.libri_speech import LibriSpeechDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
-from qai_hub_models.evaluators.libri_speech_evaluator import LibriSpeechEvaluator
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     SampleInputsType,
     TargetRuntime,
 )
+from qai_hub_models.datasets.libri_speech import LibriSpeechDataset
+from qai_hub_models.evaluators.libri_speech_evaluator import LibriSpeechEvaluator
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_numpy
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 

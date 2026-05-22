@@ -8,7 +8,7 @@ from typing import Any
 
 from PIL import Image
 
-from qai_hub_models.models.common import TargetRuntime
+from qai_hub_models import TargetRuntime
 from qai_hub_models.models.yoloe_seg.app import (
     YoloESegmentationApp,
 )

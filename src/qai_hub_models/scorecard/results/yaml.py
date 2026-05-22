@@ -13,11 +13,11 @@ import ruamel.yaml
 from pydantic import Field
 from qai_hub import JobType
 
+from qai_hub_models import Precision
 from qai_hub_models.configs.release_assets_yaml import (
     QAIHMModelReleaseAssets,
 )
 from qai_hub_models.configs.tool_versions import ToolVersions
-from qai_hub_models.models.common import Precision
 from qai_hub_models.scorecard.artifacts import ScorecardArtifact, ScorecardYamlFile
 from qai_hub_models.scorecard.device import ScorecardDevice
 from qai_hub_models.scorecard.errors import CachedScorecardJobError

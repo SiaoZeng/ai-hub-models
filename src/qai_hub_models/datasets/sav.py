@@ -12,13 +12,13 @@ import torch
 from torch import nn
 from torchvision.transforms import Resize
 
-from qai_hub_models.datasets.common import (
-    BaseDataset,
-    DatasetSplit,
-)
 from qai_hub_models.utils.asset_loaders import (
     ASSET_CONFIG,
     load_image,
+)
+from qai_hub_models.utils.base_dataset import (
+    BaseDataset,
+    DatasetSplit,
 )
 from qai_hub_models.utils.image_processing import numpy_image_to_torch
 from qai_hub_models.utils.input_spec import InputSpec

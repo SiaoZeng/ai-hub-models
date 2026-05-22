@@ -11,13 +11,13 @@ from qai_hub.client import Device
 from torch.nn import functional as F
 from typing_extensions import Self
 
-from qai_hub_models.datasets.coco import CocoDataset
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.models._shared.detectron2.model import Detectron2
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     TargetRuntime,
 )
+from qai_hub_models.datasets.coco import CocoDataset
+from qai_hub_models.models._shared.detectron2.model import Detectron2
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import (
     CollectionModel,
     PretrainedCollectionModel,

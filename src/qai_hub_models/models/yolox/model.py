@@ -16,9 +16,9 @@ from yolox.models.yolo_head import YOLOXHead
 from yolox.models.yolox import YOLOX
 from yolox.utils import meshgrid, replace_module
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.yolo.model import Yolo
 from qai_hub_models.models._shared.yolo.utils import detect_postprocess_split_input
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 
 MODEL_ID = __name__.split(".")[-2]

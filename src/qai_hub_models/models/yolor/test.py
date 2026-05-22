@@ -8,11 +8,11 @@ from qai_hub_models.models.yolor.app import YoloRDetectionApp
 from qai_hub_models.models.yolor.demo import IMAGE_ADDRESS
 from qai_hub_models.models.yolor.demo import main as demo_main
 from qai_hub_models.models.yolor.model import MODEL_ASSET_VERSION, MODEL_ID, YoloR
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 OUTPUT_HORSES = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "yolor_horses_outputs_v2.npz"

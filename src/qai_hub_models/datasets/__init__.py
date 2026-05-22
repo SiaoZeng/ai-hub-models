@@ -8,9 +8,8 @@ from __future__ import annotations
 import inspect
 from typing import Any
 
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetSplit
 from qai_hub_models.utils.input_spec import InputSpec
-
-from .common import BaseDataset, DatasetSplit
 
 __all__ = ["BaseDataset", "DatasetSplit", "instantiate_dataset"]
 

@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from qai_hub_models_cli.proto import model_metadata_pb2, platform_pb2
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.configs.devices_and_chipsets_yaml import ChipsetYaml
 from qai_hub_models.configs.proto_helpers import precision_to_proto, runtime_to_proto
 from qai_hub_models.configs.tensor_spec import (
@@ -24,7 +25,6 @@ from qai_hub_models.configs.tensor_spec import (
     TensorSpec,
 )
 from qai_hub_models.configs.tool_versions import ToolVersions
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.scorecard.device import ScorecardDevice
 from qai_hub_models.utils.base_config import BaseQAIHMConfig
 

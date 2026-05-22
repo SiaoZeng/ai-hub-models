@@ -26,13 +26,13 @@ from qai_hub.client import Device
 from transformers.models.gemma.modeling_gemma import GemmaDecoderLayer, GemmaMLP
 from typing_extensions import Self
 
+from qai_hub_models import (
+    Precision,
+    TargetRuntime,
+)
 from qai_hub_models.models._shared.llm._utils import (
     _set_matmul_second_input_to_8b,
     _set_tensors_to_output_8b_sym,
-)
-from qai_hub_models.models.common import (
-    Precision,
-    TargetRuntime,
 )
 from qai_hub_models.models.pi05.model_adaptation import (
     GemmaMLPSplitLinear,

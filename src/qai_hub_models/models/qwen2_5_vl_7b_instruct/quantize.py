@@ -11,12 +11,12 @@ from pathlib import Path
 
 import torch
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_CALIBRATION_SEQ_LEN,
     DEFAULT_CONTEXT_LENGTH,
 )
 from qai_hub_models.models._shared.llm.quantize import quantize, save_command_args
-from qai_hub_models.models.common import Precision
 from qai_hub_models.models.qwen2_5_vl_7b_instruct.model import (
     DEFAULT_IMAGE_HEIGHT,
     DEFAULT_IMAGE_WIDTH,

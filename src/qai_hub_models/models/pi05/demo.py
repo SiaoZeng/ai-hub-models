@@ -17,7 +17,7 @@ from lerobot.processor import PolicyProcessorPipeline
 from lerobot.utils.constants import ACTION
 from torch.utils.data import DataLoader
 
-from qai_hub_models.models.common import (
+from qai_hub_models import (
     Precision,
     TargetRuntime,
 )

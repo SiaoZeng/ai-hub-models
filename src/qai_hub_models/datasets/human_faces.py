@@ -10,7 +10,7 @@ import os
 import torch
 from torchvision.datasets import ImageFolder
 
-from qai_hub_models.datasets.common import (
+from qai_hub_models.utils.base_dataset import (
     BaseDataset,
     DatasetSplit,
 )

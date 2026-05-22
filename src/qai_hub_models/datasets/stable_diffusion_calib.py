@@ -11,7 +11,6 @@ from abc import ABC, abstractmethod
 import torch
 from qai_hub.public_rest_api import DatasetEntries
 
-from qai_hub_models.datasets.common import BaseDataset, DatasetSplit
 from qai_hub_models.models._shared.controlnet.model import ControlNetBase
 from qai_hub_models.models._shared.stable_diffusion.model import (
     StableDiffusionBase,
@@ -25,6 +24,7 @@ from qai_hub_models.models._shared.stable_diffusion.utils import (
     make_calib_data,
 )
 from qai_hub_models.utils.asset_loaders import ASSET_CONFIG, CachedWebModelAsset
+from qai_hub_models.utils.base_dataset import BaseDataset, DatasetSplit
 from qai_hub_models.utils.checkpoint import CheckpointSpec, CheckpointType
 
 PROMPT_ASSET_VERSION = 1

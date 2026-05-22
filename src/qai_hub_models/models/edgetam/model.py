@@ -15,7 +15,6 @@ from typing_extensions import Self
 
 from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models.configs.model_metadata import ModelMetadata
-from qai_hub_models.datasets.common import BaseDataset
 from qai_hub_models.datasets.sav import SaVDataset
 from qai_hub_models.models._shared.sam2.model import (
     SAM2Encoder as SAM2EncoderBase,
@@ -34,6 +33,7 @@ from qai_hub_models.models.edgetam.external_repos.edgetam.sam2.modeling.sam2_bas
     SAM2Base as Sam2,
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import (
     BaseModel,
     CollectionModel,

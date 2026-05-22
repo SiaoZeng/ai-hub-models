@@ -8,15 +8,15 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 
+from qai_hub_models import SampleInputsType
 from qai_hub_models.datasets.coco import CocoDataset
 from qai_hub_models.datasets.coco_seg import CocoSegDataset
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.models._shared.yolo.utils import (
     get_most_likely_score,
 )
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.bounding_box_processing import box_xywh_to_xyxy
 from qai_hub_models.utils.image_processing import app_to_net_image_inputs

@@ -13,12 +13,12 @@ from qai_hub_models.models.hrnet_face.model import (
     MODEL_ID,
     HRNetFace,
 )
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
     load_numpy,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 
 # Because we have not made a modification to the pytorch source network,

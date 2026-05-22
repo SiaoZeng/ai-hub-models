@@ -21,8 +21,11 @@ from qai_hub_models.models.superpoint.model import (
     INPUT_IMAGE_ADDRESS_2,
     SuperPoint,
 )
+from qai_hub_models.scorecard.utils.testing import (
+    assert_most_close,
+    skip_clone_repo_check,
+)
 from qai_hub_models.utils.asset_loaders import load_image
-from qai_hub_models.utils.testing import assert_most_close, skip_clone_repo_check
 
 
 def run_source_model(

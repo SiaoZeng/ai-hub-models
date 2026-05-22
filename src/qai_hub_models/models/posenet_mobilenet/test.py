@@ -15,12 +15,12 @@ from qai_hub_models.models.posenet_mobilenet.model import (
     MODEL_ID,
     PosenetMobilenet,
 )
+from qai_hub_models.scorecard.utils.testing import skip_clone_repo_check
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,
     load_image,
     load_numpy,
 )
-from qai_hub_models.utils.testing import skip_clone_repo_check
 
 KEYPOINT_SCORES_GT = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "keypoint_scores_gt.npy"

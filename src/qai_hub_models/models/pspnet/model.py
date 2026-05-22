@@ -8,14 +8,12 @@ import torch
 from torch import Tensor, nn
 from typing_extensions import Self
 
+from qai_hub_models import SampleInputsType
 from qai_hub_models.datasets.ade20k import ADE10SegmentationDataset
-from qai_hub_models.datasets.common import BaseDataset
-from qai_hub_models.evaluators.base_evaluators import BaseEvaluator
 from qai_hub_models.evaluators.segmentation_evaluator import SegmentationOutputEvaluator
 from qai_hub_models.models._shared.cityscapes_segmentation.model import (
     CityscapesSegmentor,
 )
-from qai_hub_models.models.common import SampleInputsType
 from qai_hub_models.models.pspnet.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models.pspnet.external_repos.semseg.model.pspnet import (
     PSPNet as PSPNetImpl,
@@ -28,6 +26,8 @@ from qai_hub_models.utils.asset_loaders import (
     load_image,
     load_torch,
 )
+from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_evaluator import BaseEvaluator
 from qai_hub_models.utils.image_processing import app_to_net_image_inputs
 from qai_hub_models.utils.input_spec import (
     ColorFormat,

@@ -11,16 +11,16 @@ import torch
 from qai_hub.client import Device
 from typing_extensions import Self
 
+from qai_hub_models import (
+    Precision,
+    TargetRuntime,
+)
 from qai_hub_models.models.centerpoint.external_repos import EXTERNAL_REPO_PATHS
 from qai_hub_models.models.centerpoint.external_repos.centerpoint.det3d.models import (
     build_detector,
 )
 from qai_hub_models.models.centerpoint.external_repos.centerpoint.det3d.torchie import (
     Config,
-)
-from qai_hub_models.models.common import (
-    Precision,
-    TargetRuntime,
 )
 from qai_hub_models.utils.asset_loaders import (
     CachedWebModelAsset,

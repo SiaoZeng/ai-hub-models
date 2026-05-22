@@ -13,9 +13,9 @@ import requests
 from packaging.version import parse as packaging_parse_version
 from pydantic import ValidationError
 
+from qai_hub_models import Precision, TargetRuntime
 from qai_hub_models._version import __version__
 from qai_hub_models.configs.devices_and_chipsets_yaml import DevicesAndChipsetsYaml
-from qai_hub_models.models.common import Precision, TargetRuntime
 from qai_hub_models.utils.asset_loaders import (
     ASSET_CONFIG,
     ModelZooAssetConfig,

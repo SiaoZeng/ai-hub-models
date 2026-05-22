@@ -8,11 +8,11 @@ from __future__ import annotations
 import torch
 from typing_extensions import Self
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.efficientvit.external_repos.efficientvit.efficientvit.cls_model_zoo import (
     create_cls_model,
 )
 from qai_hub_models.models._shared.imagenet_classifier.model import ImagenetClassifier
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 
 MODEL_ID = __name__.split(".")[-2]

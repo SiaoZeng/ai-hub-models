@@ -36,6 +36,7 @@ from transformers import PretrainedConfig, PreTrainedTokenizer
 from transformers.modeling_attn_mask_utils import AttentionMaskConverter
 from transformers.models.qwen2 import modeling_qwen2
 
+from qai_hub_models import Precision
 from qai_hub_models.models._shared.llama3.model import RopeEmbedding
 
 # todo change
@@ -45,7 +46,6 @@ from qai_hub_models.models._shared.qwen2.model_adaptations import (
     QCQwen2MLP,
     SHAQwen2Attention,
 )
-from qai_hub_models.models.common import Precision
 from qai_hub_models.utils.aimet.encodings import propagate_memory_encodings
 
 MODEL_ID = __name__.split(".")[-2]

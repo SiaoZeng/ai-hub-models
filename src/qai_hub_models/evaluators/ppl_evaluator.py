@@ -13,11 +13,11 @@ import torch
 from torch.nn import CrossEntropyLoss
 from tqdm import tqdm
 
-from qai_hub_models.evaluators.base_evaluators import (
+from qai_hub_models.evaluators.metrics import PERPLEXITY, MetricMetadata
+from qai_hub_models.utils.base_evaluator import (
     BaseEvaluator,
     _DataLoader,
 )
-from qai_hub_models.evaluators.metrics import PERPLEXITY, MetricMetadata
 
 if TYPE_CHECKING:
     from transformers import PreTrainedTokenizerBase
