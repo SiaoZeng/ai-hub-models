@@ -24,6 +24,7 @@ from qai_hub_models.models._shared.llm.model import (
     DEFAULT_EXPORT_SEQUENCE_LENGTHS,
     LLM_AIMETOnnx,
     LLMBase,
+    LLMDynamicBase,
 )
 from qai_hub_models.models._shared.llm.perf_collection import update_perf_yaml
 from qai_hub_models.models._shared.llm.quantize import quantize
@@ -780,10 +781,15 @@ def run_llm_perf_test(
     if num_layers_per_split is not None:
         export_kwargs["num_layers_per_split"] = num_layers_per_split
     if fp_model_cls is not None:
-        export_kwargs["fp_model"] = fp_model_cls.from_pretrained(
-            sequence_length=max(export_sequence_lengths),
-            context_length=max(export_context_lengths),
-        )
+        if issubclass(fp_model_cls, LLMDynamicBase):
+            # Dynamic-shape FP models don't take sequence/context length
+            # at construction time.
+            export_kwargs["fp_model"] = fp_model_cls.from_pretrained()
+        else:
+            export_kwargs["fp_model"] = fp_model_cls.from_pretrained(
+                sequence_length=max(export_sequence_lengths),
+                context_length=max(export_context_lengths),
+            )
     if position_processor_cls is not None:
         export_kwargs["position_processor_cls"] = position_processor_cls
 
