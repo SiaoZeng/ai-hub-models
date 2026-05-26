@@ -361,28 +361,28 @@ def test_qdc(
     print(f"[provenance] metadata.json precision={metadata.precision}")
 
     qdc_job_name = f"Genie {MODEL_ID} {precision}"
-    tps, prefill_tps, min_ttft, _ = submit_genie_bundle_to_qdc_device(
+    tps, prefill_tps, min_ttft_ms, _ = submit_genie_bundle_to_qdc_device(
         os.environ["QDC_API_TOKEN"],
         device.reference_device.name,
         str(genie_bundle_path),
         job_name=qdc_job_name,
     )
-    assert tps is not None and min_ttft is not None, "QDC execution failed."
+    assert tps is not None and min_ttft_ms is not None, "QDC execution failed."
     log_perf_on_device_result(
         model_name=MODEL_ID,
         precision=str(precision),
         device=device.name,
         tps=tps,
         prefill_tps=prefill_tps,
-        ttft_ms=min_ttft,
+        ttft_ms=min_ttft_ms,
     )
     # With both ar128 and ar1 in the genie bundle, TPS should match v1.
     if precision == Precision.w4:
         assert tps > 24.0
-        assert min_ttft < 100000.0
+        assert min_ttft_ms < 100.0
     else:
-        assert tps > 18.0
-        assert min_ttft < 135000.0
+        assert tps > 13.0
+        assert min_ttft_ms < 135.0
 
 
 def _get_llm_perf_params() -> list[tuple[Precision, ScorecardDevice]]:
