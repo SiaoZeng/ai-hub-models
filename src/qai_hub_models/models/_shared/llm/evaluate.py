@@ -246,9 +246,15 @@ def evaluate(
         data=eval_dataloader,
         eval_iterations=len(eval_dataloader),
     )
-    model.to("cpu")
+    score = evaluator.get_accuracy_score()
+    formatted = evaluator.formatted_accuracy()
+    # Tear down explicitly: generator holds refs to `model` via self.models and
+    # self.selected_model, so `del model` alone leaves the AIMET ORT session
+    # (and its CUDA arena) alive across parametrized test cases.
     del model
-    return evaluator.get_accuracy_score(), evaluator.formatted_accuracy()
+    generator.cleanup()
+    del generator
+    return score, formatted
 
 
 def llm_evaluate(

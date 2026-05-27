@@ -181,15 +181,25 @@ class LLM_Generator(GenerationMixin, torch.nn.Module):
         self._vision_processor = None  # Lazy-loaded
 
     def cleanup(self) -> None:
+        # Drop refs to every model we own. The ORT InferenceSession owned by
+        # quant_sim holds a CUDA arena outside PyTorch's allocator; only
+        # running its destructor releases that memory, so we route AIMET
+        # models through release() (which nulls the heavy back-references).
         for model in self.models:
             if isinstance(model, LLM_Loader):
                 model.release()
+            elif isinstance(model, LLM_AIMETOnnx):
+                model.to("cpu")
+                model.release()
+            elif isinstance(model, LLMBase):
+                model.to("cpu")
         if isinstance(self.selected_model, LLM_Loader):
             self.selected_model.release()
-        if isinstance(self.selected_model, LLM_AIMETOnnx):
-            self.selected_model = self.selected_model.to("cpu")
-            if hasattr(self.selected_model, "quant_sim"):
-                del self.selected_model.quant_sim
+        elif isinstance(self.selected_model, LLM_AIMETOnnx):
+            self.selected_model.to("cpu")
+            self.selected_model.release()
+        elif isinstance(self.selected_model, LLMBase):
+            self.selected_model.to("cpu")
         # Clean up VLM components
         if self.vision_encoder is not None:
             del self.vision_encoder
