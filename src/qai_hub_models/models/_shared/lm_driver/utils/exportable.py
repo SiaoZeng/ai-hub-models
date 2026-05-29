@@ -6,8 +6,8 @@
 import torch
 from transformers import PreTrainedModel, DynamicCache
 
-from qai_hub_models.models._shared.lm_driver.utils.compat import _patch_sdpa_mask  # noqa: F401 — triggers the patch on import
-from qai_hub_models.models._shared.lm_driver.utils.layer_cache import (
+from .compat import _patch_sdpa_mask  # noqa: F401 — triggers the patch on import
+from .layer_cache import (
     AttentionType,
     build_layer_cache_descriptors,
 )
@@ -57,7 +57,7 @@ class ONNXExportableModuleWithCache(torch.nn.Module):
 
     def _default_input_names(self) -> tuple[str, ...]:
         """Derive input names from model config when none are provided."""
-        from qai_hub_models.models._shared.lm_driver.base import LLM
+        from ..base import LLM
 
         return LLM.get_backbone_input_names(
             build_layer_cache_descriptors(self.model.config)
@@ -193,6 +193,7 @@ class ONNXExportableModuleWithCache(torch.nn.Module):
         model_kwargs = {
             "attention_mask": attention_mask,
             "past_key_values": kv_cache,
+            "use_cache": True,
             "num_logits_to_return": 0,
             "return_dict": False,
             **extra_kwargs,

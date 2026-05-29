@@ -91,11 +91,15 @@ def _resolve_text_config(config: PretrainedConfig) -> PretrainedConfig:
     """Resolve a composite VLM config to its text decoder config.
 
     VLM configs (e.g. Gemma3Config) nest text decoder attributes under
-    ``text_config``.  Pure text LLM configs have them at the top level.
+    ``text_config``.  InternVL uses ``llm_config`` instead.
+    Pure text LLM configs have them at the top level.
     """
     text_config = getattr(config, "text_config", None)
     if text_config is not None and hasattr(text_config, "num_hidden_layers"):
         return text_config
+    llm_config = getattr(config, "llm_config", None)
+    if llm_config is not None and hasattr(llm_config, "num_hidden_layers"):
+        return llm_config
     return config
 
 
@@ -111,12 +115,15 @@ def build_layer_cache_descriptors(
     automatically via :func:`_resolve_text_config`.
     """
     config = _resolve_text_config(config)
-    num_layers = config.num_hidden_layers
+    num_kv_shared = getattr(config, "num_kv_shared_layers", 0)
+    num_layers = config.num_hidden_layers - num_kv_shared
     head_dim = (
         config.head_dim
         if hasattr(config, "head_dim") and config.head_dim is not None
         else config.hidden_size // config.num_attention_heads
     )
+    # Some models (e.g. Gemma4) use a larger head_dim for full-attention layers
+    global_head_dim = getattr(config, "global_head_dim", None) or head_dim
     num_kv_heads = config.num_key_value_heads
     sliding_window = getattr(config, "sliding_window", None)
     layer_types = getattr(config, "layer_types", None)
@@ -157,6 +164,9 @@ def build_layer_cache_descriptors(
         sw_size = (
             sliding_window if attention_type == AttentionType.SLIDING_WINDOW else None
         )
+        layer_head_dim = (
+            head_dim if attention_type != AttentionType.FULL else global_head_dim
+        )
 
         # Include linear attention dimensions when applicable
         linear_kwargs = {}
@@ -174,7 +184,7 @@ def build_layer_cache_descriptors(
                 layer_idx=i,
                 attention_type=attention_type,
                 num_kv_heads=num_kv_heads,
-                head_dim=head_dim,
+                head_dim=layer_head_dim,
                 sliding_window_size=sw_size,
                 **linear_kwargs,
             )

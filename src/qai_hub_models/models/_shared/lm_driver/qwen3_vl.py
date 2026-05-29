@@ -11,11 +11,11 @@ import torch
 from transformers import AutoConfig, AutoProcessor, PreTrainedModel, ProcessorMixin
 from transformers.models.qwen3_vl import modeling_qwen3_vl
 
-from qai_hub_models.models._shared.lm_driver.base import VLM
-from qai_hub_models.models._shared.lm_driver.generator import VLM_Generator
-from qai_hub_models.models._shared.lm_driver.utils.layer_cache import LayerCacheDescriptor
-from qai_hub_models.models._shared.lm_driver.utils.compat import PositionIdContext
-from qai_hub_models.models._shared.lm_driver.qwen2_vl import compute_vision_input_shapes
+from .base import VLM
+from .generator import VLM_Generator
+from .utils.layer_cache import LayerCacheDescriptor
+from .utils.compat import PositionIdContext
+from .qwen2_vl import compute_vision_input_shapes
 
 
 class Qwen_3_VL(VLM):

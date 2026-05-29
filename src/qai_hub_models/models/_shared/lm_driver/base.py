@@ -17,8 +17,8 @@ from transformers import (
 )
 from transformers.cache_utils import DynamicCache
 
-from qai_hub_models.models._shared.lm_driver.generator import Generator, VLM_Generator
-from qai_hub_models.models._shared.lm_driver.utils.layer_cache import (
+from .generator import Generator, VLM_Generator
+from .utils.layer_cache import (
     LayerCacheDescriptor,
     attention_mask_input_names,
     cache_state_names,
@@ -43,12 +43,14 @@ class SimCollection:
         embedding: torch.nn.Module = None,
         config: PretrainedConfig = None,
         position_id_processor: types.FunctionType = None,
+        extras: dict[str, torch.nn.Module] = None,
     ):
         self.backbone = backbone
         self.visual = visual
         self.embedding = embedding
         self.config = config
         self.position_id_processor = position_id_processor
+        self.extras = extras or {}
 
     def is_vlm(self) -> bool:
         return self.visual is not None

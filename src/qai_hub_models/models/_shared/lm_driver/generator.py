@@ -20,16 +20,17 @@ from transformers.cache_utils import DynamicCache
 from transformers.generation import GenerationMixin
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-from qai_hub_models.models._shared.lm_driver.utils.attention_mask import (
+from .utils.attention_mask import (
     convert_2d_attention_mask_to_4d,
     convert_2d_attention_mask_to_4d_sliding_window,
 )
 
-from qai_hub_models.models._shared.lm_driver.utils.layer_cache import (
+from .utils.layer_cache import (
     AttentionType,
     build_layer_cache_descriptors,
+    _resolve_text_config,
 )
-from qai_hub_models.models._shared.lm_driver.utils.rope_embedding import RopeEmbedding, RopeEmbeddingProtocol
+from .utils.rope_embedding import RopeEmbedding, RopeEmbeddingProtocol
 
 
 def ordered_dict_replace(
@@ -269,11 +270,7 @@ class Generator(GenerationMixin, torch.nn.Module):
     @functools.cached_property
     def layer_cache_descriptors(self):
         try:
-            return build_layer_cache_descriptors(
-                self.config.text_config
-                if hasattr(self.config, "text_config")
-                else self.config
-            )
+            return build_layer_cache_descriptors(_resolve_text_config(self.config))
         except AttributeError as e:
             raise RuntimeError(
                 f"Failed to build layer_cache_descriptors from config "
@@ -363,6 +360,7 @@ class Generator(GenerationMixin, torch.nn.Module):
             "pixel_values_videos",
             "image_grid_thw",
             "video_grid_thw",
+            "image_position_ids",
         }
         remaining_input = inputs.get("input_ids", inputs.get("inputs_embeds"))
         is_prefill = remaining_input.shape[1] > 1
