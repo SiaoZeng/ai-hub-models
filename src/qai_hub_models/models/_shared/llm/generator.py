@@ -20,7 +20,7 @@ from transformers.generation.utils import GenerationMixin
 from transformers.modeling_attn_mask_utils import AttentionMaskConverter
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-from qai_hub_models.models._shared.llm.common import LLMIOType
+from qai_hub_models.models._shared.llm.common import LLMIOType, cleanup
 from qai_hub_models.models._shared.llm.model import (
     LLM_QNN,
     Embedding,
@@ -127,23 +127,23 @@ class LLM_Loader:
         return self.loaded_model
 
     def release(self) -> None:
-        if self.loaded_model is not None and isinstance(
-            self.loaded_model, LLM_AIMETOnnx
-        ):
-            self.loaded_model = self.loaded_model.to("cpu")
-            if hasattr(self.loaded_model, "quant_sim"):
-                del self.loaded_model.quant_sim
-        del self.loaded_model
+        # Defer to the model's own release(): for AIMET models that means
+        # tearing down quant_sim *and* evicting any class-level cache slot
+        # (SingleSlotCacheMixin), not just nulling _quant_sim on the live
+        # instance — otherwise the next from_pretrained() returns the broken
+        # cached instance.
+        if self.loaded_model is not None:
+            self.loaded_model.release()
+        self.loaded_model = None
+
+    def __del__(self) -> None:
+        self.release()
         # Python can be in a weird state when __del__ gets called, so we
         # have to make sure these still exist.
         if "gc" in globals() and gc is not None:
             gc.collect()
         if "torch" in globals() and torch is not None and torch.cuda.is_available():
             torch.cuda.empty_cache()
-        self.loaded_model = None
-
-    def __del__(self) -> None:
-        self.release()
 
 
 class LLM_Generator(GenerationMixin, torch.nn.Module):
@@ -180,35 +180,25 @@ class LLM_Generator(GenerationMixin, torch.nn.Module):
         self.hf_repo_name = hf_repo_name
         self._vision_processor = None  # Lazy-loaded
 
-    def cleanup(self) -> None:
-        # Drop refs to every model we own. The ORT InferenceSession owned by
-        # quant_sim holds a CUDA arena outside PyTorch's allocator; only
-        # running its destructor releases that memory, so we route AIMET
-        # models through release() (which nulls the heavy back-references).
+    def release(self) -> None:
+        # Tear down every model we own. release() on an AIMET model also
+        # evicts it from any class-level cache (SingleSlotCacheMixin); the
+        # ORT InferenceSession behind quant_sim holds a CUDA arena outside
+        # PyTorch's allocator, so its destructor must run to free that
+        # memory before the next from_pretrained() in the same process.
         for model in self.models:
-            if isinstance(model, LLM_Loader):
+            if hasattr(model, "release"):
                 model.release()
-            elif isinstance(model, LLM_AIMETOnnx):
-                model.to("cpu")
-                model.release()
-            elif isinstance(model, LLMBase):
-                model.to("cpu")
-        if isinstance(self.selected_model, LLM_Loader):
+
+        if hasattr(self.selected_model, "release"):
             self.selected_model.release()
-        elif isinstance(self.selected_model, LLM_AIMETOnnx):
-            self.selected_model.to("cpu")
-            self.selected_model.release()
-        elif isinstance(self.selected_model, LLMBase):
-            self.selected_model.to("cpu")
+
         # Clean up VLM components
         if self.vision_encoder is not None:
             del self.vision_encoder
             self.vision_encoder = None
         self._vision_processor = None
-        if "gc" in globals() and gc is not None:
-            gc.collect()
-        if "torch" in globals() and torch is not None and torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        cleanup()
 
     @staticmethod
     def can_generate() -> bool:

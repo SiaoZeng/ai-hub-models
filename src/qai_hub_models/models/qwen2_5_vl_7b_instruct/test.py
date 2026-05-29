@@ -53,8 +53,8 @@ DEFAULT_EVAL_SEQLEN = 2048
 @pytest.mark.evaluate
 @pytest.mark.parametrize("checkpoint", ["DEFAULT"])
 def test_load_encodings_to_quantsim(checkpoint: str) -> None:
-    Qwen2_5_VL_7B_PreSplit.clear_cache()
-    Qwen2_5_VL_7B_QuantizablePreSplit.clear_cache()
+    Qwen2_5_VL_7B_PreSplit.release()
+    Qwen2_5_VL_7B_QuantizablePreSplit.release()
     Qwen2_5_VL_7B_QuantizablePreSplit.from_pretrained(checkpoint=checkpoint)
 
 
@@ -82,8 +82,8 @@ def test_evaluate(
         for d in Qwen2_5_VL_7B_PreSplit.get_eval_dataset_classes()
         if d.dataset_name() == task
     )
-    Qwen2_5_VL_7B_PreSplit.clear_cache()
-    Qwen2_5_VL_7B_QuantizablePreSplit.clear_cache()
+    Qwen2_5_VL_7B_PreSplit.release()
+    Qwen2_5_VL_7B_QuantizablePreSplit.release()
     actual_metric, _ = evaluate(
         quantized_model_cls=Qwen2_5_VL_7B_QuantizablePreSplit,
         fp_model_cls=Qwen2_5_VL_7B_PreSplit,

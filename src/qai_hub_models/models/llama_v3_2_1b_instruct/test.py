@@ -135,10 +135,10 @@ def test_create_genie_config() -> None:
 @pytest.mark.evaluate
 @pytest.mark.parametrize("checkpoint", ["DEFAULT", "DEFAULT_W4A16"])
 def test_load_encodings_to_quantsim(checkpoint: str) -> None:
-    Llama3_2_1B_PreSplit.clear_cache()
-    Llama3_2_1B_QuantizablePreSplit.clear_cache()
-    FPSplitModelWrapper.clear_cache()
-    QuantizedSplitModelWrapper.clear_cache()
+    Llama3_2_1B_PreSplit.release()
+    Llama3_2_1B_QuantizablePreSplit.release()
+    FPSplitModelWrapper.release()
+    QuantizedSplitModelWrapper.release()
     Model.from_pretrained()
 
 
@@ -170,10 +170,10 @@ def test_evaluate(
         for d in FPSplitModelWrapper.get_eval_dataset_classes()
         if d.dataset_name() == task
     )
-    Llama3_2_1B_PreSplit.clear_cache()
-    Llama3_2_1B_QuantizablePreSplit.clear_cache()
-    FPSplitModelWrapper.clear_cache()
-    QuantizedSplitModelWrapper.clear_cache()
+    Llama3_2_1B_PreSplit.release()
+    Llama3_2_1B_QuantizablePreSplit.release()
+    FPSplitModelWrapper.release()
+    QuantizedSplitModelWrapper.release()
     is_unquantized = checkpoint == "DEFAULT_UNQUANTIZED"
     extra_kwargs = (
         {"_skip_quantsim_creation": False, "fp_model": None} if is_unquantized else {}
@@ -208,10 +208,10 @@ def test_evaluate(
 )
 def test_quantize_and_demo(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Quantize the model and verify it can respond with 'Paris'."""
-    Llama3_2_1B_PreSplit.clear_cache()
-    Llama3_2_1B_QuantizablePreSplit.clear_cache()
-    FPSplitModelWrapper.clear_cache()
-    QuantizedSplitModelWrapper.clear_cache()
+    Llama3_2_1B_PreSplit.release()
+    Llama3_2_1B_QuantizablePreSplit.release()
+    FPSplitModelWrapper.release()
+    QuantizedSplitModelWrapper.release()
     checkpoint_path = test.setup_test_quantization(
         QuantizedSplitModelWrapper,
         FPSplitModelWrapper,
@@ -228,10 +228,10 @@ def test_quantize_and_demo(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     )
     captured = capsys.readouterr()
     assert "Paris" in captured.out
-    Llama3_2_1B_PreSplit.clear_cache()
-    Llama3_2_1B_QuantizablePreSplit.clear_cache()
-    FPSplitModelWrapper.clear_cache()
-    QuantizedSplitModelWrapper.clear_cache()
+    Llama3_2_1B_PreSplit.release()
+    Llama3_2_1B_QuantizablePreSplit.release()
+    FPSplitModelWrapper.release()
+    QuantizedSplitModelWrapper.release()
 
 
 @pytest.mark.nightly
@@ -243,10 +243,10 @@ def test_quantize_and_demo(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
 def test_demo_default(
     checkpoint: CheckpointSpec, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    Llama3_2_1B_PreSplit.clear_cache()
-    Llama3_2_1B_QuantizablePreSplit.clear_cache()
-    FPSplitModelWrapper.clear_cache()
-    QuantizedSplitModelWrapper.clear_cache()
+    Llama3_2_1B_PreSplit.release()
+    Llama3_2_1B_QuantizablePreSplit.release()
+    FPSplitModelWrapper.release()
+    QuantizedSplitModelWrapper.release()
     llama_3_2_1b_chat_demo(
         fp_model_cls=FPSplitModelWrapper,
         default_prompt="What is the capital of France?",
@@ -275,10 +275,10 @@ def test_compile(
     device: ScorecardDevice,
     checkpoint: CheckpointSpec,
 ) -> None:
-    Llama3_2_1B_PreSplit.clear_cache()
-    Llama3_2_1B_QuantizablePreSplit.clear_cache()
-    FPSplitModelWrapper.clear_cache()
-    QuantizedSplitModelWrapper.clear_cache()
+    Llama3_2_1B_PreSplit.release()
+    Llama3_2_1B_QuantizablePreSplit.release()
+    FPSplitModelWrapper.release()
+    QuantizedSplitModelWrapper.release()
     # Pass both prompt (ar128) and token (ar1) sequence lengths so the
     # genie bundle includes both model types. Without ar1, Genie must use
     # the ar128 model for token generation, halving TPS on-device.
@@ -338,10 +338,10 @@ def test_qdc(
     scorecard_path: ScorecardCompilePath,
     device: ScorecardDevice,
 ) -> None:
-    Llama3_2_1B_PreSplit.clear_cache()
-    Llama3_2_1B_QuantizablePreSplit.clear_cache()
-    FPSplitModelWrapper.clear_cache()
-    QuantizedSplitModelWrapper.clear_cache()
+    Llama3_2_1B_PreSplit.release()
+    Llama3_2_1B_QuantizablePreSplit.release()
+    FPSplitModelWrapper.release()
+    QuantizedSplitModelWrapper.release()
     genie_bundle_path = Path(
         test.GENIE_BUNDLES_ROOT
     ) / ASSET_CONFIG.get_release_asset_name(
@@ -417,10 +417,10 @@ def test_llm_perf(
     compile_job_cache: CompileJobCache,
     llm_perf_config: LLMPerfConfig,
 ) -> None:
-    Llama3_2_1B_PreSplit.clear_cache()
-    Llama3_2_1B_QuantizablePreSplit.clear_cache()
-    FPSplitModelWrapper.clear_cache()
-    QuantizedSplitModelWrapper.clear_cache()
+    Llama3_2_1B_PreSplit.release()
+    Llama3_2_1B_QuantizablePreSplit.release()
+    FPSplitModelWrapper.release()
+    QuantizedSplitModelWrapper.release()
 
     tps, ttft, prefill_tps = test.run_llm_perf_test(
         model_id=MODEL_ID,

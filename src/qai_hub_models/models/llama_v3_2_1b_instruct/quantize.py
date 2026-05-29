@@ -129,7 +129,7 @@ def export_onnx(
     for f in sorted(Path(output_dir).iterdir()):
         print(f"  {f.name} ({f.stat().st_size / 1e6:.1f} MB)")
 
-    Llama3_2_1B_PreSplit.clear_cache()
+    Llama3_2_1B_PreSplit.release()
 
 
 def quantize(
@@ -289,8 +289,8 @@ def quantize(
 
     # Cleanup
     print("Cleaning up...")
-    Llama3_2_1B_QuantizablePreSplit.clear_cache()
-    Llama3_2_1B_PreSplit.clear_cache()
+    Llama3_2_1B_QuantizablePreSplit.release()
+    Llama3_2_1B_PreSplit.release()
 
     print("Quantization completed successfully.")
 

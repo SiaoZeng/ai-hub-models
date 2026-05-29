@@ -217,7 +217,7 @@ class Qwen2_5_VL_7B_PreSplit(
                 _skip_optimizations=_skip_optimizations,
             )
         except Exception:
-            cls.clear_cache()
+            cls.release()
             raise
         cls.cache_store(instance, cache_key)
         return instance

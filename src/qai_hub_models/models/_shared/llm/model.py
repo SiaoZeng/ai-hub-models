@@ -535,13 +535,19 @@ class SingleSlotCacheMixin:
     def cache_store(cls, instance: Any, cache_key: str) -> None:
         """Evict any existing cached instance, then store the new one."""
         if cls._cached_instance is not None and cls._cached_instance is not instance:
-            cls.clear_cache()
+            cls.release()
         cls._cached_instance = instance
         cls._cached_key = cache_key
 
     @classmethod
-    def clear_cache(cls) -> None:
-        """Clear cached instance and free memory."""
+    def release(cls) -> None:
+        """Evict the cached instance, free its memory, and run global cleanup.
+
+        Doubles as the instance ``release()`` for cached models: Python
+        binds this classmethod to ``type(self)`` when called as
+        ``instance.release()``, so the most-derived class's cache slot is
+        evicted.
+        """
         if cls._cached_instance is not None:
             cls._cached_instance.free_memory()
             cls._cached_instance = None
@@ -880,9 +886,6 @@ class DynamicQuantizablePreSplitMixin(
             fp_model,
             use_dynamic_shapes=True,
         )
-
-    def release(self) -> None:
-        pass
 
 
 class SplitForwardMixin:
@@ -1464,17 +1467,20 @@ class LLMBase(BaseModel, LLMConfigEditor, ABC):
 
         return mmmlu_dataset_classes()
 
-    def __del__(self) -> None:
-        # Clean up since it is prone to hang onto GPU memory otherwise
+    def release(self) -> None:
         if hasattr(self, "model") and self.model is not None:
             self.model = self.model.to("cpu")
             del self.model
-            # Python can be in a weird state when __del__ gets called, so we
-            # have to make sure these still exist.
-            if "gc" in globals() and gc is not None:
-                gc.collect()
-            if "torch" in globals() and torch is not None and torch.cuda.is_available():
-                torch.cuda.empty_cache()
+
+    def __del__(self) -> None:
+        # Clean up since it is prone to hang onto GPU memory otherwise
+        self.release()
+        # Python can be in a weird state when __del__ gets called, so we
+        # have to make sure these still exist.
+        if "gc" in globals() and gc is not None:
+            gc.collect()
+        if "torch" in globals() and torch is not None and torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
 
 @unique
@@ -1561,6 +1567,7 @@ class LLM_AIMETOnnx(AIMETOnnxQuantizableMixin, LLMConfigEditor, BaseModel, ABC):
                 torch.cuda.empty_cache()
 
     def release(self) -> None:
+        self.to("cpu")
         if hasattr(self, "quant_sim") and self.quant_sim is not None:
             del self.quant_sim
             self.quant_sim = None

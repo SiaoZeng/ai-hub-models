@@ -251,8 +251,9 @@ def evaluate(
     # Tear down explicitly: generator holds refs to `model` via self.models and
     # self.selected_model, so `del model` alone leaves the AIMET ORT session
     # (and its CUDA arena) alive across parametrized test cases.
+    model.release()
     del model
-    generator.cleanup()
+    generator.release()
     del generator
     return score, formatted
 

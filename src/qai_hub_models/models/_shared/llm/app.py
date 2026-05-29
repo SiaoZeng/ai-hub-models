@@ -262,4 +262,4 @@ class ChatApp:
                 generation_config=inferencer.generation_config,
                 streamer=streamer,
             )
-        inferencer.cleanup()
+        inferencer.release()
