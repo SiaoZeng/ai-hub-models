@@ -76,6 +76,12 @@ def main() -> None:
         help="Grader model dtype.",
     )
     parser.add_argument(
+        "--output-json",
+        type=str,
+        default=None,
+        help="If set, write a machine-readable summary to this path.",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print per-item logits.",
@@ -143,6 +149,28 @@ def main() -> None:
             for idx in items_by_label[letter]:
                 print(f"  - idx={idx}")
             print()
+
+    if args.output_json:
+        out = {
+            "input_file": str(args.responses_json),
+            "grader_model": args.model,
+            "num_items": len(items),
+            "score_pct": summary.score_pct,
+            "total_points": summary.total_points,
+            "max_points": MAX_POINTS * len(summary.results),
+            "counts": {letter: counts.get(letter, 0) for letter in LETTERS},
+            "items": [
+                {
+                    "idx": item["idx"],
+                    "label": result.label,
+                    "points": result.points,
+                    "skipped": result.skipped,
+                }
+                for item, result in zip(items, summary.results, strict=True)
+            ],
+        }
+        Path(args.output_json).write_text(json.dumps(out, indent=2))
+        print(f"Wrote grading summary to {args.output_json}")
 
 
 if __name__ == "__main__":

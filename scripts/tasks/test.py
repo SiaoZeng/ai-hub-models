@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import glob
 import os
 import subprocess
 import sys
@@ -214,10 +215,21 @@ class GPUPyTestModelsTask(CompositeTask):
             )
             install_cmds = [f"pip install $(ls {qdc_wheel_glob})"]
             if has_gpu_reqs:
-                install_cmds.append("pip uninstall -y onnxruntime")
+                # onnxruntime and onnxruntime-gpu share files in the onnxruntime/
+                # namespace, so uninstalling one deletes files the other still
+                # claims to own. On reused venvs this leaves onnxruntime-gpu
+                # half-broken (e.g. `GraphOptimizationLevel` missing). Clean
+                # both, install reqs, then uninstall the transitively re-pulled
+                # onnxruntime and force-reinstall onnxruntime-gpu to repair
+                # any shared files that got removed.
+                install_cmds.append("pip uninstall -y onnxruntime onnxruntime-gpu")
                 install_cmds.append(f"pip install -r {gpu_req_rel_path}")
                 # aimet_onnx transitively re-installs onnxruntime via onnxruntime-extensions
                 install_cmds.append("pip uninstall -y onnxruntime")
+                install_cmds.append(
+                    f"pip install --force-reinstall --no-deps "
+                    f"$(grep '^onnxruntime-gpu' {gpu_req_rel_path})"
+                )
             tasks.append(
                 RunCommandsWithVenvTask(
                     group_name=f"Install GPU Dependencies For Model {model_name}",
@@ -742,10 +754,21 @@ class CollectLLMPerfTask(CompositeTask):
             )
             install_cmds = [f"pip install $(ls {qdc_wheel_glob})"]
             if has_gpu_reqs:
-                install_cmds.append("pip uninstall -y onnxruntime")
+                # onnxruntime and onnxruntime-gpu share files in the onnxruntime/
+                # namespace, so uninstalling one deletes files the other still
+                # claims to own. On reused venvs this leaves onnxruntime-gpu
+                # half-broken (e.g. `GraphOptimizationLevel` missing). Clean
+                # both, install reqs, then uninstall the transitively re-pulled
+                # onnxruntime and force-reinstall onnxruntime-gpu to repair
+                # any shared files that got removed.
+                install_cmds.append("pip uninstall -y onnxruntime onnxruntime-gpu")
                 install_cmds.append(f"pip install -r {gpu_req_rel_path}")
                 # aimet_onnx transitively re-installs onnxruntime via onnxruntime-extensions
                 install_cmds.append("pip uninstall -y onnxruntime")
+                install_cmds.append(
+                    f"pip install --force-reinstall --no-deps "
+                    f"$(grep '^onnxruntime-gpu' {gpu_req_rel_path})"
+                )
             tasks.append(
                 RunCommandsWithVenvTask(
                     group_name=f"Install GPU Dependencies For Model {model_name}",
@@ -800,6 +823,55 @@ class CollectLLMPerfTask(CompositeTask):
         super().__init__(
             "Collect LLM Performance Numbers",
             list(tasks),
+            continue_after_single_task_failure=True,
+            raise_on_failure=raise_on_failure,
+        )
+
+
+class GradeLLMResponsesTask(CompositeTask):
+    """Grade on-device LLM eval responses with a HuggingFace grader model.
+
+    Discovers ``*_eval.json`` files (written by the llm_perf eval tests) under
+    ``search_dir`` and grades each one into a sibling ``*_grade.json`` via
+    ``qai_hub_models.scripts.llm.grade_responses``. The grader needs
+    ``transformers>=5.2``, which conflicts with the LLM source-repo pins in the
+    main qaihm-build venv, so callers should pass a dedicated grader ``--venv``.
+    """
+
+    def __init__(
+        self,
+        venv: str | None,
+        search_dir: str | None = None,
+        raise_on_failure: bool = False,
+    ) -> None:
+        search_dir = search_dir or os.getcwd()
+        eval_jsons = sorted(glob.glob(os.path.join(search_dir, "*_eval.json")))
+
+        tasks: list[Task] = []
+        if not eval_jsons:
+            tasks.append(
+                RunCommandsTask(
+                    "Grade LLM Responses",
+                    f'echo "No *_eval.json files found in {search_dir}; nothing to grade."',
+                )
+            )
+        for eval_json in eval_jsons:
+            base = os.path.splitext(os.path.basename(eval_json))[0]
+            out_json = os.path.join(search_dir, f"{base}_grade.json")
+            tasks.append(
+                RunCommandsWithVenvTask(
+                    group_name=f"Grade {os.path.basename(eval_json)}",
+                    venv=venv,
+                    commands=[
+                        f'python -m qai_hub_models.scripts.llm.grade_responses "{eval_json}" --output-json "{out_json}"',
+                    ],
+                    raise_on_failure=False,
+                )
+            )
+
+        super().__init__(
+            "Grade LLM Responses",
+            tasks,
             continue_after_single_task_failure=True,
             raise_on_failure=raise_on_failure,
         )

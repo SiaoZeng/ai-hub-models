@@ -248,14 +248,44 @@ jobs:
           git push -u origin $branch_name
         echo "branch_name=$branch_name" >> "$GITHUB_OUTPUT"
 
-    - name: Upload CSV Results
+    - name: Grade LLM Responses
+      id: grade_responses
+      if: ${{ !cancelled() && inputs.run_eval }}
+      env:
+        GRADER_VENV: ${{ env.HOME }}/grader_env
+        QAIHM_GRADE_RESPONSES_DIR: ${{ github.workspace }}
+      run: |
+        # Grader needs transformers>=5.2, which conflicts with the LLM
+        # source-repo pins in the main qaihm-build venv. The grade_llm_responses
+        # task installs grader deps into a dedicated --venv (via its
+        # install_llm_grader_requirements dependency) and grades every
+        # *_eval.json in QAIHM_GRADE_RESPONSES_DIR.
+        python3 scripts/build_and_test.py \
+          --venv="$GRADER_VENV" \
+          grade_llm_responses
+
+    - name: Add Grader Scores to GitHub Summary
+      if: ${{ !cancelled() && inputs.run_eval && steps.grade_responses.outcome == 'success' }}
+      run: |
+        python3 scripts/ci/grader_summary.py "$GITHUB_WORKSPACE" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Stage results for upload
+      if: ${{ !cancelled() }}
+      run: |
+        # Flatten *_eval.json / *_grade.json from anywhere under the workspace
+        # into a single dir so the artifact zip has a clean top-level layout
+        # (no /local/mnt2/... absolute-path nesting).
+        mkdir -p "$GITHUB_WORKSPACE/llm-perf-results"
+        find "$GITHUB_WORKSPACE" -type f \
+          \( -name '*_eval.json' -o -name '*_grade.json' \) \
+          -exec cp {} "$GITHUB_WORKSPACE/llm-perf-results/" \;
+
+    - name: Upload Results
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
       with:
         name: llm-perf-results
-        path: |
-          ${{ github.workspace }}/*.csv
-          ${{ github.workspace }}/genie_bundles/**/*_eval.csv
+        path: llm-perf-results/
 
     - name: Add CSV to GitHub summary
       if: ${{ !cancelled() }}
@@ -310,6 +340,7 @@ jobs:
         if [ -n "$HOME" ]; then
           rm -rf "$HOME"/.aws
           rm -rf "$HOME"/model_envs
+          rm -rf "$HOME"/grader_env
         fi
         rm -rf "$GITHUB_WORKSPACE"/qualcomm_device_cloud_sdk-*.whl
         rm -rf "$GITHUB_WORKSPACE"/genie_bundles/*

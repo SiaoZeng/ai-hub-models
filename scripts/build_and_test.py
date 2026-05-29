@@ -54,6 +54,7 @@ from tasks.test import (
     CollectLLMPerfTask,
     GenerateTestSummaryTask,
     GPUPyTestModelsTask,
+    GradeLLMResponsesTask,
     InstallGlobalRequirementsTask,
     PyTestModelsTask,
     PyTestQAIHMTask,
@@ -66,6 +67,7 @@ from tasks.venv import (
     DownloadQDCWheelTask,
     GenerateGlobalRequirementsTask,
     InstallCLITask,
+    InstallLLMGraderRequirementsTask,
     SyncLocalQAIHMVenvTask,
 )
 
@@ -296,6 +298,35 @@ class TaskLibrary:
                 group_name="Install Compiler Nightly Requirements",
                 venv=self.venv_path,
                 commands=["pip install -r scripts/compiler_nightly/requirements.txt"],
+            ),
+        )
+
+    @public_task("Install LLM Grader Requirements")
+    @depends(["create_venv"])
+    def install_llm_grader_requirements(
+        self, plan: Plan, step_id: str = "install_llm_grader_requirements"
+    ) -> str:
+        return plan.add_step(
+            step_id,
+            InstallLLMGraderRequirementsTask(self.venv_path),
+        )
+
+    @public_task("Grade on-device LLM eval responses (*_eval.json -> *_grade.json)")
+    @depends(["install_llm_grader_requirements"])
+    def grade_llm_responses(
+        self, plan: Plan, step_id: str = "grade_llm_responses"
+    ) -> str:
+        """
+        Grade all *_eval.json files in the search directory.
+
+        The search directory defaults to the current working directory and can
+        be overridden via the QAIHM_GRADE_RESPONSES_DIR environment variable.
+        """
+        return plan.add_step(
+            step_id,
+            GradeLLMResponsesTask(
+                venv=self.venv_path,
+                search_dir=os.environ.get("QAIHM_GRADE_RESPONSES_DIR"),
             ),
         )
 

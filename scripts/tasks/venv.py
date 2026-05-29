@@ -233,6 +233,41 @@ class InstallGlobalRequirementsTask(RunCommandsWithVenvTask):
         )
 
 
+# Path to the LLM grader requirements file, relative to REPO_ROOT.
+GRADER_REQUIREMENTS_PATH = os.path.join(
+    REPO_ROOT,
+    "src",
+    "qai_hub_models",
+    "models",
+    "_shared",
+    "llm",
+    "requirements-grader.txt",
+)
+
+
+class InstallLLMGraderRequirementsTask(RunCommandsWithVenvTask):
+    """Install LLM grader deps + qai_hub_models (editable, no deps).
+
+    The grader requires ``transformers>=5.2``, which conflicts with the
+    older transformers pins used by LLM source repos. Pass ``--venv`` to
+    install into a dedicated grader venv rather than the default one.
+
+    The editable ``qai_hub_models`` install (``--no-deps``) lets the grader
+    CLI import its support modules without pulling in the full repo
+    dependency tree.
+    """
+
+    def __init__(self, venv_path: str | None) -> None:
+        super().__init__(
+            group_name="Install LLM Grader Requirements",
+            venv=venv_path,
+            commands=[
+                f'{get_pip()} install -r "{GRADER_REQUIREMENTS_PATH}"',
+                f'{get_pip()} install --no-deps -e "{PY_PACKAGE_INSTALL_ROOT}"',
+            ],
+        )
+
+
 class InstallCLITask(RunCommandsWithVenvTask):
     """Install the qai_hub_models_cli package from a wheel or as editable."""
 

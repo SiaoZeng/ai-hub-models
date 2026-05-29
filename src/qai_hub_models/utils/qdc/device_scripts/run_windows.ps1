@@ -1,3 +1,9 @@
+# genie-t2t-run.exe writes UTF-8 to stdout, and if we don't configure the
+# powershell terminal correctly we'll end up capturing mojibake.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
+
 Set-Location C:\Temp\TestContent\
 $source = "https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/{QAIRT_VERSION}/v{QAIRT_VERSION}.zip"
 $output = "C:\Temp\TestContent\qairt.zip"

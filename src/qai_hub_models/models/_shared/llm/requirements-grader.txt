@@ -1,0 +1,10 @@
+# Dependencies for the LLM response grader.
+torch
+transformers>=5.2
+accelerate
+packaging
+requests
+qai_hub
+numpy
+pydantic
+typing-extensions

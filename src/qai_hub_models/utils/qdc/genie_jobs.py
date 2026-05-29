@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import os
 import pathlib
@@ -538,6 +537,26 @@ class GenieQDCJobs(QDCJobs):
             outputs[idx] = parts[i + 1].strip()
         return outputs
 
+    @staticmethod
+    def _extract_model_output(raw_output: str) -> str:
+        """Extract just the model's response from raw genie-t2t-run output.
+
+        The raw output mixes debug logs, the chat-templated prompt echo, and
+        the actual response between ``[BEGIN]:`` and ``[END]`` markers. We
+        return only the text between those markers; if neither is present,
+        fall back to the raw output stripped.
+        """
+        begin_marker = "[BEGIN]:"
+        end_marker = "[END]"
+        begin_idx = raw_output.find(begin_marker)
+        if begin_idx == -1:
+            return raw_output.strip()
+        text = raw_output[begin_idx + len(begin_marker) :]
+        end_idx = text.find(end_marker)
+        if end_idx != -1:
+            text = text[:end_idx]
+        return text.strip()
+
     def compute_eval_results(
         self,
         job_log_files: list,
@@ -608,7 +627,7 @@ class GenieQDCJobs(QDCJobs):
             {
                 "idx": idx,
                 "prompt": prompts[idx] if idx < len(prompts) else "",
-                "output": outputs.get(idx, ""),
+                "output": self._extract_model_output(outputs.get(idx, "")),
             }
             for idx in sorted(outputs.keys())
         ]
@@ -622,25 +641,16 @@ class GenieQDCJobs(QDCJobs):
         return results
 
 
-def save_eval_results_csv(results: list[dict], output_path: str) -> None:
-    """Save evaluation results to a CSV file."""
+def save_eval_results_json(results: list[dict], output_path: str) -> None:
+    """Save evaluation results to a JSON file."""
     if not results:
         print("No results to save.")
         return
 
     results.sort(key=lambda r: r.get("idx", 0))
 
-    with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["idx", "prompt", "output"])
-        for r in results:
-            writer.writerow(
-                [
-                    r.get("idx", ""),
-                    r.get("prompt", ""),
-                    r.get("output", ""),
-                ]
-            )
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
 
     print(f"Results saved to: {output_path}")
 
@@ -796,11 +806,11 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "--output-csv",
+        "--output-json",
         type=str,
         required=False,
         default=None,
-        help="Path to save eval results as CSV.",
+        help="Path to save eval results as JSON.",
     )
     parser.add_argument(
         "--num-trials",
@@ -835,5 +845,5 @@ if __name__ == "__main__":
         num_trials=args.num_trials,
     )
 
-    if args.output_csv:
-        save_eval_results_csv(eval_results, args.output_csv)
+    if args.output_json:
+        save_eval_results_json(eval_results, args.output_json)

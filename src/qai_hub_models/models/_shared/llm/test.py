@@ -850,7 +850,7 @@ def run_llm_perf_test(
     # QDC run
     from qai_hub_models.utils.qdc.genie_jobs import (
         _USE_DEFAULT_PROMPTS,
-        save_eval_results_csv,
+        save_eval_results_json,
         submit_genie_bundle_to_qdc_device,
     )
 
@@ -880,10 +880,10 @@ def run_llm_perf_test(
             prefill_tps,
         )
 
-    # Save eval results to CSV in the working directory (not output_dir)
+    # Save eval results as JSON in the working directory (not output_dir)
     # so the workflow artifact upload picks it up from $GITHUB_WORKSPACE.
     if eval_results:
-        eval_csv_path = Path(f"{model_id}_{device.chipset}_{precision}_eval.csv")
-        save_eval_results_csv(eval_results, str(eval_csv_path))
+        eval_json_path = Path(f"{model_id}_{device.chipset}_{precision}_eval.json")
+        save_eval_results_json(eval_results, str(eval_json_path))
 
     return tps, ttft, prefill_tps
