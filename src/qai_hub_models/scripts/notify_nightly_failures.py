@@ -128,9 +128,10 @@ def main() -> None:
     if summary_path.exists():
         test_summary = summary_path.read_text()
 
-    # Workbench issue
+    # Workbench issue — only file if there's actual evidence of workbench
+    # job failures (not just the verify job crashing due to infra issues).
     failed_aihub_jobs = load_failed_jobs_json(args.failed_jobs_json)
-    if workbench_failures:
+    if workbench_failures and failed_aihub_jobs:
         title = f"[QAIHM Nightly] Workbench Job Failures - {today}"
         body = render_issue_body(
             "workbench_issue.j2",
@@ -145,6 +146,10 @@ def main() -> None:
         (output_dir / "workbench_title.txt").write_text(title)
         (output_dir / "workbench_issue.md").write_text(body)
         print(f"Wrote workbench issue to {output_dir}")
+    elif workbench_failures:
+        # The verify job failed but no workbench jobs were actually affected
+        # (e.g. GitHub infra outage). Reclassify as general failures.
+        general_failures.extend(workbench_failures)
 
     # General issue
     if general_failures:
