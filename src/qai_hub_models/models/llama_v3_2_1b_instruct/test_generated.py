@@ -272,7 +272,8 @@ def cached_serialize_for_export(
             output_dir: str | os.PathLike,
             input_spec: InputSpec | None = None,
         ) -> Path:
-            model_key = f"{component_name}|{graph_name}|{input_spec}"
+            precision = self.components[component_name].component_precision()
+            model_key = f"{component_name}|{graph_name}|{precision}|{input_spec}"
             cached = model_cache.get(model_key)
             if not cached:
                 cached = serialize_component_graph(

@@ -366,6 +366,9 @@ class Llama3_2_1B_PartBase(torch.nn.Module, MultiGraphWorkbenchModel):
     def graph_names(self) -> list[str]:
         return list(self._graph_names.keys())
 
+    def component_precision(self) -> Precision:
+        return self._precision
+
     @property
     def _is_quantized(self) -> bool:
         return self._precision != Precision.float
