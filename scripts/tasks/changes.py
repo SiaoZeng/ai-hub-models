@@ -44,12 +44,6 @@ REPRESENTATIVE_AIMET_MODEL_FILE = (
 # aimet models. Testing a representative set of aimet models is probably
 # good enough rather than testing all of them.
 MANUAL_EDGES = {
-    "src/qai_hub_models/utils/quantization_aimet.py": [
-        "src/qai_hub_models/models/yolov7_quantized/model.py",
-        "src/qai_hub_models/models/ffnet_40s_quantized/model.py",
-        "src/qai_hub_models/models/xlsr_quantized/model.py",
-        "src/qai_hub_models/models/resnet18_quantized/model.py",
-    ],
     "src/qai_hub_models/datasets/__init__.py": [
         "src/qai_hub_models/models/yolov7_quantized/model.py"
     ],
@@ -60,6 +54,7 @@ MANUAL_EDGES = {
     "src/qai_hub_models/utils/quantization_aimet_onnx.py": [
         REPRESENTATIVE_AIMET_MODEL_FILE,
     ],
+    "src/qai_hub_models/common.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/configs/_info_yaml_enums.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/configs/_info_yaml_llm_details.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/configs/code_gen_yaml.py": REPRESENTATIVE_EXPORT_FILES,
@@ -73,16 +68,18 @@ MANUAL_EDGES = {
     "src/qai_hub_models/configs/release_assets_yaml.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/configs/tensor_spec.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/configs/tool_versions.py": REPRESENTATIVE_EXPORT_FILES,
-    "src/qai_hub_models/datasets/common.py": REPRESENTATIVE_EXPORT_FILES,
-    "src/qai_hub_models/models/common.py": REPRESENTATIVE_EXPORT_FILES,
+    "src/qai_hub_models/protocols.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/scorecard/device.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/scorecard/envvars.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/scorecard/execution_helpers.py": REPRESENTATIVE_EXPORT_FILES,
+    "src/qai_hub_models/scorecard/utils/testing.py": REPRESENTATIVE_EXPORT_FILES,
+    "src/qai_hub_models/scorecard/utils/testing_export_eval.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/utils/asset_loaders.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/utils/aws.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/utils/base_config.py": REPRESENTATIVE_EXPORT_FILES,
+    "src/qai_hub_models/utils/base_dataset.py": REPRESENTATIVE_EXPORT_FILES,
+    "src/qai_hub_models/utils/base_evaluator.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/utils/collection_model_helpers.py": REPRESENTATIVE_EXPORT_FILES,
-    "src/qai_hub_models/utils/default_export_device.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/utils/envvars.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/utils/evaluate.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/utils/inference.py": REPRESENTATIVE_EXPORT_FILES,
@@ -93,10 +90,8 @@ MANUAL_EDGES = {
     "src/qai_hub_models/utils/qai_hub_helpers.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/utils/quantization.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/utils/runtime_torch_wrapper.py": REPRESENTATIVE_EXPORT_FILES,
-    "src/qai_hub_models/utils/testing.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/utils/tflite/torch_wrapper.py": REPRESENTATIVE_EXPORT_FILES,
     "src/qai_hub_models/utils/transpose_channel.py": REPRESENTATIVE_EXPORT_FILES,
-    "src/qai_hub_models/_version.py": [],
 }
 
 
@@ -352,7 +347,7 @@ class PrintCITestModelsTask(Task):
         )
 
         out = model_or_yaml_changed
-        if model_or_yaml_changed - only_code_generation_changed:
+        if only_code_generation_changed - model_or_yaml_changed:
             # We don't run tests for every model whose codegen files was changed.
             # However, if there are models with only codegen changes,
             # we run a representative model set to make sure codegen didn't break for regular + component models.

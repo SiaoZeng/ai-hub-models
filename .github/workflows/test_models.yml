@@ -92,7 +92,7 @@ jobs:
   exec_scorecard:
     runs-on: ${{ inputs.runs_on && inputs.runs_on != 'null' && fromJson(inputs.runs_on) || fromJson('["tetra-ubuntu-2204", "self-hosted"]') }}
     container: ${{ inputs.container_image != '' && fromJSON(format('{{"image":"{0}","options":"--gpus all -v /local:/local"}}', inputs.container_image)) || null }}
-    timeout-minutes: 600 # 10 hours - just for job submission
+    timeout-minutes: 960 # 16 hours - job submission and CPU accuracy
     env:
       QAIHM_TEST_IGNORE_KNOWN_FAILURES: ${{ inputs.ignore_known_failures && '1' || '0' }}
       QAIHM_TEST_DEPLOYMENT: ${{ inputs.deployment }}
