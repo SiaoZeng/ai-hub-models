@@ -18,7 +18,11 @@ cd /data/local/tmp/TestContent/genie_bundle
 curl -L -J --output /data/local/tmp/qairt.zip \
   https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/{QAIRT_VERSION}/v{QAIRT_VERSION}.zip
 
-unzip /data/local/tmp/qairt.zip -d /data/local/tmp
+unzip -q /data/local/tmp/qairt.zip -d /data/local/tmp || {
+    echo "unzip failed, retrying once" >&2
+    rm -rf /data/local/tmp/qairt
+    unzip -q /data/local/tmp/qairt.zip -d /data/local/tmp
+}
 
 export QAIRT_HOME=/data/local/tmp/qairt/{QAIRT_VERSION}
 export PATH=$QAIRT_HOME/bin/aarch64-oe-linux-gcc11.2:$PATH

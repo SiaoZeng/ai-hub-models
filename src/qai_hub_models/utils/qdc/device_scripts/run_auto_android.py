@@ -70,7 +70,11 @@ genie_retry() {{
     }}
 }}
 cd /data/local/tmp/genie_bundle
-unzip qairt_sdk.zip -d /data/local/tmp/genie_bundle
+unzip -q qairt_sdk.zip -d /data/local/tmp/genie_bundle || {{
+    echo "unzip failed, retrying once" >&2
+    rm -rf /data/local/tmp/genie_bundle/artifact
+    unzip -q qairt_sdk.zip -d /data/local/tmp/genie_bundle
+}}
 mv /data/local/tmp/genie_bundle/artifact /data/local/tmp/genie_bundle/qairt
 export QAIRT_HOME={qairt_path}
 export PATH={qairt_path}/bin/aarch64-android:${{PATH}}

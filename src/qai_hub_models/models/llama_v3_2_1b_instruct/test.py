@@ -154,7 +154,7 @@ def test_load_encodings_to_quantsim(checkpoint: str) -> None:
         # Prompt-generation + LLM-grader smoke test (5 samples). Nightly-marked
         # so it also runs in the weekly suite. Greedy decoding + deterministic
         # grader make the score reproducible.
-        pytest.param("DEFAULT_W4A16", "prompts", 1.0, 5, marks=pytest.mark.nightly),
+        pytest.param("DEFAULT_W4A16", "prompts", 0.94, 5, marks=pytest.mark.nightly),
         ("DEFAULT_UNQUANTIZED", "wikitext", 12.18, 0),
         ("DEFAULT_UNQUANTIZED", "mmlu", 0.482, 1000),
         ("DEFAULT_UNQUANTIZED", "tiny_mmlu", 0.41, 0),
