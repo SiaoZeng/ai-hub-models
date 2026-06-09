@@ -27,9 +27,22 @@ function Invoke-GenieRetry {
 }
 
 Set-Location C:\Temp\TestContent\
+
+# Verify network connectivity before download
+Write-Host "=== Pre-download connectivity check ==="
+Write-Host "Pinging google.com before QAIRT SDK download..."
+$prePing = Test-Connection -ComputerName google.com -Count 1 -Quiet
+if ($prePing) { Write-Host "Pre-download ping: SUCCESS" } else { Write-Host "Pre-download ping: FAILED" }
+
 $source = "https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/{QAIRT_VERSION}/v{QAIRT_VERSION}.zip"
 $output = "C:\Temp\TestContent\qairt.zip"
 (New-Object System.Net.WebClient).DownloadFile($source, $output)
+
+# Verify network connectivity after download
+Write-Host "=== Post-download connectivity check ==="
+Write-Host "Pinging google.com after QAIRT SDK download..."
+$postPing = Test-Connection -ComputerName google.com -Count 1 -Quiet
+if ($postPing) { Write-Host "Post-download ping: SUCCESS (WiFi active)" } else { Write-Host "Post-download ping: FAILED (WiFi down)" }
 Expand-Archive -Path "C:\Temp\TestContent\qairt.zip" -DestinationPath "C:\Temp\TestContent\"
 $env:QAIRT_HOME = "C:\Temp\TestContent\qairt\{QAIRT_VERSION}"
 $env:Path = "$env:QAIRT_HOME\bin\aarch64-windows-msvc;" + $env:Path
