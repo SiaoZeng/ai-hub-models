@@ -5,10 +5,15 @@
 # ---------------------------------------------------------------------
 
 set -e
+# Keep pipeline exit status tied to the real command rather than `tee`, which
+# always succeeds; otherwise the tees below would mask genie failures.
+set -o pipefail
 
-# Redirect all output to log file for QDC collection
+# Tee all output to the log file (for QDC collection) AND the original stdout,
+# so progress is still visible when a failed QDC job never makes the on-device
+# log files available.
 mkdir -p /data/local/tmp/QDC_logs
-exec > /data/local/tmp/QDC_logs/script.log 2>&1
+exec > >(tee /data/local/tmp/QDC_logs/script.log) 2>&1
 
 mount -o rw,remount /
 
@@ -49,7 +54,7 @@ genie_retry() {
 }
 
 # Run genie (capture initial output, including stderr)
-genie_retry genie-t2t-run -c genie_config.json --prompt_file sample_prompt.txt > /data/local/tmp/QDC_logs/genie.log 2>&1
+genie_retry genie-t2t-run -c genie_config.json --prompt_file sample_prompt.txt 2>&1 | tee /data/local/tmp/QDC_logs/genie.log
 
 # Run profiling iterations
 for i in $(seq 1 {NUM_TRIALS}); do
@@ -66,8 +71,8 @@ if [ -d "$PROMPT_DIR" ]; then
     true > "$EVAL_OUTPUT_FILE"
     for prompt_file in "$PROMPT_DIR"/prompt_*.txt; do
         idx=$(basename "$prompt_file" | sed 's/prompt_\([0-9]*\)\.txt/\1/')
-        echo "===EVAL_IDX_${idx}===" >> "$EVAL_OUTPUT_FILE"
-        genie_retry genie-t2t-run -c genie_config.json --prompt_file "$prompt_file" >> "$EVAL_OUTPUT_FILE" 2>&1
+        echo "===EVAL_IDX_${idx}===" | tee -a "$EVAL_OUTPUT_FILE"
+        genie_retry genie-t2t-run -c genie_config.json --prompt_file "$prompt_file" 2>&1 | tee -a "$EVAL_OUTPUT_FILE"
     done
 fi
 

@@ -3,17 +3,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # ---------------------------------------------------------------------
 import os
-import re
 import subprocess
 import sys
 
 import pytest
 from appium import webdriver
 from appium.options.common import AppiumOptions
-
-# adb shell does not propagate the remote command's exit status on most
-# Android versions, so we tee an explicit marker and parse it out.
-_EXIT_MARKER = "__QDC_EXIT__"
 
 options = AppiumOptions()
 options.set_capability("automationName", "UiAutomator2")
@@ -43,11 +38,12 @@ class TestGenie:
             )
         full_genie_command = " && ".join(trial_commands)
         qairt_path = "/data/local/tmp/qairt/<<QAIRT_VERSION>>"
-        # The EXIT trap runs on every exit path (clean, set -e abort, signal),
-        # so $? captures the real rc and the host can parse it from stdout.
-        # Needed because adb shell always returns 0, hiding on-device failures.
-        genie_script = f"""trap 'rc=$?; echo {_EXIT_MARKER}$rc' EXIT
-set -e
+        genie_script = f"""set -e
+# We pipe genie output through `tee` (below) so it shows up on adb stdout
+# (and thus in the captured proc.stdout) even when a failed QDC job never
+# makes the on-device log files available. pipefail keeps the pipeline's
+# exit status tied to genie rather than to tee, which always succeeds.
+set -o pipefail
 # genie-t2t-run fails randomly on QDC devices; give each invocation one retry
 # before letting the failure (and set -e) abort the whole job.
 genie_retry() {{
@@ -75,7 +71,7 @@ export LD_LIBRARY_PATH={qairt_path}/lib/aarch64-android
 export ADSP_LIBRARY_PATH={qairt_path}/lib/hexagon-<<HEXAGON_VERSION>>/unsigned
 
 mkdir -p /data/local/tmp/QDC_logs
-genie_retry genie-t2t-run -c genie_config.json --prompt_file sample_prompt.txt > /data/local/tmp/QDC_logs/genie.log
+genie_retry genie-t2t-run -c genie_config.json --prompt_file sample_prompt.txt | tee /data/local/tmp/QDC_logs/genie.log
 {full_genie_command}
 
 PROMPT_DIR=/data/local/tmp/genie_bundle/prompts
@@ -84,8 +80,8 @@ if [ -d "$PROMPT_DIR" ]; then
     > "$EVAL_OUTPUT_FILE"
     for prompt_file in $PROMPT_DIR/prompt_*.txt; do
         idx=$(basename "$prompt_file" | sed 's/prompt_\\([0-9]*\\)\\.txt/\\1/')
-        echo "===EVAL_IDX_${{idx}}===" >> "$EVAL_OUTPUT_FILE"
-        genie_retry genie-t2t-run -c genie_config.json --prompt_file "$prompt_file" >> "$EVAL_OUTPUT_FILE" 2>&1
+        echo "===EVAL_IDX_${{idx}}===" | tee -a "$EVAL_OUTPUT_FILE"
+        genie_retry genie-t2t-run -c genie_config.json --prompt_file "$prompt_file" 2>&1 | tee -a "$EVAL_OUTPUT_FILE"
     done
 fi
 """
@@ -121,30 +117,19 @@ fi
                 "failure — file a QDC infra ticket and re-run."
             )
 
-        # Run the shell script on the device. adb shell does not propagate
-        # the remote exit code; the script's own EXIT trap echoes a marker
-        # we can parse out of stdout instead.
+        # Run the shell script on the device. adb shell does not propagate the
+        # remote exit code, so on-device failures can't be detected here; the
+        # output-existence check below is what catches them.
         proc = subprocess.run(
             ["adb", "shell", "sh", "-c", genie_script],
             capture_output=True,
             text=True,
             check=True,  # only catches adb-side failures, not on-device ones
         )
-        match = re.search(rf"{_EXIT_MARKER}(\d+)\s*$", proc.stdout)
-        if match is None:
-            pytest.fail(
-                "adb shell did not report an exit code.\n"
-                f"--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}"
-            )
-        rc = int(match.group(1))
-        if rc != 0:
-            pytest.fail(
-                f"On-device genie script exited with rc={rc}.\n"
-                f"--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}"
-            )
 
-        # Confirm the on-device script actually produced its outputs. A green
-        # pytest with no genie.log was the failure mode on QDC job 613912.
+        # Since adb shell hides the on-device exit code, confirm the script
+        # actually produced its outputs. A green pytest with no genie.log was
+        # the failure mode on QDC job 613912.
         expected = ["/data/local/tmp/QDC_logs/genie.log"] + [
             f"/data/local/tmp/QDC_logs/profile{i}.txt" for i in range(num_trials)
         ]
@@ -156,8 +141,11 @@ fi
         )
         if ls.returncode != 0:
             pytest.fail(
-                "Expected on-device outputs are missing:\n"
-                f"--- stdout ---\n{ls.stdout}\n--- stderr ---\n{ls.stderr}"
+                "Expected on-device outputs are missing — the genie script "
+                "likely failed on device.\n"
+                f"--- ls stdout ---\n{ls.stdout}\n--- ls stderr ---\n{ls.stderr}\n"
+                f"--- script stdout ---\n{proc.stdout}\n"
+                f"--- script stderr ---\n{proc.stderr}"
             )
 
 

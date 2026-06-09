@@ -17,6 +17,9 @@ function Invoke-GenieRetry {
     )
     foreach ($attempt in 1, 2) {
         $captured = & genie-t2t-run.exe @GenieArgs 2>&1
+        # Echo to the console as well as the log file, so progress is visible
+        # even when a failed QDC job never makes the log files available.
+        $captured | Out-String | Write-Host
         if ($LASTEXITCODE -eq 0) {
             if ($OutFile) { $captured | Out-File -FilePath $OutFile -Append -Encoding utf8 }
             return
