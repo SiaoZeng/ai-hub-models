@@ -1,0 +1,36 @@
+name: Segment-Anything-Model-3
+id: sam3
+status: pending
+headline: Open-vocabulary segmentation with text and visual prompts for any concept.
+domain: Computer Vision
+description: SAM3 (Segment Anything with Concepts) extends SAM2 with open-vocabulary
+  segmentation, producing bounding boxes and masks for objects matching a natural-language
+  prompt.
+use_case: Semantic Segmentation
+tags:
+- foundation
+applicable_scenarios:
+- Factory Automation
+- Robotic Navigation
+- Camera
+related_models:
+- sam2
+form_factors:
+- Phone
+- Tablet
+has_static_banner: false
+has_animated_banner: false
+dataset:
+- SA-CO (Segment Anything with Concepts dataset)
+technical_details:
+  Model checkpoint: sam3
+  Input resolution: 1008x1008
+  Number of parameters (SAM3Backbone): 33.5M
+  Model size (SAM3Backbone) (float): 128 MB
+  Number of parameters (SAM3Transformer): 6.22M
+  Model size (SAM3Transformer) (float): 23.7 MB
+license_type: sam3
+research_paper: https://arxiv.org/abs/2511.16719
+research_paper_title: 'SAM 3: Segment Anything with Concepts'
+source_repo: https://github.com/facebookresearch/sam3
+license: https://github.com/facebookresearch/sam3/blob/main/LICENSE

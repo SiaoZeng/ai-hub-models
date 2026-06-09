@@ -88,8 +88,10 @@ def window_unpartition_5d(
     B = windows.shape[0] // (Hp * Wp // window_size // window_size)
 
     # -- Begin Qualcomm Modification --
-    x = windows.reshape(B, Hp // window_size, Wp // window_size, window_size, -1)
-    x = x.permute(0, 1, 3, 2, 4).contiguous().view(B, Hp, Wp, -1)
+    x = windows.reshape(
+        B * Hp // window_size, Wp // window_size, window_size, window_size, -1
+    )
+    x = x.permute(0, 2, 1, 3, 4).contiguous().view(B, Hp, Wp, -1)
     # -- End Qualcomm Modification --
 
     if Hp > H or Wp > W:

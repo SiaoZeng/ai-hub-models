@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -14,6 +15,36 @@ import torch
 from PIL.Image import Image
 
 from qai_hub_models.utils.display import is_headless, is_running_in_notebook
+
+
+def copy_configs(
+    src: str | os.PathLike,
+    dst: str | os.PathLike,
+    required_subdir: str,
+) -> None:
+    """
+    Copy a SAM-family configuration directory into ``dst`` under the
+    expected ``<required_subdir>/configs/<src name>`` layout.
+
+    If ``dst`` is not already inside ``required_subdir``, the required
+    subdirectory is appended so downstream hydra imports resolve.
+
+    Parameters
+    ----------
+    src
+        Path to the source configuration directory (e.g.
+        ``<sam lib>/configs/sam2.1``).
+    dst
+        Base path where the configuration directory should be copied.
+    required_subdir
+        Package-relative subdirectory the configs must live under
+        (e.g. ``"qai_hub_models/models/sam2"``).
+    """
+    src_path = Path(src)
+    dst_path = Path(dst) / "configs" / src_path.name
+    if required_subdir not in str(dst_path):
+        dst_path = Path(dst) / required_subdir / "configs" / src_path.name
+    shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
 
 
 ## Helper routines

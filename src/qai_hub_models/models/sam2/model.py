@@ -22,6 +22,7 @@ from qai_hub_models import (
     TargetRuntime,
 )
 from qai_hub_models.datasets.sav import SaVDataset
+from qai_hub_models.models._shared.sam.utils import copy_configs
 from qai_hub_models.models._shared.sam2.model import (
     SAM2Decoder as SAM2DecoderBase,
 )
@@ -31,7 +32,6 @@ from qai_hub_models.models._shared.sam2.model import (
 from qai_hub_models.models._shared.sam2.model import (
     SAM2Loader as SAM2LoaderBase,
 )
-from qai_hub_models.models.sam2.utils import copy_configs
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_model import (
@@ -137,7 +137,11 @@ class SAM2Loader(SAM2LoaderBase):
         )
         config_dir = QAIHM_MODELS_ROOT / MODEL_ID / "build"
         os.makedirs(config_dir, exist_ok=True)
-        copy_configs(Path(sam2.__file__).parent / "configs" / "sam2.1", config_dir)
+        copy_configs(
+            Path(sam2.__file__).parent / "configs" / "sam2.1",
+            config_dir,
+            required_subdir="qai_hub_models/models/sam2",
+        )
         if model_type not in MODEL_REGISTERY:
             raise RuntimeError(f"Weights not found for model type `{model_type}`.")
 

@@ -60,6 +60,7 @@ class _ModelLicenseEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._E
     MODEL_LICENSE_GEMMA: _ModelLicense.ValueType  # 17
     MODEL_LICENSE_LFM1_0: _ModelLicense.ValueType  # 18
     MODEL_LICENSE_AIMET_MODEL_ZOO: _ModelLicense.ValueType  # 19
+    MODEL_LICENSE_SAM3: _ModelLicense.ValueType  # 20
 
 class ModelLicense(_ModelLicense, metaclass=_ModelLicenseEnumTypeWrapper): ...
 
@@ -88,6 +89,7 @@ MODEL_LICENSE_FALCON3: ModelLicense.ValueType  # 16
 MODEL_LICENSE_GEMMA: ModelLicense.ValueType  # 17
 MODEL_LICENSE_LFM1_0: ModelLicense.ValueType  # 18
 MODEL_LICENSE_AIMET_MODEL_ZOO: ModelLicense.ValueType  # 19
+MODEL_LICENSE_SAM3: ModelLicense.ValueType  # 20
 global___ModelLicense = ModelLicense
 
 class _ModelDomain:

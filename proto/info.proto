@@ -40,6 +40,7 @@ enum ModelLicense {
   MODEL_LICENSE_GEMMA = 17;
   MODEL_LICENSE_LFM1_0 = 18;
   MODEL_LICENSE_AIMET_MODEL_ZOO = 19;
+  MODEL_LICENSE_SAM3 = 20;
 }
 
 enum ModelDomain {

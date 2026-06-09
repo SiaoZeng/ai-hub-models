@@ -119,6 +119,7 @@ class MODEL_LICENSE(Enum):
     FALCON3 = "falcon3"
     GEMMA = "gemma"
     LFM1_0 = "lfm1.0"
+    SAM3 = "sam3"
 
     @property
     def is_copyleft(self) -> bool:
@@ -171,6 +172,8 @@ class MODEL_LICENSE(Enum):
             return "https://ai.google.dev/gemma/terms"
         if self == MODEL_LICENSE.LFM1_0:
             return "https://www.liquid.ai/lfm-license"
+        if self == MODEL_LICENSE.SAM3:
+            return "https://github.com/facebookresearch/sam3/blob/main/LICENSE"
         return None
 
 
