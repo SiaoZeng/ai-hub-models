@@ -84,7 +84,7 @@ def main() -> None:
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Print per-item logits.",
+        help="Print the per-item logit table (A/B/C/D logits + runner-up margin).",
     )
     args = parser.parse_args()
 
@@ -116,10 +116,14 @@ def main() -> None:
     summary = grader.grade(items)
 
     if args.verbose:
+        # Logits + runner-up margin expose near-ties that flip the argmax label.
         for item, result in zip(items, summary.results, strict=True):
+            ordered = sorted(result.logits.values(), reverse=True)
+            margin = ordered[0] - ordered[1] if len(ordered) > 1 else float("nan")
             print(
                 f"  idx={item['idx']}: {result.label}  "
-                + "  ".join(f"{l}={result.logits[l]:.2f}" for l in LETTERS)
+                + "  ".join(f"{l}={result.logits[l]:.4f}" for l in LETTERS)
+                + f"  (margin={margin:.4f})"
                 + ("  [skipped: empty response]" if result.skipped else "")
             )
 

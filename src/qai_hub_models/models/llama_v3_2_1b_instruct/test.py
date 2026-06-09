@@ -151,15 +151,15 @@ def test_load_encodings_to_quantsim(checkpoint: str) -> None:
         ("DEFAULT_W4", "tiny_mmlu", 0.43, 0),
         pytest.param("DEFAULT_W4A16", "wikitext", 17.47, 0, marks=pytest.mark.nightly),
         ("DEFAULT_W4A16", "mmlu", 0.390, 1000),
-        # Prompt-generation + LLM-grader smoke test (5 samples). Nightly-marked
-        # so it also runs in the weekly suite. Greedy decoding + deterministic
-        # grader make the score reproducible.
-        pytest.param("DEFAULT_W4A16", "prompts", 0.94, 5, marks=pytest.mark.nightly),
+        # Prompt-generation + LLM-grader smoke test (5 samples). The grader
+        # label is an argmax over near-valued logits that can flip across hosts
+        # (we've seen 0.88, 0.94, 1.0), so expected_metric is a floor.
+        pytest.param("DEFAULT_W4A16", "prompts", 0.88, 5, marks=pytest.mark.nightly),
         ("DEFAULT_UNQUANTIZED", "wikitext", 12.18, 0),
         ("DEFAULT_UNQUANTIZED", "mmlu", 0.482, 1000),
         ("DEFAULT_UNQUANTIZED", "tiny_mmlu", 0.41, 0),
         pytest.param(
-            "DEFAULT_UNQUANTIZED", "prompts", 1.0, 5, marks=pytest.mark.nightly
+            "DEFAULT_UNQUANTIZED", "prompts", 0.88, 5, marks=pytest.mark.nightly
         ),
     ],
 )
@@ -211,7 +211,13 @@ def test_evaluate(
         metric=task,
         value=actual_metric,
     )
-    np.testing.assert_allclose(actual_metric, expected_metric, rtol=0.03, atol=0)
+    if task in {"prompts", "multimodal_prompts"}:
+        # Grader score is monotonic (higher = better); assert a floor.
+        assert actual_metric >= expected_metric, (
+            f"{task} grader score {actual_metric:.3f} below floor {expected_metric}"
+        )
+    else:
+        np.testing.assert_allclose(actual_metric, expected_metric, rtol=0.03, atol=0)
 
 
 @pytest.mark.nightly

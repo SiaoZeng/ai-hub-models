@@ -80,6 +80,7 @@ def _run_grader_subprocess(
         str(responses_json),
         "--output-json",
         str(output_json),
+        "--verbose",
     ]
     print(f"Running grader: {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
