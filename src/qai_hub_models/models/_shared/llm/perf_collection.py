@@ -18,8 +18,6 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
-import ruamel.yaml
-
 from qai_hub_models import Precision
 from qai_hub_models.configs.code_gen_yaml import QAIHMModelCodeGen
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
@@ -33,6 +31,7 @@ from qai_hub_models.scorecard.device import (
 )
 from qai_hub_models.scorecard.envvars import LLMPerfReleaseAssetsEnvvar
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath
+from qai_hub_models.scorecard.results.yaml import ScorecardAssetYaml
 
 
 @dataclass
@@ -86,11 +85,9 @@ def load_release_assets_for_model(model_id: str) -> QAIHMModelReleaseAssets:
     if not LLMPerfReleaseAssetsEnvvar.is_default():
         path = LLMPerfReleaseAssetsEnvvar.get()
         if path.exists():
-            with open(path) as f:
-                combined = ruamel.yaml.YAML(typ="safe", pure=True).load(f) or {}
-            entry = (combined.get("models") or {}).get(model_id)
+            entry = ScorecardAssetYaml.from_yaml(path).models.get(model_id)
             if entry is not None:
-                return QAIHMModelReleaseAssets.model_validate(entry)
+                return entry
     return QAIHMModelReleaseAssets.from_model(model_id, not_exists_ok=True)
 
 

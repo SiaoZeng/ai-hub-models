@@ -10,7 +10,7 @@
 ##
 
 name: LLM Performance Collection
-run-name: "LLM Perf (${{ inputs.model || 'all' }}, ${{ inputs.device || 'Snapdragon X Elite CRD,Snapdragon X2 Elite CRD,Snapdragon 8 Elite QRD,Snapdragon 8 Elite Gen 5 QRD' }})"
+run-name: "LLM Perf (${{ inputs.model || 'all' }}, ${{ inputs.device || 'all' }})"
 
 env:
   VENV_PATH: build/ci-envs/qaihm-build
@@ -27,7 +27,7 @@ on:
         type: string
 
       device:
-        description: 'Target device(s). Comma-separated scorecard device names (e.g. "cs_x2_elite,cs_auto_lemans_8775"), or "all" for all LLM compile devices.'
+        description: 'Target device(s). See `src/qai_hub_models/scorecard/device.py`. Comma-separated scorecard device names (e.g. "cs_x2_elite,cs_auto_lemans_8775"), or "all" for all LLM compile devices.'
         required: true
         default: 'all'
         type: string
@@ -59,7 +59,7 @@ on:
         default: 'all'
 
       device:
-        description: 'Target device(s). Comma-separated scorecard device names, or "all" for all LLM compile devices.'
+        description: 'Target device(s). See `src/qai_hub_models/scorecard/device.py`. Comma-separated scorecard device names, or "all" for all LLM compile devices.'
         type: string
         default: 'all'
 
