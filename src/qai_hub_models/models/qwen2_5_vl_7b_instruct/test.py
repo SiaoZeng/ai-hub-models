@@ -60,12 +60,14 @@ def test_load_encodings_to_quantsim(checkpoint: str) -> None:
     [
         pytest.param("DEFAULT", "wikitext", 9.75, 0, marks=pytest.mark.nightly),
         ("DEFAULT", "mmlu", 0.689, 1000),
+        ("DEFAULT", "mmmu", 0.545, 200),
         # Image+prompt generation + LLM-grader smoke test (5 samples). Weekly
         # (evaluate-only) since VLM generation is slow. The grader label can
         # flip across hosts, so expected_metric is a floor.
         ("DEFAULT", "multimodal_prompts", 0.88, 5),
         ("DEFAULT_UNQUANTIZED", "wikitext", 8.38, 0),
         ("DEFAULT_UNQUANTIZED", "tiny_mmlu", 0.73, 0),
+        ("DEFAULT_UNQUANTIZED", "mmmu", 0.555, 200),
         ("DEFAULT_UNQUANTIZED", "multimodal_prompts", 0.88, 5),
     ],
 )

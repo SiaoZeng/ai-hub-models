@@ -40,6 +40,7 @@ from qai_hub_models.models._shared.qwen2.model import (
     Qwen2Base_QNN,
     QwenPositionProcessor,
 )
+from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.onnx.helpers import ONNXBundle
 
 if TYPE_CHECKING:
@@ -72,6 +73,15 @@ DEFAULT_USER_PROMPT = "Give me a short introduction to large language model."
 
 # Vision token placeholder (Qwen2.5-VL format)
 VISION_PLACEHOLDER = "<|vision_start|><|image_pad|><|vision_end|>"
+
+
+def _vlm_eval_dataset_classes() -> list[type[BaseDataset]]:
+    """Eval datasets for VLM models: the text-only LLM tasks plus MMMU and multimodal prompts."""
+    from qai_hub_models.datasets.mmmu import MMMU
+    from qai_hub_models.datasets.prompts import MultimodalPrompts
+    from qai_hub_models.models._shared.llm.model import LLMBase
+
+    return [*LLMBase.get_eval_dataset_classes(), MMMU, MultimodalPrompts]
 
 
 class _VLMCausalLMWrapper(torch.nn.Module):
@@ -159,9 +169,7 @@ class Qwen2VLTextBase(Qwen2Base):
 
     @classmethod
     def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
-        from qai_hub_models.datasets.prompts import MultimodalPrompts
-
-        return [*super().get_eval_dataset_classes(), MultimodalPrompts]
+        return _vlm_eval_dataset_classes()
 
     @classmethod
     def edit_llm_config(cls, llm_config: PretrainedConfig) -> PretrainedConfig:
@@ -685,6 +693,10 @@ class Qwen2VLTextBase_AIMETOnnx(Qwen2Base_AIMETOnnx):
         Qwen2VLTextBase.get_input_prompt_with_tags
     )
 
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return _vlm_eval_dataset_classes()
+
     def __init__(
         self,
         quant_sim: QuantizationSimModel,
@@ -1003,6 +1015,10 @@ class Qwen2VLTextBase_QNN(Qwen2Base_QNN):
     get_input_prompt_with_tags = staticmethod(
         Qwen2VLTextBase.get_input_prompt_with_tags
     )
+
+    @classmethod
+    def get_eval_dataset_classes(cls) -> list[type[BaseDataset]]:
+        return _vlm_eval_dataset_classes()
 
 
 # Re-export position processor (same as Qwen2)

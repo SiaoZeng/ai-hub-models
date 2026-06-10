@@ -152,6 +152,16 @@ MMLU = _register_metric(
     )
 )
 
+MMMU = _register_metric(
+    MetricMetadata(
+        name="Massive Multi-discipline Multimodal Understanding",
+        unit="MMMU",
+        description="Multimodal multiple choice questions spanning diverse academic subjects.",
+        range=(0.0, 1.0),
+        float_vs_device_threshold=0.1,
+    )
+)
+
 NORMALIZED_MEAN_ERROR = _register_metric(
     MetricMetadata(
         name="Normalized Mean Error",

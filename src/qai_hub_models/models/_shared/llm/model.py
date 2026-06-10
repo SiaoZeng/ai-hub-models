@@ -461,12 +461,15 @@ def _get_evaluator(
     from qai_hub_models.evaluators.kldiv_evaluator import KLDivEvaluator
     from qai_hub_models.evaluators.llm_response_evaluator import LLMResponseEvaluator
     from qai_hub_models.evaluators.mmlu_evaluator import MMLUEvaluator
+    from qai_hub_models.evaluators.mmmu_evaluator import MMMUEvaluator
     from qai_hub_models.evaluators.ppl_evaluator import PerplexityEvaluator
 
     if "wikitext" in task:
         return PerplexityEvaluator(context_length, device, tokenizer)
     if "tricky_llm_prompts" in task:
         return KLDivEvaluator(context_length, device, tokenizer, verbose=True)
+    if "mmmu" in task:
+        return MMMUEvaluator(context_length, device, tokenizer)
     if task in {"prompts", "multimodal_prompts"}:
         if "output_dir" not in task_kwargs:
             raise ValueError(
