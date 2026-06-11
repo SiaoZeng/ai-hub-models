@@ -148,9 +148,9 @@ class GPUPyTestModelsTask(CompositeTask):
         raise_on_failure: bool = True,
         nightly_only: bool = False,  # If True, only run tests marked with @pytest.mark.nightly
     ) -> None:
-        home_dir = "/local/mnt2/workspace2/qaihm_bot"
+        home_dir = os.path.expanduser("~")
         junit_xml_path = os.environ.get("QAIHM_JUNIT_XML_PATH")
-        tmp_dir = os.path.join(home_dir, "tmp")
+        tmp_dir = os.environ.get("TMPDIR") or os.path.join(home_dir, "tmp")
 
         models_to_test = []
         for model_name in get_all_models():
@@ -172,7 +172,7 @@ class GPUPyTestModelsTask(CompositeTask):
         if "llama_v2_7b_chat" in models_to_test:
             models_to_test.sort(key=lambda x: x == "llama_v2_7b_chat")
         tasks = []
-        common_command = f"export HOME={home_dir} && mkdir -p {tmp_dir} && export TMPDIR={tmp_dir} && rm -rf {home_dir}/.cache/huggingface/hub/models--* {home_dir}/.qaihm/models/* {tmp_dir}/*"
+        common_command = f"mkdir -p {tmp_dir}"
         for model_name in models_to_test:
             base_dir = os.path.dirname(junit_xml_path)
             filename_parts = os.path.splitext(os.path.basename(junit_xml_path))
@@ -723,8 +723,8 @@ class CollectLLMPerfTask(CompositeTask):
         venv: str | None,
         raise_on_failure: bool = False,
     ) -> None:
-        home_dir = "/local/mnt2/workspace2/qaihm_bot"
-        tmp_dir = os.path.join(home_dir, "tmp")
+        home_dir = os.path.expanduser("~")
+        tmp_dir = os.environ.get("TMPDIR") or os.path.join(home_dir, "tmp")
 
         models_env = os.environ.get("QAIHM_LLM_MODELS", "all")
         if models_env.strip().lower() == "all":
@@ -742,7 +742,7 @@ class CollectLLMPerfTask(CompositeTask):
         tasks = []
         qdc_wheel_glob = os.path.join(REPO_ROOT, "qualcomm_device_cloud_sdk-*.whl")
         common_command = (
-            f"export HOME={home_dir} && mkdir -p {tmp_dir} && export TMPDIR={tmp_dir}"
+            f"mkdir -p {tmp_dir}"
             f" && rm -rf {home_dir}/.cache/huggingface/hub/models--*"
             f" {home_dir}/.qaihm/models/* {tmp_dir}/*"
         )

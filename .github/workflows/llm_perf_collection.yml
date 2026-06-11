@@ -89,65 +89,30 @@ defaults:
     shell: bash
 
 jobs:
-  setup_docker_gpu:
-    name: "Setup GPU Docker Image"
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-      packages: write
+  start_gpu_runner:
+    name: "Start Ephemeral GPU Runner"
+    runs-on: [tetra-ubuntu-2204, self-hosted]
     outputs:
-      image_tag: ${{ steps.tag.outputs.image_tag }}
+      runner-label: ${{ steps.start.outputs.runner-label }}
     steps:
     - uses: actions/checkout@v6
+    - id: start
+      uses: ./.github/actions/start-gpu-runner
       with:
-        fetch-depth: 0
-        lfs: false
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
-
-    # DockerHub login to avoid rate limits when pulling nvidia/cuda base image
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v4
-      with:
-        username: shreyajn104
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v4
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Get tag
-      id: tag
-      run: |
-        echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
-
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v7
-      with:
-        context: .
-        file: docker/Dockerfile
-        push: true
-        tags: ghcr.io/${{ github.repository }}/gpu_builder:${{ steps.tag.outputs.image_tag }}
-        cache-from: type=gha,scope=gpu_builder
-        cache-to: type=gha,scope=gpu_builder,mode=max
-        build-args: |
-          QAIHM_CI=${{ env.QAIHM_CI }}
+        runner-id: llm-perf-${{ github.run_id }}-${{ github.run_attempt }}
+        gpu-request: "1"
+        cpu-request: "8"
+        memory-request: "512Gi"
+        argo-namespace: "aihub-ci"
+        kubeconfig: ${{ secrets.KUBECONFIG }}
+        pat-token: ${{ secrets.KUBE_GH_TOKEN }}
+        sudo-password: ${{ secrets.TETRASERVICE_PASSWORD }}
 
   collect_llm_perf:
     name: "Collect LLM Performance Numbers"
-    needs: setup_docker_gpu
-    runs-on:
-      group: GPU
+    needs: start_gpu_runner
+    runs-on: ${{ needs.start_gpu_runner.outputs.runner-label }}
     timeout-minutes: 2880 # 2 days for multiple models/devices
-    container:
-      image: ghcr.io/${{ github.repository }}/gpu_builder:${{ needs.setup_docker_gpu.outputs.image_tag }}
-      options: --gpus all -v /local:/local
     permissions:
       contents: write
       actions: read
@@ -158,28 +123,22 @@ jobs:
       HF_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
       QDC_API_TOKEN: ${{ secrets.QDC_API_KEY }}
       QAIHM_JUNIT_XML_PATH: ${{ github.workspace }}/test-results/models-junit.xml
-      CUDA_VISIBLE_DEVICES: "7"
-      DOCKER_USER: qaihm_bot
-      DOCKER_GROUP: qaihm_bot_group
-      DOCKER_USER_ID: 4552456
-      DOCKER_GROUP_ID: 200
-      HOME: /local/mnt2/workspace2/qaihm_bot
-      TMPDIR: /local/mnt2/workspace2/qaihm_bot/tmp
     outputs:
       branch_name: ${{ steps.push_changes.outputs.branch_name }}
       has_changes: ${{ steps.check_changes.outputs.has_changes }}
 
     steps:
-    - name: Setup group/user and TMPDIR
+    - name: Install git
       run: |
-        groupadd -g ${{ env.DOCKER_GROUP_ID }} ${{ env.DOCKER_GROUP }} || true
-        useradd -m -u ${{ env.DOCKER_USER_ID }} -g ${{ env.DOCKER_GROUP_ID }} -d /home/${{ env.DOCKER_USER }} -s /bin/bash ${{ env.DOCKER_USER }} || true
-        mkdir -p "$TMPDIR"
-        chown ${{ env.DOCKER_USER_ID }}:${{ env.DOCKER_GROUP_ID }} "$TMPDIR"
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq git
 
     - uses: actions/checkout@v6
       with:
         fetch-depth: 0
+
+    - name: Install system dependencies
+      run: bash src/qai_hub_models/scripts/kube/setup_pod.sh
 
     - name: CI Setup
       uses: ./.github/actions/ci-setup
@@ -202,11 +161,9 @@ jobs:
         python3 scripts/build_and_test.py \
           --venv="${{ env.VENV_PATH }}" \
           download_qairt_auto_sdk --only
-        mv "$HOME"/qairt_auto_sdk.zip "$GITHUB_WORKSPACE"/
 
     - name: Install QDC
       run: |
-        git config --global --add safe.directory $GITHUB_WORKSPACE
         source ${{ env.VENV_PATH }}/bin/activate
         pip install qualcomm_device_cloud_sdk-*.whl
 
@@ -252,7 +209,6 @@ jobs:
       if: ${{ !cancelled() && inputs.create_pr }}
       id: check_changes
       run: |
-        # Check for both modified and new/untracked perf.yaml files
         has_modified=$(git diff --quiet src/qai_hub_models/models/*/perf.yaml 2>/dev/null && echo "false" || echo "true")
         has_untracked=$(git ls-files --others --exclude-standard | grep -q 'perf\.yaml$' && echo "true" || echo "false")
 
@@ -273,7 +229,6 @@ jobs:
       run: |
         branch_name="perf/llm-perf-${{ github.run_id }}"
         cd $GITHUB_WORKSPACE && \
-          git config --global --add safe.directory $GITHUB_WORKSPACE && \
           git config user.name 'github-actions[bot]' && \
           git config user.email 'github-actions[bot]@users.noreply.github.com' && \
           git checkout -b $branch_name && \
@@ -291,14 +246,9 @@ jobs:
       id: grade_responses
       if: ${{ !cancelled() && inputs.run_eval }}
       env:
-        GRADER_VENV: ${{ env.HOME }}/grader_env
+        GRADER_VENV: ${{ github.workspace }}/grader_env
         QAIHM_GRADE_RESPONSES_DIR: ${{ github.workspace }}
       run: |
-        # Grader needs transformers>=5.2, which conflicts with the LLM
-        # source-repo pins in the main qaihm-build venv. The grade_llm_responses
-        # task installs grader deps into a dedicated --venv (via its
-        # install_llm_grader_requirements dependency) and grades every
-        # *_eval.json in QAIHM_GRADE_RESPONSES_DIR.
         python3 scripts/build_and_test.py \
           --venv="$GRADER_VENV" \
           grade_llm_responses
@@ -311,9 +261,6 @@ jobs:
     - name: Stage results for upload
       if: ${{ !cancelled() }}
       run: |
-        # Flatten *_eval.json / *_grade.json from anywhere under the workspace
-        # into a single dir so the artifact zip has a clean top-level layout
-        # (no /local/mnt2/... absolute-path nesting).
         mkdir -p "$GITHUB_WORKSPACE/llm-perf-results"
         find "$GITHUB_WORKSPACE" -type f \
           \( -name '*_eval.json' -o -name '*_grade.json' \) \
@@ -371,19 +318,21 @@ jobs:
           console.log('PR created:', result.data.html_url);
           return result.data.html_url;
 
-    - name: Cleanup (always runs)
-      if: ${{ !cancelled() }}
-      run: |
-        # Cleanup temporary files
-        if [ -n "$HOME" ]; then
-          rm -rf "$HOME"/.aws
-          rm -rf "$HOME"/model_envs
-          rm -rf "$HOME"/grader_env
-        fi
-        rm -rf "$GITHUB_WORKSPACE"/qualcomm_device_cloud_sdk-*.whl
-        rm -rf "$GITHUB_WORKSPACE"/genie_bundles/*
-        rm -rf "$TMPDIR"
-
     - name: Fail workflow if tests failed
       if: ${{ !cancelled() && steps.run_tests.outcome != 'success' }}
       run: exit 1
+
+  cleanup_runner:
+    name: "Cleanup GPU Runner"
+    needs: [start_gpu_runner, collect_llm_perf]
+    if: always()
+    runs-on: [tetra-ubuntu-2204, self-hosted]
+    steps:
+    - uses: actions/checkout@v6
+    - uses: ./.github/actions/stop-gpu-runner
+      with:
+        runner-ids: ${{ needs.start_gpu_runner.outputs.runner-label }}
+        argo-namespace: "aihub-ci"
+        kubeconfig: ${{ secrets.KUBECONFIG }}
+        pat-token: ${{ secrets.KUBE_GH_TOKEN }}
+        sudo-password: ${{ secrets.TETRASERVICE_PASSWORD }}

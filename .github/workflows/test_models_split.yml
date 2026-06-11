@@ -114,62 +114,52 @@ jobs:
           echo "Number of splits: $NUM_SPLITS"
           echo "Needs GPU image: $NEEDS_GPU"
 
-  setup_docker_gpu:
-    name: Setup GPU Docker Image
+  start_gpu_runner:
+    name: Start Ephemeral GPU Runner
     needs: split_models
     if: ${{ needs.split_models.outputs.needs_gpu_image == 'true' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-      packages: write
+    runs-on: [tetra-ubuntu-2204, self-hosted]
     outputs:
-      image_tag: ${{ steps.tag.outputs.image_tag }}
+      runner-label: ${{ steps.start.outputs.runner-label }}
+      used_kube: 'true'
     steps:
       - uses: actions/checkout@v6
+
+      # TODO: re-enable GPU node fallback once we have a stable check.
+      # Always use Kube for now.
+      # - name: Check GPU node availability
+      #   id: check
+      #   env:
+      #     PAT_TOKEN: ${{ secrets.KUBE_GH_TOKEN }}
+      #   run: |
+      #     RUNNERS=$(curl -s \
+      #       -H "Authorization: token $PAT_TOKEN" \
+      #       -H "Accept: application/vnd.github+json" \
+      #       "${{ github.api_url }}/repos/${{ github.repository }}/actions/runners?per_page=100")
+      #     GPU_ONLINE=$(echo "$RUNNERS" | jq '[.runners[] | select(.labels[].name == "GPU") | select(.status == "online") | select(.busy == false)] | length')
+      #     if [ "$GPU_ONLINE" -gt 0 ]; then
+      #       echo "use_kube=false" >> "$GITHUB_OUTPUT"
+      #     else
+      #       echo "use_kube=true" >> "$GITHUB_OUTPUT"
+      #     fi
+
+      - name: Start Kube runner
+        id: start
+        uses: ./.github/actions/start-gpu-runner
         with:
-          fetch-depth: 0
-          lfs: false
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Get tag
-        id: tag
-        run: |
-          echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: docker/Dockerfile
-          push: true
-          tags: ghcr.io/${{ github.repository }}/gpu_builder:${{ steps.tag.outputs.image_tag }}
-          cache-from: type=gha,scope=gpu_builder
-          cache-to: type=gha,scope=gpu_builder,mode=max
-          build-args: |
-            QAIHM_CI=${{ env.QAIHM_CI }}
-            QAIHM_TEST_MODELS=${{ inputs.models }}
+          runner-id: gpu-pr-${{ github.run_id }}-${{ github.run_attempt }}
+          gpu-request: "0"
+          cpu-request: "8"
+          memory-request: "256Gi"
+          argo-namespace: "aihub-ci"
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+          pat-token: ${{ secrets.KUBE_GH_TOKEN }}
+          sudo-password: ${{ secrets.TETRASERVICE_PASSWORD }}
 
   start_jobs:
     name: Submit Jobs (${{ matrix.split.split_name }})
-    needs: [split_models, setup_docker_gpu]
-    if: ${{ !cancelled() && needs.split_models.result == 'success' && (needs.setup_docker_gpu.result == 'success' || needs.setup_docker_gpu.result == 'skipped') }}
+    needs: [split_models, start_gpu_runner]
+    if: ${{ !cancelled() && needs.split_models.result == 'success' && (needs.start_gpu_runner.result == 'success' || needs.start_gpu_runner.result == 'skipped') }}
     permissions:
       contents: read
       id-token: write
@@ -191,8 +181,7 @@ jobs:
       ignore_job_cache: ${{ inputs.ignore_job_cache }}
       ignore_known_failures: ${{ inputs.ignore_known_failures }}
       split_name: ${{ matrix.split.split_name }}
-      runs_on: ${{ toJson(matrix.split.runs_on) }}
-      container_image: ${{ matrix.split.runs_on.group == 'GPU' && needs.setup_docker_gpu.outputs.image_tag != '' && format('ghcr.io/{0}/gpu_builder:{1}', github.repository, needs.setup_docker_gpu.outputs.image_tag) || '' }}
+      runs_on: ${{ matrix.split.runs_on.group == 'GPU' && format('["{0}"]', needs.start_gpu_runner.outputs.runner-label) || toJson(matrix.split.runs_on) }}
       sync_assets_branch: ${{ inputs.sync_assets_branch }}
       python_version: ${{ inputs.python_version }}
       disable_override_workbench_job_timeout: ${{ inputs.disable_override_workbench_job_timeout }}
@@ -280,3 +269,18 @@ jobs:
             echo "Deleting artifact $artifact_id"
             gh api -X DELETE repos/${{ github.repository }}/actions/artifacts/$artifact_id || true
           done
+
+  cleanup_gpu_runner:
+    name: Cleanup GPU Runner
+    needs: [start_gpu_runner, start_jobs]
+    if: ${{ always() && needs.start_gpu_runner.outputs.used_kube == 'true' }}
+    runs-on: [tetra-ubuntu-2204, self-hosted]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/stop-gpu-runner
+        with:
+          runner-ids: ${{ needs.start_gpu_runner.outputs.runner-label }}
+          argo-namespace: "aihub-ci"
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+          pat-token: ${{ secrets.KUBE_GH_TOKEN }}
+          sudo-password: ${{ secrets.TETRASERVICE_PASSWORD }}

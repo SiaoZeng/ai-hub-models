@@ -31,6 +31,12 @@ on:
         type: string
         default: weekly
 
+      use_kube:
+        description: Run on Kube cluster (false = use old GPU runner group)
+        type: boolean
+        required: false
+        default: false
+
   # Allows this workflow to be manually triggered.
   workflow_dispatch:
     inputs:
@@ -45,6 +51,11 @@ on:
         default: prod
         type: string
 
+      use_kube:
+        description: Run on Kube cluster (false = use old GPU runner group)
+        type: boolean
+        default: false
+
 
   schedule:
     - cron: '0 2 * * 3' # Weekly: Tuesday at 6pm PST (7pm PDT) = Wednesday 2am UTC
@@ -55,66 +66,33 @@ defaults:
     shell: bash
 
 jobs:
-  setup_docker_gpu:
-    name: "Setup GPU Docker Image"
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-      packages: write
+  start_gpu_runner:
+    name: "Start Ephemeral GPU Runner"
+    if: ${{ inputs.use_kube }}
+    runs-on: [tetra-ubuntu-2204, self-hosted]
     outputs:
-      image_tag: ${{ steps.tag.outputs.image_tag }}
+      runner-label: ${{ steps.start.outputs.runner-label }}
     steps:
     - uses: actions/checkout@v6
+    - id: start
+      uses: ./.github/actions/start-gpu-runner
       with:
-        fetch-depth: 0
-        lfs: false
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
-
-    # DockerHub login to avoid rate limits when pulling nvidia/cuda base image
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v4
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v4
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Get tag
-      id: tag
-      run: |
-        echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
-
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v7
-      with:
-        context: .
-        file: docker/Dockerfile
-        push: true
-        tags: ghcr.io/${{ github.repository }}/gpu_builder:${{ steps.tag.outputs.image_tag }}
-        cache-from: type=gha,scope=gpu_builder
-        cache-to: type=gha,scope=gpu_builder,mode=max
-        build-args: |
-          QAIHM_CI=${{ env.QAIHM_CI }}
-          QAIHM_TEST_MODELS=${{ inputs.models || 'all' }}
+        runner-id: gpu-weekly-${{ github.run_id }}-${{ github.run_attempt }}
+        gpu-request: "1"
+        cpu-request: "8"
+        memory-request: "512Gi"
+        argo-namespace: "aihub-ci"
+        kubeconfig: ${{ secrets.KUBECONFIG }}
+        pat-token: ${{ secrets.KUBE_GH_TOKEN }}
+        sudo-password: ${{ secrets.TETRASERVICE_PASSWORD }}
 
   run_tests:
     name: "Run GPU Tests"
-    needs: setup_docker_gpu
-    runs-on:
-      group: GPU
+    needs: start_gpu_runner
+    if: ${{ !cancelled() && (needs.start_gpu_runner.result == 'success' || needs.start_gpu_runner.result == 'skipped') }}
+    runs-on: ${{ inputs.use_kube && needs.start_gpu_runner.outputs.runner-label || fromJson('{"group":"GPU"}') }}
+    container: ${{ !inputs.use_kube && fromJson('{"image":"docker-registry.qualcomm.com/library/nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04","options":"--gpus all -v /local:/local"}') || null }}
     timeout-minutes: 2160 # 1.5 days (36 hours)
-    container:
-      image: ghcr.io/${{ github.repository }}/gpu_builder:${{ needs.setup_docker_gpu.outputs.image_tag }}
-      options: --gpus all -v /local:/local
     permissions:
       id-token: write
       packages: read
@@ -123,24 +101,40 @@ jobs:
       HF_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
       QDC_API_TOKEN: ${{ secrets.QDC_API_KEY }}
       QAIHM_JUNIT_XML_PATH: ${{ github.workspace }}/test-results/models-junit.xml
-      CUDA_VISIBLE_DEVICES: "7"
-      DOCKER_USER: qaihm_bot
-      DOCKER_GROUP: qaihm_bot_group
-      DOCKER_USER_ID: 4552456
-      DOCKER_GROUP_ID: 200
-      HOME: /local/mnt2/workspace2/qaihm_bot
-      TMPDIR: /local/mnt2/workspace2/qaihm_bot/tmp
+      QAIHM_TEST_MODELS: ${{ inputs.models || 'all' }}
     steps:
-    - name: Setup group/user and TMPDIR
+    - name: Setup user and environment (GPU node only)
+      if: ${{ !inputs.use_kube }}
+      env:
+        DOCKER_USER_ID: 4552456
+        DOCKER_GROUP_ID: 200
       run: |
-        groupadd -g ${{ env.DOCKER_GROUP_ID }} ${{ env.DOCKER_GROUP }} || true
-        useradd -m -u ${{ env.DOCKER_USER_ID }} -g ${{ env.DOCKER_GROUP_ID }} -d /home/${{ env.DOCKER_USER }} -s /bin/bash ${{ env.DOCKER_USER }} || true
-        mkdir -p "$TMPDIR"
-        chown ${{ env.DOCKER_USER_ID }}:${{ env.DOCKER_GROUP_ID }} "$TMPDIR"
+        groupadd -g $DOCKER_GROUP_ID qaihm_bot_group || true
+        useradd -m -u $DOCKER_USER_ID -g $DOCKER_GROUP_ID -d /home/qaihm_bot -s /bin/bash qaihm_bot || true
+        echo "HOME=/local/mnt2/workspace2/qaihm_bot" >> $GITHUB_ENV
+        echo "TMPDIR=/local/mnt2/workspace2/qaihm_bot/tmp" >> $GITHUB_ENV
+        echo "CUDA_VISIBLE_DEVICES=7" >> $GITHUB_ENV
+        mkdir -p /local/mnt2/workspace2/qaihm_bot/tmp
+        chown $DOCKER_USER_ID:$DOCKER_GROUP_ID /local/mnt2/workspace2/qaihm_bot/tmp
+
+    - name: Install git
+      run: |
+        if ! command -v git &>/dev/null; then
+          if [ "$(id -u)" -eq 0 ]; then
+            apt-get update -qq
+            apt-get install -y -qq git
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq git
+          fi
+        fi
 
     - uses: actions/checkout@v6
       with:
         fetch-depth: 0
+
+    - name: Install system dependencies
+      run: bash src/qai_hub_models/scripts/kube/setup_pod.sh
 
     - name: CI Setup
       uses: ./.github/actions/ci-setup
@@ -160,18 +154,14 @@ jobs:
           --python="$(which python3)" \
           download_qdc_wheel --only
 
-    - name: Install basic dependencies
+    - name: Install QDC
       run: |
-        git config --global --add safe.directory $GITHUB_WORKSPACE
         source ${{ env.VENV_PATH }}/bin/activate
-        pip install --upgrade pip setuptools
         pip install qualcomm_device_cloud_sdk-*.whl
         pip uninstall -y onnxruntime
 
     - name: Install LLM response grader venv
       run: |
-        # The grading-based evaluate tasks require a separate venv due to
-        # dependency conflicts.
         cd $GITHUB_WORKSPACE
         python3 scripts/build_and_test.py \
           --venv="$HOME/qaihm-dev-grader" \
@@ -187,8 +177,6 @@ jobs:
     - name: Generate Test Failure Summary
       if: always()
       run: |
-        rm -rf "$GITHUB_WORKSPACE"/build
-        python3 scripts/build_and_test.py --venv="${{ env.VENV_PATH }}" install_deps
         source "${{ env.VENV_PATH }}/bin/activate"
         pip install six
         python3 scripts/build_and_test.py --venv="${{ env.VENV_PATH }}" generate_test_summary
@@ -214,22 +202,25 @@ jobs:
         python -c 'import os, pandas as pd; print("## 🧪 Evaluate Results"); fn="test_evaluate.csv"; print(pd.read_csv(fn).to_markdown(index=False)) if os.path.exists(fn) else print(f"File {fn} not found.")' >> "$GITHUB_STEP_SUMMARY"
         python -c 'import os, pandas as pd; print("## 🖥️ On-device Results"); fn="test_perf_on_device.csv"; print(pd.read_csv(fn).to_markdown(index=False)) if os.path.exists(fn) else print(f"File {fn} not found.")' >> "$GITHUB_STEP_SUMMARY"
 
-    - name: Cleanup (always runs)
-      if: always()
-      run: |
-        # Cleanup temporary files
-        if [ -n "$HOME" ]; then
-          rm -rf "$HOME"/.aws
-          rm -rf "$HOME"/model_envs
-        fi
-        rm -rf "$GITHUB_WORKSPACE"/qualcomm_device_cloud_sdk-*.whl
-        rm -rf "$GITHUB_WORKSPACE"/genie_bundle/*
-        rm -rf "$TMPDIR"
+  cleanup_runner:
+    name: "Cleanup GPU Runner"
+    needs: [start_gpu_runner, run_tests]
+    if: ${{ always() && inputs.use_kube }}
+    runs-on: [tetra-ubuntu-2204, self-hosted]
+    steps:
+    - uses: actions/checkout@v6
+    - uses: ./.github/actions/stop-gpu-runner
+      with:
+        runner-ids: ${{ needs.start_gpu_runner.outputs.runner-label }}
+        argo-namespace: "aihub-ci"
+        kubeconfig: ${{ secrets.KUBECONFIG }}
+        pat-token: ${{ secrets.KUBE_GH_TOKEN }}
+        sudo-password: ${{ secrets.TETRASERVICE_PASSWORD }}
 
   notify_failure:
     if: ${{ failure() && github.event_name == 'schedule' }}
     name: Notify Failure
-    needs: [setup_docker_gpu, run_tests]
+    needs: [start_gpu_runner, run_tests]
     runs-on: [tetra-ubuntu-2204, self-hosted]
     permissions:
       contents: read
@@ -239,7 +230,7 @@ jobs:
     steps:
     - name: Create GitHub Issue
       id: create-github-issue
-      uses: actions/github-script@v9
+      uses: actions/github-script@v7
       with:
         github-token: ${{ secrets.STAGING_GH_TOKEN }}
         script: |

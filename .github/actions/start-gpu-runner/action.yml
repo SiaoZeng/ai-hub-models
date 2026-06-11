@@ -1,0 +1,97 @@
+name: Start GPU Runner
+description: Start an ephemeral GPU runner on the MLOps cluster
+
+inputs:
+  runner-id:
+    description: 'Unique ID for this runner. Used as the Argo workflow name, GitHub runner name, and runner label.'
+    required: true
+  gpu-request:
+    description: 'Number of GPUs to request'
+    required: false
+    default: "1"
+  cpu-request:
+    description: 'Number of CPUs to request'
+    required: false
+    default: "8"
+  memory-request:
+    description: 'Memory to request (e.g. 256Gi)'
+    required: false
+    default: "512Gi"
+  docker-image:
+    description: 'Docker image for the runner pod'
+    required: false
+    default: "docker-registry.qualcomm.com/library/nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04"
+  argo-namespace:
+    description: 'Argo namespace'
+    required: false
+    default: "aihub-ci"
+  kubeconfig:
+    description: 'Kubeconfig file contents for cluster access'
+    required: true
+  pat-token:
+    description: 'GitHub PAT for runner registration'
+    required: true
+  sudo-password:
+    description: 'Sudo password for self-hosted runners'
+    required: true
+
+outputs:
+  runner-label:
+    description: 'The label to use in runs-on for the GPU job'
+    value: ${{ steps.start.outputs.runner-label }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Argo CLI, kubectl, jq
+      shell: bash
+      env:
+        SUDO_PASSWORD: ${{ inputs.sudo-password }}
+      run: bash src/qai_hub_models/scripts/kube/install_cli.sh
+
+    - name: Configure cluster access
+      shell: bash
+      env:
+        KUBECONFIG_DATA: ${{ inputs.kubeconfig }}
+      run: |
+        export KUBECONFIG="$RUNNER_TEMP/kubeconfig-${{ inputs.runner-id }}"
+        echo "$KUBECONFIG_DATA" > "$KUBECONFIG"
+        chmod 600 "$KUBECONFIG"
+        echo "KUBECONFIG=$KUBECONFIG" >> "$GITHUB_ENV"
+
+    - name: Submit Argo workflow and wait for runner pod
+      id: start
+      shell: bash
+      env:
+        NAMESPACE: ${{ inputs.argo-namespace }}
+      run: |
+        bash src/qai_hub_models/scripts/kube/launch_pod.sh \
+          --template github-actions-runner \
+          --name "${{ inputs.runner-id }}" \
+          --labels "workflows.argoproj.io/creator-email=qaihm_bot.at.qualcomm.com,workflows.argoproj.io/creator-preferred-username=qaihm_bot" \
+          --wait-step ephemeral-runner \
+          -c "${{ inputs.cpu-request }}" \
+          -g "${{ inputs.gpu-request }}" \
+          -m "${{ inputs.memory-request }}" \
+          --docker-image "${{ inputs.docker-image }}" \
+          -p "runner-labels=${{ inputs.runner-id }}" \
+          -p "run-id=${{ inputs.runner-id }}" \
+          -p "git-repo=${{ github.server_url }}/${{ github.repository }}" \
+          -p "send-email-on-finish=false"
+
+        echo "runner-label=${{ inputs.runner-id }}" >> "$GITHUB_OUTPUT"
+
+    - name: Generate runner registration token and wait for runner online
+      shell: bash
+      env:
+        PAT_TOKEN: ${{ inputs.pat-token }}
+        ARGO_NS: ${{ inputs.argo-namespace }}
+        RUNNER_ID: ${{ inputs.runner-id }}
+        GITHUB_API_URL: ${{ github.api_url }}
+        GITHUB_REPO: ${{ github.repository }}
+      run: bash src/qai_hub_models/scripts/kube/register_runner.sh
+
+    - name: Cleanup kubeconfig
+      if: always()
+      shell: bash
+      run: rm -f "$KUBECONFIG"

@@ -1,0 +1,70 @@
+name: Stop GPU Runner
+description: Stop ephemeral GPU runner Argo workflow(s) and de-register from GitHub
+
+inputs:
+  runner-ids:
+    description: 'Runner ID(s) to clean up. Single value or comma-separated list.'
+    required: true
+  argo-namespace:
+    description: 'Argo namespace'
+    required: false
+    default: "aihub-ci"
+  kubeconfig:
+    description: 'Kubeconfig file contents for cluster access'
+    required: true
+  pat-token:
+    description: 'GitHub PAT for runner de-registration'
+    required: true
+  sudo-password:
+    description: 'Sudo password for self-hosted runners'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install Argo CLI, kubectl, jq
+      shell: bash
+      env:
+        SUDO_PASSWORD: ${{ inputs.sudo-password }}
+      run: bash src/qai_hub_models/scripts/kube/install_cli.sh
+
+    - name: Configure cluster access
+      shell: bash
+      env:
+        KUBECONFIG_DATA: ${{ inputs.kubeconfig }}
+      run: |
+        export KUBECONFIG="$RUNNER_TEMP/kubeconfig-stop-$$"
+        echo "$KUBECONFIG_DATA" > "$KUBECONFIG"
+        chmod 600 "$KUBECONFIG"
+        echo "KUBECONFIG=$KUBECONFIG" >> "$GITHUB_ENV"
+
+    - name: Stop Argo workflows
+      if: ${{ !cancelled() }}
+      shell: bash
+      env:
+        RUNNER_IDS: ${{ inputs.runner-ids }}
+        ARGO_NS: ${{ inputs.argo-namespace }}
+      run: |
+        IFS=',' read -ra IDS <<< "$RUNNER_IDS"
+        for id in "${IDS[@]}"; do
+          id=$(echo "$id" | xargs)
+          if [ -n "$id" ]; then
+            NAMESPACE="$ARGO_NS" bash src/qai_hub_models/scripts/kube/stop_pod.sh "$id"
+          fi
+        done
+
+    - name: De-register runners from GitHub and clean up secrets
+      if: ${{ !cancelled() }}
+      shell: bash
+      env:
+        RUNNER_IDS: ${{ inputs.runner-ids }}
+        PAT_TOKEN: ${{ inputs.pat-token }}
+        ARGO_NS: ${{ inputs.argo-namespace }}
+        GITHUB_API_URL: ${{ github.api_url }}
+        GITHUB_REPO: ${{ github.repository }}
+      run: bash src/qai_hub_models/scripts/kube/deregister_runner.sh
+
+    - name: Cleanup kubeconfig
+      if: always()
+      shell: bash
+      run: rm -f "$KUBECONFIG"

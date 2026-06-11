@@ -67,13 +67,6 @@ on:
         description: JSON array of runner tags (e.g. '["tetra-ubuntu-2204", "self-hosted"]')
         type: string
 
-      container_image:
-        description: |
-          Container image for the job. When set (e.g. for GPU runners that lack a system Python),
-          all steps run inside this image instead of directly on the runner host. Empty string means
-          no container (run directly on the host).
-        type: string
-        default: ''
 
 env:
   # Versions MUST be quoted, otherwise they will be interpreted as a floats
@@ -91,7 +84,6 @@ defaults:
 jobs:
   exec_scorecard:
     runs-on: ${{ inputs.runs_on && inputs.runs_on != 'null' && fromJson(inputs.runs_on) || fromJson('["tetra-ubuntu-2204", "self-hosted"]') }}
-    container: ${{ inputs.container_image != '' && fromJSON(format('{{"image":"{0}","options":"--gpus all -v /local:/local"}}', inputs.container_image)) || null }}
     timeout-minutes: 960 # 16 hours - job submission and CPU accuracy
     env:
       QAIHM_TEST_IGNORE_KNOWN_FAILURES: ${{ inputs.ignore_known_failures && '1' || '0' }}
@@ -114,23 +106,44 @@ jobs:
       packages: read
 
     steps:
-      - name: Setup container user/group (GPU container only)
-        if: ${{ inputs.container_image != '' }}
-        env:
-          DOCKER_USER: qaihm_bot
-          DOCKER_GROUP: qaihm_bot_group
-          DOCKER_USER_ID: 4552456
-          DOCKER_GROUP_ID: 200
+      # TODO: re-enable GPU node fallback once availability check is stable.
+      # - name: Setup GPU node environment
+      #   if: ${{ contains(runner.name, 'gpulv') }}
+      #   run: |
+      #     echo "HOME=/local/mnt2/workspace2/qaihm_bot" >> $GITHUB_ENV
+      #     echo "TMPDIR=/local/mnt2/workspace2/qaihm_bot/tmp" >> $GITHUB_ENV
+      #     echo "CUDA_VISIBLE_DEVICES=7" >> $GITHUB_ENV
+      #     groupadd -g 200 qaihm_bot_group || true
+      #     useradd -m -u 4552456 -g 200 -d /home/qaihm_bot -s /bin/bash qaihm_bot || true
+      #     mkdir -p /local/mnt2/workspace2/qaihm_bot/tmp
+      #     chown 4552456:200 /local/mnt2/workspace2/qaihm_bot/tmp
+
+      - name: Setup Kube pod environment
+        if: ${{ !contains(runner.name, 'tetra') && !contains(runner.name, 'gpulv') }}
         run: |
-          groupadd -g "$DOCKER_GROUP_ID" "$DOCKER_GROUP" || true
-          useradd -m -u "$DOCKER_USER_ID" -g "$DOCKER_GROUP_ID" -d "/home/$DOCKER_USER" -s /bin/bash "$DOCKER_USER" || true
+          # Hide any GPUs the Kube pod might accidentally see (we requested 0 GPUs)
+          echo "CUDA_VISIBLE_DEVICES=" >> $GITHUB_ENV
+
+      - name: Install git (Kube/container only)
+        if: ${{ !contains(runner.name, 'tetra') }}
+        run: |
+          if [ "$(id -u)" -eq 0 ]; then
+            apt-get update -qq
+            apt-get install -y -qq git
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq git
+          fi
 
       - uses: actions/checkout@v6
 
-      - name: Mark workspace as a safe git directory (container only)
-        if: ${{ inputs.container_image != '' }}
+      - name: Mark workspace as a safe git directory
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install system dependencies (Kube/container only)
+        if: ${{ !contains(runner.name, 'tetra') }}
+        run: bash src/qai_hub_models/scripts/kube/setup_pod.sh
 
       - name: Check Out Updated Static Asset Configs
         if: ${{ inputs.sync_assets_branch != '' }}
@@ -142,8 +155,8 @@ jobs:
         id: ci_setup
         uses: ./.github/actions/ci-setup
         with:
-          sudo-password: ${{ inputs.container_image == '' && secrets.TETRASERVICE_PASSWORD || '' }}
-          python-version: ${{ inputs.container_image != '' && 'USE_EXISTING_INSTALL' || env.PYTHON_VERSION }}
+          sudo-password: ${{ contains(inputs.runs_on, 'self-hosted') && secrets.TETRASERVICE_PASSWORD || '' }}
+          python-version: ${{ contains(inputs.runs_on, 'self-hosted') && env.PYTHON_VERSION || 'USE_EXISTING_INSTALL' }}
           venv-path: ${{ env.VENV_PATH }}
           aws-role-arn: ${{ secrets.QAIHM_CI_AWS_ROLE_ARN }}
           hub-deployments: ${{ env.QAIHM_TEST_DEPLOYMENT }},prod

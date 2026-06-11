@@ -805,6 +805,7 @@ def run_llm_perf_test(
         job_name=f"Genie {model_id} {precision}",
         qairt_sdk_path=qairt_sdk_path,
         eval_prompts=None if not run_eval else _USE_DEFAULT_PROMPTS,
+        model_id=model_id,
     )
 
     # Update perf.yaml with only the max context length

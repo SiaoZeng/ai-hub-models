@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
 import pathlib
@@ -61,12 +62,21 @@ def create_zip(zip_path: str, source_dir: str | os.PathLike) -> None:
 def _prepare_eval_prompts_in_bundle(
     genie_bundle_path: str,
     prompts: list[str],
+    model_id: str | None = None,
 ) -> None:
     """Write individual prompt files into the genie bundle's prompts/ directory.
 
     Uses the tokenizer from the bundle to apply the correct chat template.
+    If the bundle tokenizer lacks a chat_template, loads the tokenizer from
+    the model's HF repo instead.
     """
     tokenizer = AutoTokenizer.from_pretrained(genie_bundle_path)
+
+    if not getattr(tokenizer, "chat_template", None) and model_id:
+        model_module = importlib.import_module(f"qai_hub_models.models.{model_id}")
+        hf_repo = getattr(model_module, "HF_REPO_NAME", None)
+        if hf_repo:
+            tokenizer = AutoTokenizer.from_pretrained(hf_repo)
 
     prompts_dir = os.path.join(genie_bundle_path, "prompts")
     os.makedirs(prompts_dir, exist_ok=True)
@@ -359,6 +369,7 @@ class GenieQDCJobs(QDCJobs):
         qairt_version: str = "2.45.40.260406",
         eval_prompts: list[str] | None = None,
         num_trials: int = 25,
+        model_id: str | None = None,
     ) -> tuple[list[str], str | None]:
         """Prepare and upload Genie artifacts for the job submission.
 
@@ -377,6 +388,9 @@ class GenieQDCJobs(QDCJobs):
             using the bundle's tokenizer and run sequentially on device.
         num_trials
             Number of profiling trials to run.
+        model_id
+            Model identifier used to load the HF tokenizer if the bundle
+            tokenizer lacks a chat template.
 
         Returns
         -------
@@ -393,7 +407,7 @@ class GenieQDCJobs(QDCJobs):
         if eval_prompts:
             temp_bundle_dir = tempfile.mkdtemp(prefix="genie_eval_bundle_")
             shutil.copytree(genie_bundle_path, temp_bundle_dir, dirs_exist_ok=True)
-            _prepare_eval_prompts_in_bundle(temp_bundle_dir, eval_prompts)
+            _prepare_eval_prompts_in_bundle(temp_bundle_dir, eval_prompts, model_id)
             bundle_path_to_use = temp_bundle_dir
 
         try:
@@ -667,6 +681,7 @@ def submit_genie_bundle_to_qdc_device(
     qairt_version: str = "2.45.40.260406",
     eval_prompts: list[str] | None | object = _USE_DEFAULT_PROMPTS,
     num_trials: int = 25,
+    model_id: str | None = None,
 ) -> tuple[float | None, float | None, float | None, list[dict]]:
     """
     Submit a Genie bundle to QDC for execution on the specified device.
@@ -695,6 +710,9 @@ def submit_genie_bundle_to_qdc_device(
         evaluation.
     num_trials
         Number of profiling trials to run.
+    model_id
+        Model identifier used to load the HF tokenizer if the bundle
+        tokenizer lacks a chat template.
 
     Returns
     -------
@@ -725,6 +743,7 @@ def submit_genie_bundle_to_qdc_device(
         qairt_version,
         eval_prompts=prompts_to_use,
         num_trials=num_trials,
+        model_id=model_id,
     )
 
     job_id = genie_job.submit_automated_job(
