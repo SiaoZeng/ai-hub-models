@@ -95,6 +95,7 @@ def make_generator(
     context_length: int | None = None,
     vision_model: torch.nn.Module | None = None,
     model_cls: type | None = None,
+    device: torch.device | None = None,
 ) -> Generator:
     """Create a Generator from an AIHM LLM model (text-only or VLM)."""
     if model_cls is None:
@@ -106,17 +107,19 @@ def make_generator(
 
     GeneratorCls = model_cls.GeneratorClass  # type: ignore[attr-defined]
     adapted = _ModelAdapter(model, rope_embedding=model.embedding)
+    if device is None:
+        device = adapted.device
 
     if issubclass(GeneratorCls, VLM_Generator):
         embedding_weights = model.get_embedding_weights()  # type: ignore[operator, unused-ignore]
         embedding = torch.nn.Embedding.from_pretrained(
             embedding_weights.float(),
             freeze=True,
-        ).to(adapted.device)
+        ).to(device)
         config = model._original_llm_config
         if vision_model is not None:
             VisionWrapper = model_cls.VisionModelWrapper  # type: ignore[attr-defined]
-            vision_model = VisionWrapper(vision_model).to(adapted.device).float()
+            vision_model = VisionWrapper(vision_model).to(device).float()
         generator_kwargs: dict = dict(
             backbone_model=adapted,
             vision_model=vision_model,

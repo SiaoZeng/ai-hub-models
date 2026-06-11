@@ -278,6 +278,7 @@ def _evaluate_impl(
         context_length=context_length,
         vision_model=vision_model,
         model_cls=fp_model_cls,
+        device=torch.device("cpu") if not is_fp else host_device,
     )
 
     evaluator.add_from_dataset(
