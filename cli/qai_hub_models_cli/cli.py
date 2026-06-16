@@ -4,6 +4,7 @@
 # ---------------------------------------------------------------------
 import argparse
 import contextlib
+import os
 import sys
 from importlib.metadata import PackageNotFoundError, version
 
@@ -12,6 +13,7 @@ from packaging.version import parse as parse_version
 
 from qai_hub_models_cli._version import __version__
 from qai_hub_models_cli.common import Precision, TargetRuntime
+from qai_hub_models_cli.envvars import VERBOSE_EXCEPTIONS_ENVVAR
 from qai_hub_models_cli.fetch import fetch, get_asset_url
 from qai_hub_models_cli.versions import (
     CURRENT_VERSION,
@@ -220,6 +222,8 @@ def main(args: list[str] | None = None) -> None:
         try:
             parsed.func(parsed)
         except Exception as e:
+            if os.environ.get(VERBOSE_EXCEPTIONS_ENVVAR, "0") == "1":
+                raise
             print(e)
             sys.exit(1)
     else:

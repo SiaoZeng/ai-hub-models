@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import functools
+import os
 import time
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
@@ -15,8 +16,9 @@ from packaging.version import parse as parse_version
 
 from qai_hub_models_cli._version import __version__
 from qai_hub_models_cli.common import CACHE_DIR
+from qai_hub_models_cli.envvars import FORCE_VERSION_ENVVAR
 
-CURRENT_VERSION = parse_version(__version__)
+CURRENT_VERSION = parse_version(os.environ.get(FORCE_VERSION_ENVVAR, __version__))
 MIN_SUPPORTED_VERSION = Version("0.44.0")
 PYPI_VERSIONS_URL = "https://pypi.org/pypi/qai-hub-models/json"
 
