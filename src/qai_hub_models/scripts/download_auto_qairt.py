@@ -4,6 +4,7 @@
 # ---------------------------------------------------------------------
 
 import argparse
+import os
 from pathlib import Path
 
 from qai_hub_models.utils.aws import (
@@ -27,8 +28,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output",
-        default=str(Path.home() / QAIRT_AUTO_SDK_FILENAME),
-        help="Local path to write the downloaded SDK zip.",
+        default=os.environ.get("QAIRT_SDK_PATH")
+        or str(Path.home() / QAIRT_AUTO_SDK_FILENAME),
+        help="Local path to write the downloaded SDK zip. Defaults to "
+        "$QAIRT_SDK_PATH if set, else $HOME/qairt_auto_sdk.zip.",
     )
     args = parser.parse_args()
     download_qairt_auto_sdk(args.output)

@@ -633,6 +633,13 @@ cs_8_elite_gen_5 = ScorecardDevice(
     execution_device_name="Samsung Galaxy S26 (Family)",
 )
 
+cs_8_elite_gen_5_qrd = ScorecardDevice(
+    name="cs_8_elite_gen_5_qrd",
+    reference_device_name="Snapdragon 8 Elite Gen 5 QRD",
+    compile_paths=[ScorecardCompilePath.GENIE],
+    profile_paths=[ScorecardProfilePath.GENIE],
+)
+
 
 ##
 # Compute Chipsets (cs)
@@ -713,8 +720,8 @@ CANARY_DEVICES = {
 LLM_COMPILE_DEVICES = [
     cs_9075,
     cs_auto_lemans_8775,
-    cs_8_elite,
-    cs_8_elite_gen_5,
+    cs_8_elite_qrd,
+    cs_8_elite_gen_5_qrd,
     cs_x_elite,
     cs_x2_elite,
 ]

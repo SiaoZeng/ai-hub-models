@@ -29,7 +29,11 @@ from qai_hub_models.scorecard.device import (
     LLM_W4FP16_COMPILE_DEVICES,
     get_canonical_chipset_name,
 )
-from qai_hub_models.scorecard.envvars import LLMPerfReleaseAssetsEnvvar
+from qai_hub_models.scorecard.envvars import (
+    LLMPerfPrecisionsEnvvar,
+    LLMPerfReleaseAssetsEnvvar,
+    SpecialLLMPerfPrecisionSetting,
+)
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath
 from qai_hub_models.scorecard.results.yaml import ScorecardAssetYaml
 
@@ -127,6 +131,11 @@ def get_llm_perf_parametrization(
       model is not in the list, returns [] so the test is skipped.
     - QAIHM_TEST_DEVICES: Comma-separated device names. When set, acts as a
       filter over the compile-device sets (only devices in both lists are used).
+    - QAIHM_LLM_PERF_PRECISIONS: See :class:`LLMPerfPrecisionsEnvvar`.
+      ``default`` (the envvar default) honors the test's ``default_precisions``
+      arg, falling back to supported_precisions when unset; ``all`` uses every
+      supported precision; explicit precisions are intersected with the
+      model's supported_precisions.
     """
     models_str = os.environ.get("QAIHM_LLM_MODELS", "")
     if models_str and models_str.strip().lower() != "all":
@@ -148,7 +157,19 @@ def get_llm_perf_parametrization(
     else:
         override_devices = default_devices
 
-    precisions = default_precisions or get_supported_precisions(model_id)
+    supported_precisions = get_supported_precisions(model_id)
+    precision_setting = LLMPerfPrecisionsEnvvar.get()
+    if SpecialLLMPerfPrecisionSetting.ALL in precision_setting:
+        precisions = supported_precisions
+    elif SpecialLLMPerfPrecisionSetting.DEFAULT in precision_setting:
+        precisions = default_precisions or supported_precisions
+    else:
+        supported_set = set(supported_precisions)
+        precisions = [
+            Precision.parse(p)
+            for p in precision_setting
+            if isinstance(p, str) and Precision.parse(p) in supported_set
+        ]
 
     result: list[tuple[Precision, ScorecardDevice]] = []
     for precision in precisions:

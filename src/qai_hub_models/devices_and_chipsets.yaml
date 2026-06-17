@@ -363,6 +363,7 @@ devices:
     form_factor: Phone
     vendor: qualcomm
     icon: Phone_S21
+    enabled_in_scorecard: true
   Snapdragon 7 Gen 4 QRD:
     chipset: qualcomm-snapdragon-7gen4
     os:

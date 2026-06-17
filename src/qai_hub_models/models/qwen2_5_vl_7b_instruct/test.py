@@ -38,7 +38,7 @@ from qai_hub_models.models.qwen2_5_vl_7b_instruct.model import (
     Qwen2_5_VL_7B_QuantizablePreSplit,
 )
 from qai_hub_models.scorecard import ScorecardDevice
-from qai_hub_models.scorecard.device import cs_8_elite_gen_5
+from qai_hub_models.scorecard.device import cs_8_elite_gen_5_qrd
 
 DEFAULT_EVAL_SEQLEN = 2048
 
@@ -126,10 +126,10 @@ def test_evaluate(
 def _get_llm_perf_params() -> list[tuple[Precision, ScorecardDevice]]:
     params = get_llm_perf_parametrization(
         MODEL_ID,
-        default_devices=[cs_8_elite_gen_5],
+        default_devices=[cs_8_elite_gen_5_qrd],
         default_precisions=[Precision.w4a16],
     )
-    return params if params else [(Precision.w4a16, cs_8_elite_gen_5)]
+    return params if params else [(Precision.w4a16, cs_8_elite_gen_5_qrd)]
 
 
 @pytest.fixture(scope="session")

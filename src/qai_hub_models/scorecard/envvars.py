@@ -375,6 +375,52 @@ class StaticModelsDirEnvvar(QAIHMPathEnvvar):
         return Path(os.path.dirname(__file__)) / "static" / "models"
 
 
+@unique
+class SpecialLLMPerfPrecisionSetting(Enum):
+    # Use the test's default_precisions argument (or supported_precisions when
+    # the test didn't pin one). This is the default for direct
+    # llm_perf_collection.yml dispatches.
+    DEFAULT = "default"
+
+    # Run every precision listed in the model's code-gen.yaml supported_precisions.
+    # Used by the weekly scorecard-driven LLM perf collection.
+    ALL = "all"
+
+    def __repr__(self) -> str:
+        return self.value
+
+    def __str__(self) -> str:
+        return self.value
+
+
+@pytest_cli_envvar
+class LLMPerfPrecisionsEnvvar(
+    QAIHMStrSetWithEnumEnvvar[SpecialLLMPerfPrecisionSetting]
+):
+    """
+    Precisions for which to collect LLM perf via QDC.
+
+    Envvar:
+        Comma-separated precisions (e.g. ``w4,w4a16``) or one of the
+        SpecialLLMPerfPrecisionSetting values. Explicit precisions are
+        intersected with the model's code-gen.yaml supported_precisions;
+        unsupported precisions are dropped.
+    """
+
+    VARNAME = "QAIHM_LLM_PERF_PRECISIONS"
+    CLI_ARGNAMES = ["--llm-perf-precisions"]
+    CLI_HELP_MESSAGE = """Comma-separated list of precisions to collect LLM perf for.
+Special options:
+ * 'default' -- Use the test's pinned default_precisions, or supported_precisions if unpinned
+ * 'all'     -- Use every supported precision from the model's code-gen.yaml
+"""
+    SPECIAL_SETTING_ENUM = SpecialLLMPerfPrecisionSetting
+
+    @classmethod
+    def default(cls) -> set[SpecialLLMPerfPrecisionSetting]:
+        return {SpecialLLMPerfPrecisionSetting.DEFAULT}
+
+
 class LLMPerfReleaseAssetsEnvvar(QAIHMPathEnvvar):
     """Path to a combined release-assets.yaml used by LLM perf collection in place of the committed per-model copies."""
 

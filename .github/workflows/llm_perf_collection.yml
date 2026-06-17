@@ -32,6 +32,12 @@ on:
         default: 'all'
         type: string
 
+      precision:
+        description: 'Precision(s) to collect perf for. Comma-separated (e.g. "w4,w4a16"), "all" for every supported precision, or "default" to use the model''s default_precisions.'
+        required: true
+        default: 'default'
+        type: string
+
       deployment:
         description: 'Hub Deployment'
         default: prod
@@ -62,6 +68,11 @@ on:
         description: 'Target device(s). See `src/qai_hub_models/scorecard/device.py`. Comma-separated scorecard device names, or "all" for all LLM compile devices.'
         type: string
         default: 'all'
+
+      precision:
+        description: 'Precision(s) to collect perf for. Comma-separated, "all", or "default" to use the model''s default_precisions.'
+        type: string
+        default: 'default'
 
       deployment:
         description: 'Hub Deployment'
@@ -123,6 +134,7 @@ jobs:
       HF_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
       QDC_API_TOKEN: ${{ secrets.QDC_API_KEY }}
       QAIHM_JUNIT_XML_PATH: ${{ github.workspace }}/test-results/models-junit.xml
+      QAIRT_SDK_PATH: ${{ github.workspace }}/qairt_auto_sdk.zip
     outputs:
       branch_name: ${{ steps.push_changes.outputs.branch_name }}
       has_changes: ${{ steps.check_changes.outputs.has_changes }}
@@ -183,7 +195,7 @@ jobs:
       env:
         QAIHM_LLM_MODELS: ${{ inputs.model || 'all' }}
         QAIHM_TEST_DEVICES: ${{ inputs.device }}
-        QAIRT_SDK_PATH: ${{ github.workspace }}/qairt_auto_sdk.zip
+        QAIHM_LLM_PERF_PRECISIONS: ${{ inputs.precision }}
         QAIHM_RUN_EVAL: ${{ inputs.run_eval }}
         QAIHM_LLM_PERF_RELEASE_ASSETS: ${{ inputs.release_assets_action_id != '' && format('{0}/llm-release-assets/release-assets.yaml', github.workspace) || '' }}
       run: |

@@ -86,6 +86,7 @@ jobs:
     uses: ./.github/workflows/llm_perf_collection.yml
     with:
       model: ${{ needs.determine_llm_models.outputs.models }}
+      precision: all
       deployment: ${{ inputs.deployment }}
       run_eval: true
       create_pr: false
