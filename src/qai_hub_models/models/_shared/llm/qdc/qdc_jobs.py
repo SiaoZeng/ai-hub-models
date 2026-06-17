@@ -72,23 +72,32 @@ STATUS_POLL_MAX_RETRIES = 10
 # The SDK raises a bare Exception with the code embedded in the message (e.g.
 # "failed with status code 403 and message: Invalid Credentials"), so we match
 # on the message. 403s have been observed intermittently on otherwise-valid
-# credentials; 429/5xx are the usual rate-limit / server-side blips.
+# credentials; 429/5xx are the usual rate-limit / server-side blips. 400 is
+# NOT included globally: it is a permanent client error for every other QDC
+# call (malformed job ID, bad params), and is only retryable for submit_job
+# (per-user pending-job cap rejection) — that callsite passes it explicitly
+# via ``extra_retryable_codes``.
 _RETRYABLE_STATUS_CODES = (403, 429, 500, 502, 503, 504)
 
 # Return type for the generic retry wrapper.
 CallableRetT = TypeVar("CallableRetT")
 
 
-def _matched_retryable_status_code(err: Exception) -> int | None:
+def _matched_retryable_status_code(
+    err: Exception, extra_retryable_codes: tuple[int, ...] = ()
+) -> int | None:
     """Return the retryable HTTP status code embedded in err, else None.
 
     The QDC SDK raises a bare ``Exception`` whose message embeds the code (e.g.
     "failed with status code 403 and message: Invalid Credentials"). We return
     only the matched code so callers can log it WITHOUT echoing the rest of the
     message, which may contain server-reflected secrets or credential fragments.
+
+    ``extra_retryable_codes`` is matched in addition to the global set; use it
+    for codes that are only retryable at a specific callsite.
     """
     message = str(err)
-    for code in _RETRYABLE_STATUS_CODES:
+    for code in _RETRYABLE_STATUS_CODES + extra_retryable_codes:
         if f"status code {code}" in message:
             return code
     return None
@@ -137,23 +146,26 @@ def _backoff_seconds(attempt: int) -> int:
 
 
 def _call_with_retry(
-    func: Callable[[], CallableRetT], description: str
+    func: Callable[[], CallableRetT],
+    description: str,
+    extra_retryable_codes: tuple[int, ...] = (),
 ) -> CallableRetT:
     """Call ``func()``, retrying through transient QDC errors.
 
     Covers transient network blips (DNS resolution failures, dropped
     connections) as well as transient HTTP status errors the QDC SDK raises
-    as a bare Exception (e.g. an intermittent 403 / 429 / 5xx). A genuinely
-    fatal error still surfaces after STATUS_POLL_MAX_RETRIES attempts. Delays
-    between attempts use capped exponential backoff (see ``_backoff_seconds``)
-    so we don't hammer a rate-limited or overloaded endpoint.
+    as a bare Exception (the global ``_RETRYABLE_STATUS_CODES`` plus any
+    callsite-specific codes passed via ``extra_retryable_codes``). A
+    genuinely fatal error still surfaces after STATUS_POLL_MAX_RETRIES
+    attempts. Delays between attempts use capped exponential backoff (see
+    ``_backoff_seconds``) so we don't hammer a rate-limited or overloaded
+    endpoint.
 
     Used to wrap QDC SDK calls that talk to the network and are safe to repeat:
     status polling (``get_jobs_job_id``), log retrieval/download
-    (``get_jobs_download_logs``) and artifact upload (``upload_file``, whose
-    only commit point is the final chunk and which returns the uuid of the
-    successful attempt). Job submission is intentionally NOT wrapped, since a
-    partially-succeeded submit could create a duplicate running job on retry.
+    (``get_jobs_download_logs``), artifact upload (``upload_file``, whose only
+    commit point is the final chunk and which returns the uuid of the
+    successful attempt), and job submission (``submit_job``).
 
     Parameters
     ----------
@@ -161,6 +173,9 @@ def _call_with_retry(
         Zero-argument callable performing the QDC SDK call.
     description
         Short human-readable label for the call, used in retry log lines.
+    extra_retryable_codes
+        Additional HTTP status codes that are retryable for this callsite
+        only (matched in addition to the global ``_RETRYABLE_STATUS_CODES``).
 
     Returns
     -------
@@ -175,7 +190,7 @@ def _call_with_retry(
             # must inspect both the cause chain (transient network errors like a
             # DNS gaierror) and the message (embedded retryable status codes).
             net_err = _transient_network_error_name(err)
-            code = _matched_retryable_status_code(err)
+            code = _matched_retryable_status_code(err, extra_retryable_codes)
             if (net_err is None and code is None) or (
                 attempt == STATUS_POLL_MAX_RETRIES - 1
             ):
@@ -458,20 +473,25 @@ class QDCJobs:
                 f"Job {job_name} did not start within {timeout}s because the service is at capacity (>={QDC_JOB_LIMIT} active jobs). "
             )
 
-        return qdc_api.submit_job(
-            public_api_client=self.client,
-            target_id=qdc_api.get_target_id(self.client, qdc_device.qdc_name),
-            job_name=job_name[:QDC_JOB_NAME_LIMIT],
-            external_job_id="ExJobId001",
-            job_type=JobType.AUTOMATED,
-            job_mode=JobMode.APPLICATION,
-            timeout=600,
-            test_framework=qdc_device.test_framework,
-            entry_script=entry_script,
-            job_artifacts=job_artifacts,
-            monkey_events=None,
-            monkey_session_timeout=None,
-            job_parameters=[JobSubmissionParameter.WIFIENABLED],
+        target_id = qdc_api.get_target_id(self.client, qdc_device.qdc_name)
+        return _call_with_retry(
+            lambda: qdc_api.submit_job(
+                public_api_client=self.client,
+                target_id=target_id,
+                job_name=job_name[:QDC_JOB_NAME_LIMIT],
+                external_job_id="ExJobId001",
+                job_type=JobType.AUTOMATED,
+                job_mode=JobMode.APPLICATION,
+                timeout=600,
+                test_framework=qdc_device.test_framework,
+                entry_script=entry_script,
+                job_artifacts=job_artifacts,
+                monkey_events=None,
+                monkey_session_timeout=None,
+                job_parameters=[JobSubmissionParameter.WIFIENABLED],
+            ),
+            f"submit_job({job_name})",
+            extra_retryable_codes=(400,),
         )
 
     def log_upload_status(
