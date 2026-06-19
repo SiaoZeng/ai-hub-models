@@ -33,7 +33,10 @@ from qai_hub_models.models._shared.voiceai_tts.t5_g2p import (
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_collection_model import WorkbenchModelCollection
 from qai_hub_models.utils.base_dataset import BaseDataset
-from qai_hub_models.utils.base_model import BaseModel
+from qai_hub_models.utils.base_model import (
+    BaseModel,
+    SerializationSettings,
+)
 from qai_hub_models.utils.input_spec import InputSpec, TensorSpec
 
 SAMPLE_RATE = 22050
@@ -85,7 +88,9 @@ def get_model(language: TTSLanguage) -> SynthesizerTrn:
 
 class Encoder(BaseModel):
     def __init__(self, gen: SynthesizerTrn) -> None:
-        super().__init__()
+        super().__init__(
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
         self.gen = gen
 
     def get_input_spec(self) -> InputSpec:
@@ -159,7 +164,9 @@ class SDP(BaseModel):
     """Wrapper for the Piper encoder and duration predictor with deterministic behavior."""
 
     def __init__(self, gen: SynthesizerTrn, speed_adjustment: float = 1.0) -> None:
-        super().__init__()
+        super().__init__(
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
         self.gen = gen
         # Generate deterministic noise pattern
         self.register_buffer("sdp_noise_pattern", torch.ones(1, 2, MAX_SEQ_LEN) * 0.5)
@@ -269,7 +276,9 @@ class SDP(BaseModel):
 
 class Flow(BaseModel):
     def __init__(self, gen: SynthesizerTrn) -> None:
-        super().__init__()
+        super().__init__(
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
         self.flow = gen.flow
         hidden_channels = gen.hidden_channels
         self.register_buffer(
@@ -355,7 +364,9 @@ class Flow(BaseModel):
 
 class Decoder(BaseModel):
     def __init__(self, gen: SynthesizerTrn) -> None:
-        super().__init__()
+        super().__init__(
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
         self.dec = gen.dec
 
     def forward(self, z: Tensor) -> Tensor:

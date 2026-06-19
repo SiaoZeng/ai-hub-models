@@ -20,7 +20,7 @@ from qai_hub_models.models.gear_guard_net.layers import build_gear_guard_net_mod
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
 from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_evaluator import BaseEvaluator
-from qai_hub_models.utils.base_model import BaseModel
+from qai_hub_models.utils.base_model import BaseModel, SerializationSettings
 from qai_hub_models.utils.input_spec import (
     ColorFormat,
     ImageMetadata,
@@ -58,7 +58,9 @@ class GearGuardNet(BaseModel):
         ch
             Input channels.
         """
-        super().__init__()
+        super().__init__(
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
         self.model, self.save = build_gear_guard_net_model(deepcopy(model_cfg), ch=[ch])
 
     @staticmethod

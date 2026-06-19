@@ -26,7 +26,9 @@ class RF_DETR(DETR):
     def __init__(self, model: torch.nn.Module) -> None:
         super().__init__(
             model=model,
-            serialization_settings=SerializationSettings(check_trace=False),
+            serialization_settings=SerializationSettings(
+                use_pt2=False, check_trace=False
+            ),
         )
 
     def forward(

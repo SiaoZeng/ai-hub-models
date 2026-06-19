@@ -41,7 +41,7 @@ from qai_hub_models.utils.asset_loaders import (
     load_torch,
 )
 from qai_hub_models.utils.base_dataset import BaseDataset
-from qai_hub_models.utils.base_model import BaseModel
+from qai_hub_models.utils.base_model import BaseModel, SerializationSettings
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
 with patch_mmdet_no_build_deps():
@@ -107,7 +107,9 @@ class BEVDet(BaseModel):
         pts_bbox_head: BaseModule,
         bbox_coder: BaseBBoxCoder,
     ) -> None:
-        super().__init__()
+        super().__init__(
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
         self.img_backbone = img_backbone
         self.img_neck = img_neck
         self.img_view_transformer = img_view_transformer

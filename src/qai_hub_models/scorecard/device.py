@@ -211,6 +211,7 @@ class ScorecardDevice:
         npu_count: int | None = None,
         register: bool = True,
         is_default: bool = False,
+        include_in_all: bool = True,
     ) -> None:
         """
         Parameters
@@ -235,6 +236,12 @@ class ScorecardDevice:
             Whether to register this device in the list of all devices.
         is_default
             Whether this device represents the user choosing the default device.
+        include_in_all
+            Whether this device is enabled when SpecialDeviceSetting.ALL is selected.
+            If False, the device only runs when its name is explicitly listed in
+            EnabledDevicesEnvvar (e.g. test_devices=cs_8_gen_2). Use for devices
+            that should be opt-in via manual scorecard dispatch but not picked up
+            by routine "all" runs (typically experimental or expensive devices).
         """
         if register and name in ScorecardDevice._registry:
             raise ValueError("Device " + name + "already registered.")
@@ -246,6 +253,7 @@ class ScorecardDevice:
         self._profile_paths = profile_paths
         self._npu_count = npu_count
         self.is_default = is_default
+        self.include_in_all = include_in_all
 
         if register:
             ScorecardDevice._registry[name] = self
@@ -297,7 +305,7 @@ class ScorecardDevice:
             )
 
         return self.name in ScorecardDevice._registry and (
-            SpecialDeviceSetting.ALL in valid_test_devices
+            (SpecialDeviceSetting.ALL in valid_test_devices and self.include_in_all)
             or self.name == UNIVERSAL_DEVICE_SCORECARD_NAME
             or self.name in valid_test_devices
             or (
@@ -608,6 +616,13 @@ cs_8_gen_1 = ScorecardDevice(
     name="cs_8_gen_1",
     reference_device_name="Samsung Galaxy S22 5G",
     execution_device_name="Samsung Galaxy S22 (Family)",
+)
+
+cs_8_gen_2 = ScorecardDevice(
+    name="cs_8_gen_2",
+    reference_device_name="Samsung Galaxy S23",
+    execution_device_name="Samsung Galaxy S23 (Family)",
+    include_in_all=False,
 )
 
 cs_8_gen_3 = ScorecardDevice(

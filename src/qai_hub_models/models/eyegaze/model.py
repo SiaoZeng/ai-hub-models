@@ -26,7 +26,7 @@ from qai_hub_models.utils.asset_loaders import (
 )
 from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_evaluator import BaseEvaluator
-from qai_hub_models.utils.base_model import BaseModel
+from qai_hub_models.utils.base_model import BaseModel, SerializationSettings
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
 MODEL_ID = __name__.split(".")[-2]
@@ -42,8 +42,10 @@ DEFAULT_WEIGHTS_FILE = CachedWebModelAsset.from_asset_store(
 
 class EyeGaze(BaseModel):
     def __init__(self, model: nn.Module) -> None:
-        super().__init__()
-        self.model = model
+        super().__init__(
+            model=model,
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
 
     @classmethod
     def from_pretrained(cls, weights_name: str = DEFAULT_WEIGHTS) -> Self:

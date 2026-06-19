@@ -18,6 +18,7 @@ from qai_hub_models.models.sinet.external_repos.ext_portrait_segmentation.models
 )
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_torch
 from qai_hub_models.utils.base_dataset import BaseDataset
+from qai_hub_models.utils.base_model import SerializationSettings
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 2
@@ -32,6 +33,12 @@ INPUT_IMAGE_ADDRESS = CachedWebModelAsset.from_asset_store(
 class SINet(SelfieSegmentor):
     MASK_THRESHOLD = 0
     DEFAULT_HW = (224, 224)
+
+    def __init__(self, model: torch.nn.Module | None = None) -> None:
+        super().__init__(
+            model=model,
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
 
     @classmethod
     def from_pretrained(cls, weights: str = DEFAULT_WEIGHTS) -> Self:

@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import torch
 from transformers import ElectraForPreTraining, ElectraTokenizer
 from typing_extensions import Self
@@ -20,6 +22,7 @@ from qai_hub_models.models._shared.bert_hf.model_patches import (
 )
 from qai_hub_models.utils.base_dataset import BaseDataset
 from qai_hub_models.utils.base_evaluator import BaseEvaluator
+from qai_hub_models.utils.base_model import SerializationSettings
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
 MODEL_ID = __name__.split(".")[-2]
@@ -29,6 +32,10 @@ WEIGHTS_NAME = "google/electra-base-discriminator"
 
 class ElectraBertBaseDiscrimGoogle(BaseBertModel):
     """Exportable HuggingFace ElectraBertBaseDiscrimGoogle Model"""
+
+    def __init__(self, model: torch.nn.Module, tokenizer: Any) -> None:
+        super().__init__(model, tokenizer)
+        self.serialization_settings = SerializationSettings(use_pt2=False)
 
     @staticmethod
     def default_weights() -> str:

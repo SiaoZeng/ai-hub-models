@@ -14,6 +14,7 @@ from qai_hub_models.models._shared.video_classifier.model import (
     KineticsClassifier,
     SimpleAvgPool,
 )
+from qai_hub_models.utils.base_model import SerializationSettings
 
 MODEL_ID = __name__.split(".")[-2]
 MODEL_ASSET_VERSION = 1
@@ -21,6 +22,10 @@ DEFAULT_WEIGHTS = tv_models.video.R2Plus1D_18_Weights.DEFAULT
 
 
 class ResNet2Plus1D(KineticsClassifier):
+    def __init__(self, model: Any) -> None:
+        super().__init__(model)
+        self.serialization_settings = SerializationSettings(use_pt2=False)
+
     @classmethod
     def from_pretrained(
         cls,

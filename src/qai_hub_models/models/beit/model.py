@@ -15,6 +15,7 @@ from qai_hub_models import (
     TargetRuntime,
 )
 from qai_hub_models.models._shared.imagenet_classifier.model import ImagenetClassifier
+from qai_hub_models.utils.base_model import SerializationSettings
 
 MODEL_ID = __name__.split(".")[-2]
 DEFAULT_WEIGHTS = "microsoft/beit-base-patch16-224"
@@ -23,6 +24,12 @@ MODEL_ASSET_VERSION = 1
 
 class Beit(ImagenetClassifier):
     """Exportable Beit model, end-to-end."""
+
+    def __init__(self, net: torch.nn.Module) -> None:
+        super().__init__(
+            net,
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
 
     @classmethod
     def from_pretrained(cls, ckpt_name: str = DEFAULT_WEIGHTS) -> Self:

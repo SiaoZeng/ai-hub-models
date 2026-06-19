@@ -49,7 +49,9 @@ class YoloV8Detector(Yolo):
     ) -> None:
         super().__init__(
             model=model,
-            serialization_settings=SerializationSettings(check_trace=False),
+            serialization_settings=SerializationSettings(
+                use_pt2=False, check_trace=False
+            ),
         )
         self.include_postprocessing = include_postprocessing
         self.split_output = split_output

@@ -26,6 +26,7 @@ from qai_hub_models.utils.asset_loaders import (
     load_image,
     load_torch,
 )
+from qai_hub_models.utils.base_model import SerializationSettings
 from qai_hub_models.utils.image_processing import (
     app_to_net_image_inputs,
     normalize_image_torchvision,
@@ -58,7 +59,9 @@ class Resnet34SSD(Yolo):
         include_postprocessing: bool = True,
         split_output: bool = False,
     ) -> None:
-        super().__init__()
+        super().__init__(
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
         self.model = model
         self.include_postprocessing = include_postprocessing
         self.split_output = split_output

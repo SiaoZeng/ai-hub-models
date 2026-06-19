@@ -23,7 +23,7 @@ from qai_hub_models.models.statetransformer.external_repos.statetransformer.tran
 )
 from qai_hub_models.models.statetransformer.model_patch import custom_one_hot
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
-from qai_hub_models.utils.base_model import BaseModel
+from qai_hub_models.utils.base_model import BaseModel, SerializationSettings
 from qai_hub_models.utils.input_spec import InputSpec, IoType, TensorSpec
 
 MODEL_ID = __name__.split(".")[-2]
@@ -42,7 +42,9 @@ class StateTransformer(BaseModel):
     """
 
     def __init__(self, model: StateTransformer) -> None:
-        super().__init__()
+        super().__init__(
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
         self.model: torch.nn.Module = model
         self.encoder: torch.nn.Module = self.model.encoder
         self.embedding_to_hidden: torch.nn.Module = self.model.embedding_to_hidden

@@ -20,6 +20,7 @@ from qai_hub_models.models._shared.yolo.utils import detect_postprocess_split_in
 from qai_hub_models.models.yolov7.external_repos.yolov7.models.experimental import (
     attempt_load,
 )
+from qai_hub_models.utils.base_model import SerializationSettings
 from qai_hub_models.utils.input_spec import InputSpec
 from qai_hub_models.utils.set_env import set_temp_env
 
@@ -38,7 +39,9 @@ class YoloV7(Yolo):
         include_postprocessing: bool = True,
         split_output: bool = False,
     ) -> None:
-        super().__init__()
+        super().__init__(
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
         self.yolov7_feature_extractor = yolov7_feature_extractor
         self.yolov7_detector = yolov7_detector
         self.include_postprocessing = include_postprocessing

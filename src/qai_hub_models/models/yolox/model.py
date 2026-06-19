@@ -48,7 +48,9 @@ class YoloX(Yolo):
 
         super().__init__(
             model=yolox_source_model,
-            serialization_settings=SerializationSettings(check_trace=False),
+            serialization_settings=SerializationSettings(
+                use_pt2=False, check_trace=False
+            ),
         )
         self.model: YOLOX
         self.yolox_meshgrid = meshgrid

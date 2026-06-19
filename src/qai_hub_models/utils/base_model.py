@@ -52,7 +52,7 @@ __all__ = [
 
 
 class SerializationSettings(NamedTuple):
-    use_pt2: bool = False
+    use_pt2: bool = True
     check_trace: bool = True
 
 
@@ -330,6 +330,11 @@ class BaseModel(
     ) -> Path:
         """Serialize this model to disk. The serialized model will be uploaded to AI Hub Workbench during export."""
         if self.serialization_settings.use_pt2:
+            if torch.torch_version.TorchVersion(torch.__version__) < "2.9":
+                raise RuntimeError(
+                    f"PT2 serialization (use_pt2=True) requires torch>=2.9, but found {torch.__version__}. "
+                    "Upgrade torch or set SerializationSettings(use_pt2=False)."
+                )
             input_spec = input_spec or self.get_input_spec()
             output_path = Path(output_dir) / f"{self.name}.pt2"
             self.to("cpu").eval()

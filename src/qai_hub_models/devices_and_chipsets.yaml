@@ -228,6 +228,7 @@ devices:
     form_factor: Phone
     vendor: samsung
     icon: Phone_S23
+    enabled_in_scorecard: true
   Samsung Galaxy S23+:
     chipset: qualcomm-snapdragon-8gen2
     os:

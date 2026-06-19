@@ -10,7 +10,7 @@ from typing_extensions import Self
 
 from qai_hub_models.configs.model_metadata import OutputSpec
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
-from qai_hub_models.utils.base_model import BaseModel
+from qai_hub_models.utils.base_model import BaseModel, SerializationSettings
 from qai_hub_models.utils.input_spec import (
     ColorFormat,
     ImageMetadata,
@@ -30,6 +30,12 @@ DEFAULT_WEIGHTS_FILE = CachedWebModelAsset.from_asset_store(
 
 
 class CavaFace(BaseModel):
+    def __init__(self, model: torch.nn.Module | None = None) -> None:
+        super().__init__(
+            model=model,
+            serialization_settings=SerializationSettings(use_pt2=False),
+        )
+
     @classmethod
     def from_pretrained(cls, weights_name: str = DEFAULT_WEIGHTS) -> Self:
         if weights_name == DEFAULT_WEIGHTS:
