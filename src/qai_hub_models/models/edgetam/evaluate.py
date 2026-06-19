@@ -71,7 +71,7 @@ def main() -> None:
         raise ValueError("Collection models do not support use_dataset_cache.")
 
     collection_model = Model.from_pretrained(**model_kwargs)
-    components = collection_model.component_class_names
+    num_components = len(collection_model.component_names)
     input_spec: InputSpec | None = None
     torch_model_list = list(collection_model.components.values())
     model_executors: dict[str, CollectionAppEvaluateProtocol] = {}
@@ -83,9 +83,9 @@ def main() -> None:
     if not args.skip_device_accuracy or args.compute_quant_cpu_accuracy:
         if args.hub_model_id is not None:
             hub_model_id = args.hub_model_id.split(",")
-            assert len(hub_model_id) == len(components), (
+            assert len(hub_model_id) == num_components, (
                 f"Number of hub_model_ids ({len(hub_model_id)}) must equal "
-                f"number of components ({len(components)})"
+                f"number of components ({num_components})"
             )
             compiled_model_list = [hub.get_model(model_id) for model_id in hub_model_id]
         else:
