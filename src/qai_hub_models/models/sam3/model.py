@@ -139,7 +139,9 @@ class SAM3Head(BaseModel):
         vision_pos_enc_2: torch.Tensor,
     ) -> None:
         super().__init__(
-            serialization_settings=SerializationSettings(check_trace=False)
+            serialization_settings=SerializationSettings(
+                use_pt2=False, check_trace=False
+            )
         )
         self.language_model = language_model
         self.transformer = transformer

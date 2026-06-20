@@ -12,8 +12,8 @@ Qualcomm AI Hub Models uses [Qualcomm AI Hub Workbench](https://workbench.aihub.
 Install the package via pip:
 ```bash
 # NOTE: 3.10 <= PYTHON_VERSION < 3.14 is supported.
-pip install torch==2.8.0+cpu -f https://download.pytorch.org/whl/torch/
-pip install "qai-hub-models[zipformer]" k2==1.24.4.dev20250807+cpu.torch2.8.0 -f https://k2-fsa.github.io/k2/cpu.html
+pip install torch==2.9.0+cpu -f https://download.pytorch.org/whl/torch/
+pip install "qai-hub-models[zipformer]" k2==1.24.4.dev20251029+cpu.torch2.9.0 -f https://k2-fsa.github.io/k2/cpu.html
 ```
 
 ### 2. Configure Qualcomm® AI Hub Workbench
