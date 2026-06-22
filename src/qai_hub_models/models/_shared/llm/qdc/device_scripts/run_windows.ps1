@@ -5,34 +5,50 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
 
 # genie-t2t-run.exe fails randomly on QDC devices; give each invocation one
-# retry before letting the failure abort the job. The .exe is run via
-# assignment (not piped) so $LASTEXITCODE reflects it rather than Out-File,
-# which always exits 0 and would defeat the retry. PowerShell has no `set -e`,
-# so we throw on a double-failure to fail the job (the captured output is also
-# only committed to $OutFile on success, keeping a crashed attempt out of it).
+# retry before letting the failure abort the job. The .exe is launched via
+# Start-Process -Wait -PassThru so the genuine process exit code (not Out-File's
+# always-0 exit) drives the retry. PowerShell has no `set -e`, so we throw on a
+# double-failure to fail the job (the captured output is also only committed to
+# $OutFile on success, keeping a crashed attempt out of it).
 function Invoke-GenieRetry {
     param(
         [Parameter(Mandatory = $true)][string[]]$GenieArgs,
         [string]$OutFile
     )
     foreach ($attempt in 1, 2) {
-        # Avoid 2>&1: it wraps stderr as NativeCommandError records whose rendered "FullyQualifiedErrorId" text trips QDC's failure parser on exit 0.
+        # genie-t2t-run.exe writes informational lines (e.g. '[INFO] "Using
+        # create From Binary"') to stderr even on success. When the .exe is run
+        # via the call operator (&), Windows PowerShell wraps each native stderr
+        # line as a NativeCommandError ErrorRecord -- even with `2>file`, the
+        # rendered record (carrying "FullyQualifiedErrorId : NativeCommandError")
+        # is what gets captured, and QDC's server-side parser flags the job
+        # "Unsuccessful" on seeing that text despite exit code 0.
+        #
+        # Start-Process redirects stdout/stderr at the OS-process level, so the
+        # .exe's streams go straight to files and never pass through PowerShell's
+        # error stream -- no ErrorRecord, no FullyQualifiedErrorId.
+        $stdoutFile = [System.IO.Path]::GetTempFileName()
         $stderrFile = [System.IO.Path]::GetTempFileName()
         try {
-            $stdout = & genie-t2t-run.exe @GenieArgs 2>$stderrFile
+            $proc = Start-Process -FilePath "genie-t2t-run.exe" -ArgumentList $GenieArgs `
+                -NoNewWindow -Wait -PassThru `
+                -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
+            $exitCode = $proc.ExitCode
+            $stdout = Get-Content $stdoutFile -Raw -Encoding UTF8
             $stderr = Get-Content $stderrFile -Raw -Encoding UTF8
         } finally {
+            Remove-Item $stdoutFile -ErrorAction SilentlyContinue
             Remove-Item $stderrFile -ErrorAction SilentlyContinue
         }
         $captured = @($stdout) + @($stderr)
         # Echo to the console as well as the log file, so progress is visible
         # even when a failed QDC job never makes the log files available.
         $captured | Out-String | Write-Host
-        if ($LASTEXITCODE -eq 0) {
+        if ($exitCode -eq 0) {
             if ($OutFile) { $captured | Out-File -FilePath $OutFile -Append -Encoding utf8 }
             return
         }
-        Write-Host "Invoke-GenieRetry: genie-t2t-run.exe failed (exit $LASTEXITCODE)"
+        Write-Host "Invoke-GenieRetry: genie-t2t-run.exe failed (exit $exitCode)"
     }
     throw "genie-t2t-run.exe failed twice: genie-t2t-run.exe $($GenieArgs -join ' ')"
 }
