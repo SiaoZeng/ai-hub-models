@@ -4,7 +4,7 @@
 # ---------------------------------------------------------------------
 import argparse
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from importlib.metadata import PackageNotFoundError, version
 from typing import TypeVar
 
@@ -1075,12 +1075,12 @@ def _run_info(args: argparse.Namespace) -> None:
         print(metadata_table)
         print()
 
-    if info.technical_details:
-        details_table = PrettyTable()
-        details_table.title = "Technical Details"
-        details_table.header = False
-        details_table.align = "l"
-        for detail in info.technical_details:
+    def _technical_details_table(title: str, details: Iterable) -> PrettyTable:
+        table = PrettyTable()
+        table.title = title
+        table.header = False
+        table.align = "l"
+        for detail in details:
             if detail.HasField("string_value"):
                 val = detail.string_value
             elif detail.HasField("int_value"):
@@ -1089,9 +1089,24 @@ def _run_info(args: argparse.Namespace) -> None:
                 val = str(detail.float_value)
             else:
                 val = ""
-            details_table.add_row([detail.key, val])
-        wrap_table_column(details_table, 1)
-        print(details_table)
+            table.add_row([detail.key, val])
+        wrap_table_column(table, 1)
+        return table
+
+    if info.technical_details:
+        print(_technical_details_table("Technical Details", info.technical_details))
+        print()
+
+    for rt_details in info.runtime_technical_details:
+        runtime_name = runtime_proto_to_str(
+            rt_details.runtime, get_platform(args.qaihm_version), display_name=True
+        )
+        print(
+            _technical_details_table(
+                f"Technical Details ({runtime_name})",
+                rt_details.technical_details,
+            )
+        )
         print()
 
     try:

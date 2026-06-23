@@ -8,6 +8,7 @@ package qaihm;
 
 import "platform.proto";
 import "numerics.proto";
+import "shared/runtime.proto";
 
 enum ModelLicense {
   MODEL_LICENSE_UNSPECIFIED = 0;
@@ -244,6 +245,10 @@ message ModelInfo {
   // Whether the model is compatible with the Qualcomm Voice AI SDK.
   bool voice_ai_compatible = 31;
 
+  // Technical details that only apply to specific runtimes, e.g. a model size
+  // that differs per runtime. One entry per runtime that has such details.
+  repeated RuntimeTechnicalDetails runtime_technical_details = 32;
+
   message TechnicalDetail {
     string key = 1;
 
@@ -252,6 +257,12 @@ message ModelInfo {
       int64 int_value = 3;
       double float_value = 4;
     }
+  }
+
+  // A group of technical details that apply only to a particular runtime.
+  message RuntimeTechnicalDetails {
+    Runtime runtime = 1;
+    repeated TechnicalDetail technical_details = 2;
   }
 
   message LLMDetails {

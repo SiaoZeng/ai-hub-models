@@ -19,6 +19,7 @@ import google.protobuf.internal.enum_type_wrapper
 import google.protobuf.message
 from qai_hub_models_cli.proto import numerics_pb2
 from qai_hub_models_cli.proto import platform_pb2
+import shared.runtime_pb2
 import sys
 import typing
 
@@ -259,6 +260,25 @@ class ModelInfo(google.protobuf.message.Message):
         def WhichOneof(self, oneof_group: typing.Literal["value", b"value"]) -> typing.Literal["string_value", "int_value", "float_value"] | None: ...
 
     @typing.final
+    class RuntimeTechnicalDetails(google.protobuf.message.Message):
+        """A group of technical details that apply only to a particular runtime."""
+
+        DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+        RUNTIME_FIELD_NUMBER: builtins.int
+        TECHNICAL_DETAILS_FIELD_NUMBER: builtins.int
+        runtime: shared.runtime_pb2.Runtime.ValueType
+        @property
+        def technical_details(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___ModelInfo.TechnicalDetail]: ...
+        def __init__(
+            self,
+            *,
+            runtime: shared.runtime_pb2.Runtime.ValueType = ...,
+            technical_details: collections.abc.Iterable[global___ModelInfo.TechnicalDetail] | None = ...,
+        ) -> None: ...
+        def ClearField(self, field_name: typing.Literal["runtime", b"runtime", "technical_details", b"technical_details"]) -> None: ...
+
+    @typing.final
     class LLMDetails(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -334,6 +354,7 @@ class ModelInfo(google.protobuf.message.Message):
     LLM_DETAILS_FIELD_NUMBER: builtins.int
     PRIVATE_PERF_FORM_FACTORS_FIELD_NUMBER: builtins.int
     VOICE_AI_COMPATIBLE_FIELD_NUMBER: builtins.int
+    RUNTIME_TECHNICAL_DETAILS_FIELD_NUMBER: builtins.int
     aihm_version: builtins.str
     id: builtins.str
     """---------------------------------------------------------------------------
@@ -468,6 +489,12 @@ class ModelInfo(google.protobuf.message.Message):
     def private_perf_form_factors(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[platform_pb2.FormFactor.ValueType]:
         """Device form factors for which we don't publish performance data."""
 
+    @property
+    def runtime_technical_details(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___ModelInfo.RuntimeTechnicalDetails]:
+        """Technical details that only apply to specific runtimes, e.g. a model size
+        that differs per runtime. One entry per runtime that has such details.
+        """
+
     def __init__(
         self,
         *,
@@ -501,9 +528,10 @@ class ModelInfo(google.protobuf.message.Message):
         llm_details: global___ModelInfo.LLMDetails | None = ...,
         private_perf_form_factors: collections.abc.Iterable[platform_pb2.FormFactor.ValueType] | None = ...,
         voice_ai_compatible: builtins.bool = ...,
+        runtime_technical_details: collections.abc.Iterable[global___ModelInfo.RuntimeTechnicalDetails] | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing.Literal["_license_url", b"_license_url", "_llm_details", b"_llm_details", "_model_maker_id", b"_model_maker_id", "_numerics_benchmark", b"_numerics_benchmark", "_research_paper", b"_research_paper", "_research_paper_title", b"_research_paper_title", "_source_repo", b"_source_repo", "_status_reason", b"_status_reason", "license_url", b"license_url", "llm_details", b"llm_details", "model_maker_id", b"model_maker_id", "numerics_benchmark", b"numerics_benchmark", "research_paper", b"research_paper", "research_paper_title", b"research_paper_title", "source_repo", b"source_repo", "status_reason", b"status_reason"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["_license_url", b"_license_url", "_llm_details", b"_llm_details", "_model_maker_id", b"_model_maker_id", "_numerics_benchmark", b"_numerics_benchmark", "_research_paper", b"_research_paper", "_research_paper_title", b"_research_paper_title", "_source_repo", b"_source_repo", "_status_reason", b"_status_reason", "aihm_version", b"aihm_version", "applicable_scenarios", b"applicable_scenarios", "dataset", b"dataset", "description", b"description", "domain", b"domain", "form_factors", b"form_factors", "has_animated_banner", b"has_animated_banner", "has_static_banner", b"has_static_banner", "headline", b"headline", "id", b"id", "imsdk_supported", b"imsdk_supported", "license_type", b"license_type", "license_url", b"license_url", "llm_details", b"llm_details", "model_maker_id", b"model_maker_id", "model_type_llm", b"model_type_llm", "name", b"name", "numerics_benchmark", b"numerics_benchmark", "private_perf_form_factors", b"private_perf_form_factors", "related_models", b"related_models", "research_paper", b"research_paper", "research_paper_title", b"research_paper_title", "restrict_model_sharing", b"restrict_model_sharing", "source_repo", b"source_repo", "status", b"status", "status_reason", b"status_reason", "tags", b"tags", "technical_details", b"technical_details", "use_case", b"use_case", "voice_ai_compatible", b"voice_ai_compatible"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["_license_url", b"_license_url", "_llm_details", b"_llm_details", "_model_maker_id", b"_model_maker_id", "_numerics_benchmark", b"_numerics_benchmark", "_research_paper", b"_research_paper", "_research_paper_title", b"_research_paper_title", "_source_repo", b"_source_repo", "_status_reason", b"_status_reason", "aihm_version", b"aihm_version", "applicable_scenarios", b"applicable_scenarios", "dataset", b"dataset", "description", b"description", "domain", b"domain", "form_factors", b"form_factors", "has_animated_banner", b"has_animated_banner", "has_static_banner", b"has_static_banner", "headline", b"headline", "id", b"id", "imsdk_supported", b"imsdk_supported", "license_type", b"license_type", "license_url", b"license_url", "llm_details", b"llm_details", "model_maker_id", b"model_maker_id", "model_type_llm", b"model_type_llm", "name", b"name", "numerics_benchmark", b"numerics_benchmark", "private_perf_form_factors", b"private_perf_form_factors", "related_models", b"related_models", "research_paper", b"research_paper", "research_paper_title", b"research_paper_title", "restrict_model_sharing", b"restrict_model_sharing", "runtime_technical_details", b"runtime_technical_details", "source_repo", b"source_repo", "status", b"status", "status_reason", b"status_reason", "tags", b"tags", "technical_details", b"technical_details", "use_case", b"use_case", "voice_ai_compatible", b"voice_ai_compatible"]) -> None: ...
     @typing.overload
     def WhichOneof(self, oneof_group: typing.Literal["_license_url", b"_license_url"]) -> typing.Literal["license_url"] | None: ...
     @typing.overload

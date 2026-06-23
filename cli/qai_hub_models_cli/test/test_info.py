@@ -37,6 +37,14 @@ def _fake_model_info() -> ModelInfo:
             ModelInfo.TechnicalDetail(key="Model size (MB)", float_value=14.2),
             ModelInfo.TechnicalDetail(key="Architecture", string_value="CNN"),
         ],
+        runtime_technical_details=[
+            ModelInfo.RuntimeTechnicalDetails(
+                runtime=Runtime.RUNTIME_TFLITE,
+                technical_details=[
+                    ModelInfo.TechnicalDetail(key="Model size (MB)", float_value=5.1),
+                ],
+            ),
+        ],
     )
 
 
@@ -128,6 +136,9 @@ def test_info_full_output(info_mocks: None, capsys: pytest.CaptureFixture[str]) 
     assert "Supported Runtimes" in output
     assert "Supported Chipsets" in output
     assert "Snapdragon 8 Gen 3" in output
+    # Runtime-specific technical details get their own titled section.
+    assert "Technical Details (tflite)" in output
+    assert "5.1" in output
 
 
 def test_info_download_options(
