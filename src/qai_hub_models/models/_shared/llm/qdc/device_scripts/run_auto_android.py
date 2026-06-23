@@ -47,7 +47,7 @@ class TestGenie:
                 f'sed -i \'s/"seed": [0-9]*/"seed": {i}/\' genie_config.json'
             )
             trial_commands.append(
-                f"genie_retry genie-t2t-run -c genie_config.json --prompt_file sample_prompt.txt --profile /data/local/tmp/QDC_logs/profile{i}.txt"
+                f"genie_retry genie-t2t-run -c genie_config.json --prompt_file sample_prompt.txt --profile /data/local/tmp/QDC_logs/profile{i}.txt 2>>/data/local/tmp/QDC_logs/genie_stderr.log"
             )
         full_genie_command = " && ".join(trial_commands)
         qairt_path = "/data/local/tmp/genie_bundle/qairt"
@@ -58,7 +58,8 @@ class TestGenie:
 # exit status tied to genie rather than to tee, which always succeeds.
 set -o pipefail
 # genie-t2t-run fails randomly on QDC devices; give each invocation one retry
-# before letting the failure (and set -e) abort the whole job.
+# before letting the failure (and set -e) abort the whole job. Redirect stderr
+# to a log file: QDC flags jobs Unsuccessful on any stderr output (PR #3641).
 genie_retry() {{
     "$@" || {{
         echo "genie_retry: command failed, retrying once: $*" >&2
@@ -79,7 +80,7 @@ export ADSP_LIBRARY_PATH={qairt_path}/lib/hexagon-<<HEXAGON_VERSION>>/unsigned
 cp /data/local/tmp/qxa.qa_adsplib/libc++.so.1 ${{ADSP_LIBRARY_PATH}}/
 cp /data/local/tmp/qxa.qa_adsplib/libc++abi.so.1 ${{ADSP_LIBRARY_PATH}}/
 mkdir -p /data/local/tmp/QDC_logs
-genie_retry genie-t2t-run -c genie_config.json --prompt_file sample_prompt.txt | tee /data/local/tmp/QDC_logs/genie.log
+genie_retry genie-t2t-run -c genie_config.json --prompt_file sample_prompt.txt 2>>/data/local/tmp/QDC_logs/genie_stderr.log | tee /data/local/tmp/QDC_logs/genie.log
 {full_genie_command}
 """
         # Push the genie_bundle directory to the device

@@ -18,6 +18,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
+from filelock import FileLock
+
 from qai_hub_models import Precision
 from qai_hub_models.configs.code_gen_yaml import QAIHMModelCodeGen
 from qai_hub_models.configs.info_yaml import QAIHMModelInfo
@@ -36,6 +38,7 @@ from qai_hub_models.scorecard.envvars import (
 )
 from qai_hub_models.scorecard.path_profile import ScorecardProfilePath
 from qai_hub_models.scorecard.results.yaml import ScorecardAssetYaml
+from qai_hub_models.utils.path_helpers import QAIHM_MODELS_ROOT
 
 
 @dataclass
@@ -189,7 +192,28 @@ def update_perf_yaml(
     ttft_ms: float,
     prefill_tps: float | None = None,
 ) -> None:
-    """Update the perf.yaml file for a model with new LLM metrics."""
+    """Update the perf.yaml file for a model with new LLM metrics.
+
+    Wrapped in a FileLock so concurrent xdist workers (one per
+    (precision, device) parametrization) don't race on the read-modify-write
+    of the same model's perf.yaml.
+    """
+    perf_path = QAIHM_MODELS_ROOT / model_id / "perf.yaml"
+    with FileLock(f"{perf_path}.lock"):
+        _update_perf_yaml_locked(
+            model_id, device_name, precision, context_length, tps, ttft_ms, prefill_tps
+        )
+
+
+def _update_perf_yaml_locked(
+    model_id: str,
+    device_name: str,
+    precision: Precision,
+    context_length: int,
+    tps: float,
+    ttft_ms: float,
+    prefill_tps: float | None = None,
+) -> None:
     perf = QAIHMModelPerf.from_model(model_id, not_exists_ok=True)
 
     info = QAIHMModelInfo.from_model(model_id)

@@ -789,13 +789,14 @@ class CollectLLMPerfTask(CompositeTask):
                 )
             )
 
-            # Run llm_perf tests for this model.
+            # -n 3 matches QDC's 3-slot per-user cap; perf.yaml writes are
+            # serialized via FileLock.
             tasks.append(
                 PyTestTask(
                     group_name=f"Run LLM Perf Tests For Model {model_name}",
                     venv=model_venv,
                     files_or_dirs=f"src/qai_hub_models/models/{model_name}/test.py",
-                    extra_args="-s -m 'llm_perf'",
+                    extra_args="-s -m 'llm_perf' -n 3",
                     junit_xml_path=model_junit_xml_path,
                     raise_on_failure=False,
                     ignore_no_tests_return_code=True,
