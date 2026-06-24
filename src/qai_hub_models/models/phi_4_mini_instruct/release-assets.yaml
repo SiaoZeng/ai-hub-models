@@ -1,0 +1,5 @@
+precisions:
+  q4_0:
+    universal_assets:
+      geniex_llamacpp:
+        download_url: https://huggingface.co/bartowski/microsoft_Phi-4-mini-instruct-GGUF/resolve/main/microsoft_Phi-4-mini-instruct-Q4_0.gguf

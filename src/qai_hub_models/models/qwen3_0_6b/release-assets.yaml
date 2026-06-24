@@ -1,0 +1,5 @@
+precisions:
+  q4_0:
+    universal_assets:
+      geniex_llamacpp:
+        download_url: https://huggingface.co/ggml-org/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_0.gguf

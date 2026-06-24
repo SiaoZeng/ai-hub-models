@@ -1,0 +1,5 @@
+precisions:
+  mxfp4:
+    universal_assets:
+      geniex_llamacpp:
+        download_url: https://huggingface.co/ggml-org/gpt-oss-20b-GGUF/resolve/main/gpt-oss-20b-mxfp4.gguf
