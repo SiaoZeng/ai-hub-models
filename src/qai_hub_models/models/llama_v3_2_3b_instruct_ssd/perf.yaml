@@ -28,42 +28,47 @@ precisions:
             genie:
               llm_metrics:
               - context_length: 4096
-                tokens_per_second: 78.08206481933594
+                tokens_per_second: 69.7690658569336
                 time_to_first_token_range_milliseconds:
-                  min: 51.714400000000005
-                  max: 1654.8608000000002
+                  min: 70.369
+                  max: 2251.808
+                prefill_tokens_per_second: 796.1783447265625
           Snapdragon X Elite CRD:
             genie:
               llm_metrics:
               - context_length: 4096
-                tokens_per_second: 25.715454292297363
+                tokens_per_second: 33.4157600402832
                 time_to_first_token_range_milliseconds:
-                  min: 121.3954
-                  max: 3884.6528
+                  min: 152.958
+                  max: 4894.656
+                prefill_tokens_per_second: 366.1662292480469
           Snapdragon 8 Elite QRD:
             genie:
               llm_metrics:
               - context_length: 4096
-                tokens_per_second: 49.483089447021484
+                tokens_per_second: 41.953346252441406
                 time_to_first_token_range_milliseconds:
-                  min: 68.0748
-                  max: 2178.3936
+                  min: 89.505
+                  max: 2864.16
+                prefill_tokens_per_second: 625.7822265625
           Snapdragon 8 Elite Gen 5 QRD:
             genie:
               llm_metrics:
               - context_length: 4096
-                tokens_per_second: 57.81013984680176
+                tokens_per_second: 51.05687713623047
                 time_to_first_token_range_milliseconds:
-                  min: 50.9541
-                  max: 1630.5312
+                  min: 78.036
+                  max: 2497.152
+                prefill_tokens_per_second: 717.8750610351562
           Dragonwing IQ-9075 EVK:
             genie:
               llm_metrics:
               - context_length: 4096
-                tokens_per_second: 33.729867935180664
+                tokens_per_second: 31.952964782714844
                 time_to_first_token_range_milliseconds:
-                  min: 102.30380000000001
-                  max: 3273.7216000000003
+                  min: 131.001
+                  max: 4192.032
+                prefill_tokens_per_second: 427.53314208984375
           SA8775P ADP:
             genie:
               llm_metrics:

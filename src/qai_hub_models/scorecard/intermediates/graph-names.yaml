@@ -155,3 +155,15 @@ qwen3_4b_part3_of_4:
 qwen3_4b_part4_of_4:
 - prompt_ar128_cl4096_4_of_4
 - token_ar1_cl4096_4_of_4
+llama_v3_2_3b_instruct_ssd_part1_of_4:
+- prompt_ar128_cl4096_1_of_4
+- prompt_ar32_cl4096_1_of_4
+llama_v3_2_3b_instruct_ssd_part2_of_4:
+- prompt_ar128_cl4096_2_of_4
+- prompt_ar32_cl4096_2_of_4
+llama_v3_2_3b_instruct_ssd_part3_of_4:
+- prompt_ar128_cl4096_3_of_4
+- prompt_ar32_cl4096_3_of_4
+llama_v3_2_3b_instruct_ssd_part4_of_4:
+- prompt_ar128_cl4096_4_of_4
+- prompt_ar32_cl4096_4_of_4

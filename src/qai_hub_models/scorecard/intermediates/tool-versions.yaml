@@ -13,6 +13,10 @@ tool_versions:
     qairt: 2.45.0.260326154327
   genie:
     qairt: 2.45.0.260326154327
+  geniex_qairt:
+    qairt: 2.45.0.260326154327
+  geniex_llamacpp:
+    qairt: 2.45.0.260326154327
   voice_ai:
     qairt: 2.45.0.260326154327
   onnx_dml_gpu:

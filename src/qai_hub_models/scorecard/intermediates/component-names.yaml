@@ -208,3 +208,8 @@ qwen3_4b:
 - part2_of_4
 - part3_of_4
 - part4_of_4
+llama_v3_2_3b_instruct_ssd:
+- part1_of_4
+- part2_of_4
+- part3_of_4
+- part4_of_4
