@@ -10,11 +10,12 @@
 ##
 
 name: LLM Performance Collection
-run-name: "LLM Perf (${{ inputs.model || 'all' }}, ${{ inputs.device || 'all' }})"
+run-name: "LLM Perf (${{ inputs.model || 'all' }}, ${{ inputs.device == 'default' && 'cs_8_elite_qrd' || inputs.device || 'all' }})"
 
 env:
   VENV_PATH: build/ci-envs/qaihm-build
   QAIHM_CI: 1
+  QAIHM_TEST_DEVICES_RESOLVED: ${{ inputs.device == 'default' && 'cs_8_elite_qrd' || inputs.device || 'all' }}
 
 on:
   # Allows this workflow to be manually triggered.
@@ -199,7 +200,7 @@ jobs:
       id: run_tests
       env:
         QAIHM_LLM_MODELS: ${{ inputs.model || 'all' }}
-        QAIHM_TEST_DEVICES: ${{ inputs.device }}
+        QAIHM_TEST_DEVICES: ${{ env.QAIHM_TEST_DEVICES_RESOLVED }}
         QAIHM_LLM_PERF_PRECISIONS: ${{ inputs.precision }}
         QAIHM_RUN_EVAL: ${{ inputs.run_eval }}
         QAIHM_LLM_PERF_RELEASE_ASSETS: ${{ inputs.release_assets_action_id != '' && format('{0}/llm-release-assets/release-assets.yaml', github.workspace) || '' }}
@@ -247,7 +248,7 @@ jobs:
       if: ${{ !cancelled() && (inputs.create_pr) && steps.check_changes.outputs.has_changes == 'true' }}
       env:
         QAIHM_TEST_MODELS: ${{ inputs.model || 'all' }}
-        QAIHM_TEST_DEVICES: ${{ inputs.device || 'all' }}
+        QAIHM_TEST_DEVICES: ${{ env.QAIHM_TEST_DEVICES_RESOLVED }}
       run: |
         branch_name="perf/llm-perf-${{ github.run_id }}"
         cd $GITHUB_WORKSPACE && \
@@ -314,7 +315,7 @@ jobs:
       uses: actions/github-script@v9
       env:
         QAIHM_TEST_MODELS: ${{ inputs.model || 'all' }}
-        QAIHM_TEST_DEVICES: ${{ inputs.device || 'all' }}
+        QAIHM_TEST_DEVICES: ${{ env.QAIHM_TEST_DEVICES_RESOLVED }}
       with:
         github-token: ${{ secrets.STAGING_GH_TOKEN }}
         result-encoding: string

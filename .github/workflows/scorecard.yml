@@ -211,6 +211,7 @@ jobs:
                      && 'pre_release_assets'
                      || 'ephemeral_test_assets' }}
       deployment: ${{ inputs.deployment }}
+      device: ${{ inputs.test_devices }}
 
   collect_results_split:
     name: Test Export Scripts, Upload Zip Files & Compute Accuracy

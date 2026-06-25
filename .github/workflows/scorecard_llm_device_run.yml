@@ -20,6 +20,15 @@ on:
           type: string
           default: prod
 
+        device:
+          description: |
+            Target device(s) for LLM perf collection. Must match the devices
+            built by the asset-upload step (which reads QAIHM_TEST_DEVICES from
+            the scorecard environment.env). "all" or empty falls back to every
+            LLM compile device.
+          type: string
+          default: 'all'
+
 env:
   PYTHONUNBUFFERED: 1
   VENV_PATH: build/ci-envs/qaihm-build
@@ -86,6 +95,7 @@ jobs:
     uses: ./.github/workflows/llm_perf_collection.yml
     with:
       model: ${{ needs.determine_llm_models.outputs.models }}
+      device: ${{ inputs.device }}
       precision: all
       deployment: ${{ inputs.deployment }}
       run_eval: true
