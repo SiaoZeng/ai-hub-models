@@ -380,7 +380,7 @@ def _demo_impl(
         if "image_grid_thw" in processed:
             generate_kwargs["image_grid_thw"] = processed["image_grid_thw"]
 
-    generator.generate(**generate_kwargs)  # type: ignore[operator, unused-ignore]
+    generator.generate(**generate_kwargs)  # type: ignore[operator, misc, unused-ignore]
     generator.model.cleanup()
 
 

@@ -1,7 +1,22 @@
+test_split: llm
+is_aimet: true
+is_collection_model: true
+skip_evaluate: true
+has_multi_graph: true
+requires_aot_prepare: true
+global_requirements_incompatible: true
 supported_precisions:
 - q4_0
+- w4a16
 skip_scorecard: true
 skip_export: true
 skip_example_usage: true
-orchestrator_runtimes: [geniex_llamacpp]
+orchestrator_runtimes: [geniex_llamacpp, geniex_qairt, genie]
 only_allow_orchestrator_runtimes: true
+add_genie_url_to_export: true
+separate_quantize_script: true
+pip_install_flags_gpu: onnxruntime-gpu==1.23.2 https://github.com/quic/aimet/releases/download/2.33.0/aimet_onnx-2.33.0+cu121-cp310-cp310-manylinux_2_34_x86_64.whl -f https://download.pytorch.org/whl/torch_stable.html
+additional_readme_section: |
+  ## Deploying Qwen3-VL-4B-Instruct on-device
+
+  Please follow the [LLM on-device deployment]({genie_url}) tutorial.

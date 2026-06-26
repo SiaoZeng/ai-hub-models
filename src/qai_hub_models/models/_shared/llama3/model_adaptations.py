@@ -63,7 +63,7 @@ class SHALlamaAttention(LlamaAttention):
     def num_key_value_heads_(self) -> int:
         if hasattr(self, "num_key_value_heads"):
             return cast(int, self.num_key_value_heads)
-        return self.config.num_key_value_heads
+        return self.config.num_key_value_heads  # type: ignore[return-value, unused-ignore]
 
     def prepare_conv(self) -> None:
         if not hasattr(self, "forward_no_conv"):
@@ -223,7 +223,7 @@ class SHALlamaAttention(LlamaAttention):
             if hasattr(past_key_value, "value_cache"):
                 kv_seq_len += past_key_value.value_cache[self.layer_idx][0].shape[-2]
             elif hasattr(past_key_value.layers[self.layer_idx], "values"):  # type: ignore[attr-defined, unused-ignore]
-                kv_seq_len += past_key_value.layers[self.layer_idx].values[0].shape[-2]  # type: ignore[attr-defined, index, unused-ignore]
+                kv_seq_len += past_key_value.layers[self.layer_idx].values[0].shape[-2]  # type: ignore[attr-defined, index, union-attr, unused-ignore]
             else:
                 kv_seq_len += past_key_value.layers[self.layer_idx][1][0].shape[-2]  # type: ignore[attr-defined, index, unused-ignore]
 
@@ -244,8 +244,8 @@ class SHALlamaAttention(LlamaAttention):
                 past_key = past_key_value.key_cache[self.layer_idx]
                 past_value = past_key_value.value_cache[self.layer_idx]  # type: ignore[attr-defined, unused-ignore]
             elif hasattr(past_key_value.layers[self.layer_idx], "keys"):  # type: ignore[attr-defined, unused-ignore]
-                past_key = past_key_value.layers[self.layer_idx].keys  # type: ignore[attr-defined, assignment, unused-ignore]
-                past_value = past_key_value.layers[self.layer_idx].values  # type: ignore[attr-defined, assignment, unused-ignore]
+                past_key = past_key_value.layers[self.layer_idx].keys  # type: ignore[attr-defined, assignment, union-attr, unused-ignore]
+                past_value = past_key_value.layers[self.layer_idx].values  # type: ignore[attr-defined, assignment, union-attr, unused-ignore]
             else:
                 past_key = past_key_value.layers[self.layer_idx][0]  # type: ignore[attr-defined, index, unused-ignore]
                 past_value = past_key_value.layers[self.layer_idx][1]  # type: ignore[attr-defined, index, unused-ignore]

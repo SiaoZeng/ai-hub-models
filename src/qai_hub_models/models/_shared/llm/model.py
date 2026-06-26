@@ -101,7 +101,6 @@ from qai_hub_models.models._shared.llm.sha_dynamic_kvcache import (
     SHADynamicCacheNewValueOnly,
 )
 from qai_hub_models.models._shared.llm.split_onnx_utils.utils import split_onnx
-from qai_hub_models.utils.aimet.config_loader import get_aimet_config_path
 from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
 from qai_hub_models.utils.base_model import BaseModel
 from qai_hub_models.utils.base_multi_graph_collection_model import (
@@ -1107,9 +1106,10 @@ class LLMPartBase:
     hidden_size: int
     num_attention_heads: int
     num_key_value_heads: int
-    part_id: int
-    # Explicit head_dim; defaults to hidden_size // num_attention_heads if None.
+    # Optional explicit head dim. When None, derived as
+    # ``hidden_size // num_attention_heads``.
     head_dim: int | None = None
+    part_id: int
     # The full-model PreSplit (FP or quantized). Typed Any because the FP and
     # quantized PreSplits live in separate hierarchies (LLMBase vs
     # LLM_AIMETOnnx); the only attribute used here is ``llm_io_type``.
@@ -1177,15 +1177,32 @@ class LLMPartBase:
                     dtype="float32",
                 )
             else:
-                # Either the pre-embedded token input ("inputs_embeds" for
-                # VLMs) or an intermediate hidden state from the previous part
-                # (found by process of elimination). Both are (1, seq, hidden).
-                spec[name] = TensorSpec(
-                    shape=(1, sequence_length, self.hidden_size),
-                    dtype="float32",
-                )
+                # Family-specific inputs (e.g. VLM deepstack tensors) get first
+                # refusal via this hook; the base returns None for names it does
+                # not recognize.
+                extra = self._extra_graph_inputs(name, sequence_length, context_length)
+                if extra is not None:
+                    spec[name] = extra
+                else:
+                    # Either the pre-embedded token input ("inputs_embeds" for
+                    # VLMs) or an intermediate hidden state from the previous
+                    # part (by elimination). Both are (1, seq, hidden).
+                    spec[name] = TensorSpec(
+                        shape=(1, sequence_length, self.hidden_size),
+                        dtype="float32",
+                    )
 
         return spec
+
+    def _extra_graph_inputs(
+        self, name: str, sequence_length: int, context_length: int
+    ) -> TensorSpec | None:
+        """Spec for a family-specific graph input, or None if not recognized.
+
+        Base returns None for everything (text LLMs have no extra inputs).
+        Subclasses (e.g. VLMs with deepstack tensors) override this.
+        """
+        return None
 
     def get_graph_output_spec(self, graph_name: str) -> OutputSpec:
         """Output names for this Part, sanitized for the on-device runtime.
@@ -2517,7 +2534,6 @@ class LLM_AIMETOnnx(AIMETOnnxQuantizableMixin, LLMConfigEditor, BaseModel, ABC):
             )
 
         AimetLogger.set_level_for_all_areas(logging.WARNING)
-        default_config = get_aimet_config_path("default_config_llama")
         # Tie Quantizers for Concat Op
         quantsim.op_types_to_tie_qtzrs = ["Concat"]
         quantsim._tie_qtzrs = True
@@ -2531,7 +2547,7 @@ class LLM_AIMETOnnx(AIMETOnnxQuantizableMixin, LLMConfigEditor, BaseModel, ABC):
             param_type="int4",
             activation_type="int16",
             quant_scheme=QuantScheme.min_max,
-            config_file=default_config,
+            config_file="htp_v73",
             providers=providers,
         )
         print(f"QuantSim session providers: {quant_sim.session.get_providers()}")
@@ -2569,14 +2585,19 @@ class LLM_AIMETOnnx(AIMETOnnxQuantizableMixin, LLMConfigEditor, BaseModel, ABC):
 
     @classmethod
     def _configure_quant_sim(
-        cls, quant_sim: QuantizationSimModel, precision: Precision
+        cls,
+        quant_sim: QuantizationSimModel,
+        precision: Precision,
     ) -> QuantizationSimModel:
         if precision == Precision.w4a16:
             kv_io_map = _get_kv_io_map(quant_sim)
-            quant_sim = _apply_int8_kv_cache_tying_and_lm_head(quant_sim, kv_io_map)
+            quant_sim = _apply_int8_kv_cache_tying_and_lm_head(
+                quant_sim, kv_io_map, use_16x8_matmuls=True
+            )
         elif precision == Precision.w4:
             _set_lm_head_to_8b(quant_sim)
             cls._apply_precision_activations(quant_sim, precision)
+
         return quant_sim
 
     def save_calibrated_checkpoint(

@@ -373,7 +373,7 @@ class Qwen2VLVisionEncoder(BaseModel):
                 checkpoint,
                 torch_dtype=torch.float32,
                 attn_implementation="eager",
-            ).to(device)
+            ).to(device)  # type: ignore[arg-type, unused-ignore]
         )
         visual = copy.deepcopy(full_model.visual)
 

@@ -22,7 +22,7 @@ from qai_hub_models.utils.base_evaluator import _DataLoader
 from qai_hub_models.utils.path_helpers import QAIHM_REPO_ROOT
 
 if TYPE_CHECKING:
-    from qai_hub_models.models._shared.llm.generator import LLM_Generator
+    from transformers import GenerationMixin
 
 
 # Default name for a pre-built grader venv. When --grader-venv isn't provided,
@@ -161,7 +161,7 @@ class LLMResponseEvaluator(LLMEvaluator):
         # Generation happens inside ``add_from_dataset``; nothing to add here.
         pass
 
-    def _build_generation_config(self, generator: LLM_Generator) -> GenerationConfig:
+    def _build_generation_config(self, generator: GenerationMixin) -> GenerationConfig:
         end_token_ids: list[int] = []
         for tok in self.end_tokens:
             ids = self.tokenizer.encode(tok, add_special_tokens=False)
@@ -176,29 +176,8 @@ class LLMResponseEvaluator(LLMEvaluator):
             do_sample=False,
         )
         # HF generate() reads generation_config off the model instance.
-        generator.generation_config = cfg
+        generator.generation_config = cfg  # type: ignore[attr-defined, unused-ignore]
         return cfg
-
-    @staticmethod
-    def _merge_vlm_inputs_embeds(
-        generator: LLM_Generator,
-        image_token_id: int,
-        input_ids: torch.Tensor,
-        pixel_values: torch.Tensor,
-        image_grid_thw: torch.Tensor | None,
-    ) -> torch.Tensor:
-        """Run the vision encoder for one sample and merge into text embeddings.
-
-        Both the VEG-running (``run_vision_encoder``) and the embedding splice
-        (``merge_vision_embeddings``) are shared with the generator's own VLM
-        path; this just wires the dataset's pre-processed tensors through them.
-        """
-        vision_embeddings = generator.run_vision_encoder(
-            pixel_values, image_grid_thw=image_grid_thw
-        )
-        return generator.merge_vision_embeddings(
-            input_ids, vision_embeddings, image_token_id
-        )
 
     def _decode_response(self, output_ids: torch.Tensor, prompt_len: int | None) -> str:
         """Decode generated tokens, stripping the prompt prefix when present.
@@ -207,32 +186,19 @@ class LLMResponseEvaluator(LLMEvaluator):
         tokens, so ``prompt_len`` is ``None``.
         """
         if prompt_len is None:
-            return self.tokenizer.decode(output_ids, skip_special_tokens=True)
+            return self.tokenizer.decode(output_ids, skip_special_tokens=True)  # type: ignore[return-value, unused-ignore]
         new_tokens = output_ids[prompt_len:]
-        return self.tokenizer.decode(new_tokens, skip_special_tokens=True)
+        return self.tokenizer.decode(new_tokens, skip_special_tokens=True)  # type: ignore[return-value, unused-ignore]
 
     def for_each_batch(
         self,
-        generator: LLM_Generator,
+        generator: GenerationMixin,
         data: _DataLoader,
         num_samples: int | None = None,
         callback: Callable | None = None,
     ) -> None:
         set_seed(self.seed)
         self._build_generation_config(generator)
-
-        # Resolve image_token_id once for VLMs
-        image_token_id: int | None = None
-        if (
-            getattr(generator, "vision_encoder", None) is not None
-            and generator.hf_repo_name is not None
-        ):
-            from transformers import AutoConfig
-
-            cfg = AutoConfig.from_pretrained(
-                generator.hf_repo_name, trust_remote_code=True
-            )
-            image_token_id = cfg.image_token_id
 
         num_samples = num_samples or len(data)
         with tqdm(total=num_samples, desc="Generating responses") as pbar:
@@ -241,40 +207,25 @@ class LLMResponseEvaluator(LLMEvaluator):
                 pixel_values = rest[0] if len(rest) > 0 else None
                 image_grid_thw = rest[1] if len(rest) > 1 else None
 
-                # generate() builds KV-cache tensors on the model's compute
-                # device, so its inputs must live there too. self.device is CPU
-                # for the quantized path (the AIMET evaluator scores on CPU),
-                # which would otherwise mismatch the CUDA model in prepare_inputs.
-                model_device = generator.device
-                input_ids = input_ids.to(model_device)
-                attention_mask = attention_mask.to(model_device)
+                input_ids = input_ids.to(self.device)
+                attention_mask = attention_mask.to(self.device)
+                if pixel_values is not None:
+                    pixel_values = pixel_values.to(self.device)
+                if image_grid_thw is not None:
+                    image_grid_thw = image_grid_thw.to(self.device)
 
-                if (
-                    pixel_values is not None
-                    and generator.vision_encoder is not None
-                    and image_token_id is not None
-                ):
-                    veg_device = (
-                        next(generator.vision_encoder.parameters()).device
-                        if hasattr(generator.vision_encoder, "parameters")
-                        else model_device
-                    )
-                    inputs_embeds = self._merge_vlm_inputs_embeds(
-                        generator,
-                        image_token_id,
-                        input_ids.to(veg_device),
-                        pixel_values.to(veg_device),
-                        image_grid_thw=image_grid_thw,
-                    ).to(model_device)
+                if pixel_values is not None:
                     with torch.no_grad():
-                        output_ids = generator.generate(  # type: ignore[operator, unused-ignore]
-                            inputs_embeds=inputs_embeds,
+                        output_ids = generator.generate(  # type: ignore[operator, misc, attr-defined, unused-ignore]
+                            input_ids=input_ids,
                             attention_mask=attention_mask,
+                            pixel_values=pixel_values,
+                            image_grid_thw=image_grid_thw,
                         )
                     response = self._decode_response(output_ids[0], prompt_len=None)
                 else:
                     with torch.no_grad():
-                        output_ids = generator.generate(  # type: ignore[operator, unused-ignore]
+                        output_ids = generator.generate(  # type: ignore[operator, misc, attr-defined, unused-ignore]
                             inputs=input_ids,
                             attention_mask=attention_mask,
                         )

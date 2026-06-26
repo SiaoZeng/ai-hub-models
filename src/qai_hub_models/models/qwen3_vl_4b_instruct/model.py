@@ -2,17 +2,6 @@
 # Copyright (c) 2025 Qualcomm Technologies, Inc. and/or its subsidiaries.
 # SPDX-License-Identifier: BSD-3-Clause
 # ---------------------------------------------------------------------
-"""
-Qwen2.5-VL 7B Vision-Language Model - PreSplit-Part architecture.
-
-Architecture:
-- Qwen2_5_VL_7B_PreSplit (Singleton, FP): Manages full model + ONNX splitting
-- Qwen2_5_VL_7B_QuantizablePreSplit (Singleton): Manages QuantSim + calibration
-- Qwen2_5_VL_7B_PartBase -> Part1..Part4: Unified split inference
-  (handles both FP and Quantizable modes based on precision)
-- Qwen2_5_VL_7B_VisionEncoder: Vision encoder for on-device export (FP + quantized)
-- Collection class for deploying as 5 text splits + 1 vision encoder
-"""
 
 from __future__ import annotations
 
@@ -35,32 +24,37 @@ with contextlib.suppress(ImportError, ModuleNotFoundError):
 # isort: on
 import os
 import shutil
-import tempfile
 from collections.abc import Collection
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import onnx
 import onnxruntime
 import torch
-from qai_hub.client import Device
+from transformers import AutoProcessor
 from typing_extensions import Self
 
 from qai_hub_models import (
     Precision,
     SampleInputsType,
-    TargetRuntime,
 )
-from qai_hub_models.configs.model_metadata import ModelMetadata
-from qai_hub_models.configs.tensor_spec import TensorSpec
-from qai_hub_models.datasets.imagenet import IMAGENETTE_ASSET
+from qai_hub_models.configs.model_metadata import (
+    GenieChatTemplate,
+    GenieMetadata,
+    GeniePipeline,
+    GeniePipelineConnection,
+    GenieSampleInput,
+    GenieVisionPreprocessing,
+    ModelMetadata,
+)
 from qai_hub_models.models._shared.llm.common import LLMIOType
-from qai_hub_models.models._shared.llm.generator_factory import (
-    HubCompatibleVLMGenerator,
-)
 from qai_hub_models.models._shared.llm.llm_helpers import (
+    create_genie_config,
     export_embedding_weights_from_tensor,
+    generate_genie_app_script,
+    get_rope_scaling,
+    save_htp_config_for_genie_bundle,
 )
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_CONTEXT_LENGTH,
@@ -70,96 +64,117 @@ from qai_hub_models.models._shared.llm.model import (
     LLMDynamic_AIMETOnnx,
     LLMPartBase,
     SingleSlotCacheMixin,
+    SplitForwardMixin,
     get_onnx_model,
     get_tokenizer,
 )
 from qai_hub_models.models._shared.llm.model import (
     DEFAULT_EXPORT_SEQUENCE_LENGTHS as GLOBAL_DEFAULT_EXPORT_SEQUENCE_LENGTHS,
 )
-from qai_hub_models.models._shared.llm.onnx_optimize import optimize_onnx_model
-from qai_hub_models.models._shared.qwen2_vl.model import (
-    Qwen2VLDynamic_AIMETOnnx,
-    Qwen2VLTextBase,
+from qai_hub_models.models._shared.qwen3_vl.model import (
+    HubCompatibleQwen3VLGenerator,
+    Qwen3VLDynamic_AIMETOnnx,
+    Qwen3VLTextBase,
 )
-from qai_hub_models.models._shared.qwen2_vl.vision_encoder import (
-    Qwen2VLVisionEncoder,
-    Qwen2VLVisionWrapper,
+from qai_hub_models.models._shared.qwen3_vl.vision_encoder import (
+    Qwen3VLVisionEncoder,
 )
-from qai_hub_models.utils.asset_loaders import CachedWebModelAsset
+from qai_hub_models.models._shared.vlm.model import DEFAULT_IMAGE_SIZE
+from qai_hub_models.utils.asset_loaders import CachedWebModelAsset, load_image
 from qai_hub_models.utils.base_model import (
     BaseModel,
 )
 from qai_hub_models.utils.checkpoint import CheckpointType
-from qai_hub_models.utils.export_result import MultiGraphComponentGroup, MultiGraphGroup
-from qai_hub_models.utils.input_spec import InputSpec, OutputSpec
+from qai_hub_models.utils.input_spec import InputSpec, OutputSpec, TensorSpec
 from qai_hub_models.utils.onnx.helpers import ONNXBundle, mock_torch_onnx_inference
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_EXPORT_CONTEXT_LENGTHS = [512, 1024, 2048]
+DEFAULT_EXPORT_CONTEXT_LENGTHS = [512, 1024, 2048, 4096]
 DEFAULT_EXPORT_SEQUENCE_LENGTHS = GLOBAL_DEFAULT_EXPORT_SEQUENCE_LENGTHS
 
 # Model identification
 MODEL_ID = __name__.split(".")[-2]
-MODEL_ASSET_VERSION = 1
+MODEL_ASSET_VERSION = 2
 SAMPLE_IMAGE = CachedWebModelAsset.from_asset_store(
     MODEL_ID, MODEL_ASSET_VERSION, "dog.jpg"
 )
 
-# Model architecture constants (from Qwen2.5-VL-7B-Instruct)
-NUM_LAYERS = 28
-NUM_SPLITS = 5
-NUM_LAYERS_PER_SPLIT = 6
-HIDDEN_SIZE = 3584
-NUM_KEY_VALUE_HEADS = 4
-NUM_ATTN_HEADS = 28
+# Model architecture constants (from Qwen3-VL-4B-Instruct)
+NUM_LAYERS = 36
+NUM_SPLITS = 4
+NUM_LAYERS_PER_SPLIT = 9
+HIDDEN_SIZE = 2560
+NUM_KEY_VALUE_HEADS = 8
+NUM_ATTN_HEADS = 32
+HEAD_DIM = 128
+NUM_DEEPSTACK_LAYERS = 3
 
 # Vision encoder configuration
 VISION_HIDDEN_SIZE = 1280
-VISION_OUT_HIDDEN_SIZE = 3584
+VISION_OUT_HIDDEN_SIZE = 2560
 VISION_DEPTH = 32
 VISION_NUM_HEADS = 16
-VISION_PATCH_SIZE = 14
+VISION_PATCH_SIZE = 16
+SPATIAL_MERGE_SIZE = 2
 
 # Hugging Face repo
-HF_REPO_NAME = "Qwen/Qwen2.5-VL-7B-Instruct"
+HF_REPO_NAME = "Qwen/Qwen3-VL-4B-Instruct"
 HF_REPO_URL = f"https://huggingface.co/{HF_REPO_NAME}"
 
 # Memory requirements
-MIN_MEMORY_RECOMMENDED = 80
+MIN_MEMORY_RECOMMENDED = 40
 
 # Precision settings
 DEFAULT_PRECISION = Precision.w4a16
 SUPPORTED_PRECISIONS = [Precision.w4a16]
 DEFAULT_CHECKPOINT: dict = {
-    Precision.w4a16: "qwen2_5_vl_7b_instruct_w4a16_seqmse",
+    Precision.w4a16: "w4a16",
 }
 
 # Default image dimensions (must be divisible by patch_size * spatial_merge_size)
-DEFAULT_IMAGE_HEIGHT = 336
-DEFAULT_IMAGE_WIDTH = 504
+DEFAULT_IMAGE_HEIGHT = 512
+DEFAULT_IMAGE_WIDTH = 512
 
-SPLIT_MODEL_NAME = "Qwen2_5_VL_7B"
+
+def num_visual_tokens_for_image_size(image_size: tuple[int, int]) -> int:
+    """Post-merge visual token count for an image: (W/patch)*(H/patch)/merge^2.
+
+    ``image_size`` is ``(width, height)`` to match the dataset/eval convention
+    (PIL ``Image.resize`` takes ``(width, height)``).
+    """
+    width, height = image_size
+    return (
+        (height // VISION_PATCH_SIZE)
+        * (width // VISION_PATCH_SIZE)
+        // (SPATIAL_MERGE_SIZE * SPATIAL_MERGE_SIZE)
+    )
+
+
+DEFAULT_NUM_VISUAL_TOKENS = num_visual_tokens_for_image_size(
+    (DEFAULT_IMAGE_WIDTH, DEFAULT_IMAGE_HEIGHT)
+)
+
+SPLIT_MODEL_NAME = "Qwen3_VL_4B"
 
 
 # ---------------------------------------------------------------------------
-# Qwen2_5_VL_7B_PreSplit - FP PreSplit with class-level cache
+# Qwen3_VL_4B_PreSplit - FP PreSplit with class-level cache
 # ---------------------------------------------------------------------------
 
 
-class Qwen2_5_VL_7B_PreSplit(
-    SingleSlotCacheMixin, DynamicPreSplitOnnxMixin, Qwen2VLTextBase
+class Qwen3_VL_4B_PreSplit(
+    SingleSlotCacheMixin, DynamicPreSplitOnnxMixin, Qwen3VLTextBase
 ):
     """
-    FP PreSplit for Qwen2.5-VL-7B.
+    FP PreSplit for Qwen3-VL-4B.
 
     Manages the full torch model and ONNX splitting. Uses class-level cache
     keyed by checkpoint. VLM uses split_embedding=False since inputs_embeds
     bypasses the embedding layer.
     """
 
-    GeneratorClass = HubCompatibleVLMGenerator
-    VisionModelWrapper = Qwen2VLVisionWrapper
+    GeneratorClass = HubCompatibleQwen3VLGenerator
 
     min_memory_recommended = MIN_MEMORY_RECOMMENDED
     split_model_name = SPLIT_MODEL_NAME
@@ -177,8 +192,6 @@ class Qwen2_5_VL_7B_PreSplit(
         cls,
         precision: Precision = DEFAULT_PRECISION,
     ) -> tuple[float | None, float]:
-        # Some layers have per-layer scaling
-        # defined in _shared/qwen2_vl/model.py.
         return (-250.0, 1.0)
 
     _hf_repo_name: str = HF_REPO_NAME
@@ -212,7 +225,7 @@ class Qwen2_5_VL_7B_PreSplit(
         context_length: int = DEFAULT_CONTEXT_LENGTH,
         host_device: torch.device | None = None,
         _skip_optimizations: list[str] | None = None,
-    ) -> Qwen2_5_VL_7B_PreSplit:
+    ) -> Qwen3_VL_4B_PreSplit:
         cache_key = str(checkpoint)
         cached = cls.cache_lookup(cache_key)
         if cached is not None:
@@ -237,7 +250,7 @@ class Qwen2_5_VL_7B_PreSplit(
         return instance
 
     def get_output_spec(self) -> OutputSpec:
-        return Qwen2VLTextBase._get_output_spec(NUM_LAYERS)
+        return Qwen3VLTextBase._get_output_spec(NUM_LAYERS)
 
     def get_input_spec(
         self,
@@ -245,9 +258,10 @@ class Qwen2_5_VL_7B_PreSplit(
         sequence_length: int = DEFAULT_SEQUENCE_LENGTH,
         context_length: int = DEFAULT_CONTEXT_LENGTH,
         llm_io_type: LLMIOType = LLMIOType.genie_input_embeds,
+        image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
     ) -> InputSpec:
         return self.get_static_input_spec(
-            llm_config, sequence_length, context_length, llm_io_type
+            llm_config, sequence_length, context_length, llm_io_type, image_size
         )
 
     @staticmethod
@@ -256,24 +270,8 @@ class Qwen2_5_VL_7B_PreSplit(
         sequence_length: int = DEFAULT_SEQUENCE_LENGTH,
         context_length: int = DEFAULT_CONTEXT_LENGTH,
         llm_io_type: LLMIOType = LLMIOType.genie_input_embeds,
+        image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
     ) -> InputSpec:
-        """
-        Parameters
-        ----------
-        llm_config
-            Model configuration dictionary.
-        sequence_length
-            Sequence length for the model.
-        context_length
-            Context length for the model.
-        llm_io_type
-            Input/output type for the LLM.
-
-        Returns
-        -------
-        InputSpec
-            Input specification for the model.
-        """
         if llm_config is None:
             llm_config = {
                 "num_hidden_layers": NUM_LAYERS,
@@ -281,7 +279,7 @@ class Qwen2_5_VL_7B_PreSplit(
                 "num_key_value_heads": NUM_KEY_VALUE_HEADS,
                 "num_attention_heads": NUM_ATTN_HEADS,
             }
-        return Qwen2VLTextBase._get_input_spec(
+        return Qwen3VLTextBase._get_input_spec(
             num_hidden_layers=llm_config.get("num_hidden_layers", NUM_LAYERS),
             sequence_length=sequence_length,
             context_length=context_length,
@@ -290,47 +288,60 @@ class Qwen2_5_VL_7B_PreSplit(
                 "num_key_value_heads", NUM_KEY_VALUE_HEADS
             ),
             num_attention_heads=llm_config.get("num_attention_heads", NUM_ATTN_HEADS),
+            head_dim=llm_config.get("head_dim", HEAD_DIM),
             llm_io_type=llm_io_type,
+            num_deepstack_layers=NUM_DEEPSTACK_LAYERS,
+            num_visual_tokens=num_visual_tokens_for_image_size(image_size),
         )
 
     def get_full_onnx_bundle(self, temp_path: Path) -> ONNXBundle:
         """Export full ONNX from PyTorch with dynamic shapes."""
+        from torch.export import Dim
+
+        seq_len = Dim.DYNAMIC  # type: ignore[attr-defined, unused-ignore]
+        num_visual_tokens = Dim.DYNAMIC  # type: ignore[attr-defined, unused-ignore]
+
+        extra_dynamic_shapes: dict[str, dict[int, Any]] = {
+            "visual_pos_masks": {1: seq_len},
+        }
+        for i in range(NUM_DEEPSTACK_LAYERS):
+            extra_dynamic_shapes[f"deepstack_visual_embeds_{i}"] = {
+                0: num_visual_tokens
+            }
+
         onnx_dir = temp_path / "full_dynamic"
         onnx_dir.mkdir(parents=True, exist_ok=True)
         onnx_path = onnx_dir / "model.onnx"
         get_onnx_model(
             fp_model=self,
-            context_length=self.context_length,
-            sequence_length=self.sequence_length,
+            context_length=DEFAULT_CONTEXT_LENGTH,
+            sequence_length=DEFAULT_SEQUENCE_LENGTH,
             path=str(onnx_path),
             return_model=False,
             llm_io_type=self.llm_io_type,
             use_dynamic_shapes=True,
+            extra_dynamic_shapes=extra_dynamic_shapes,
         )
         return ONNXBundle.from_bundle_path(onnx_dir, "model")
 
 
 # ---------------------------------------------------------------------------
-# Qwen2_5_VL_7B_QuantizablePreSplit - Quantizable PreSplit with class-level cache
+# Qwen3_VL_4B_QuantizablePreSplit - Quantizable PreSplit with class-level cache
 # ---------------------------------------------------------------------------
 
 
-class Qwen2_5_VL_7B_QuantizablePreSplit(  # type: ignore[misc]
-    DynamicQuantizablePreSplitMixin["Qwen2_5_VL_7B_PreSplit"],
-    Qwen2VLDynamic_AIMETOnnx,
+class Qwen3_VL_4B_QuantizablePreSplit(  # type: ignore[misc]
+    DynamicQuantizablePreSplitMixin["Qwen3_VL_4B_PreSplit"],
+    Qwen3VLDynamic_AIMETOnnx,
 ):
     """
-    Quantizable PreSplit for Qwen2.5-VL-7B.
+    Quantizable PreSplit for Qwen3-VL-4B.
 
     The S3 asset zip contains the FULL output of quantize.py (dynamic
-    ONNX + weights + encodings + tokenizer + config + embedding_weights.raw),
-    so DEFAULT resolution just downloads and extracts. No FP torch model
-    is needed to load the quantized checkpoint.
+    ONNX + weights + encodings + tokenizer + config + embedding_weights.raw).
     """
 
-    FPModel = Qwen2_5_VL_7B_PreSplit  # type: ignore[assignment]
-    GeneratorClass = HubCompatibleVLMGenerator
-    VisionModelWrapper = Qwen2VLVisionWrapper
+    FPModel = Qwen3_VL_4B_PreSplit  # type: ignore[assignment]
     _hf_repo_name: str = HF_REPO_NAME
 
     # DynamicQuantizablePreSplitMixin config
@@ -344,19 +355,22 @@ class Qwen2_5_VL_7B_QuantizablePreSplit(  # type: ignore[misc]
     split_model_name = SPLIT_MODEL_NAME
     num_splits = NUM_SPLITS
     num_layers_per_split = NUM_LAYERS_PER_SPLIT
-    split_embedding = False  # VLM uses inputs_embeds directly
+    split_embedding = False
+
+    # SHA produces per-head q_norm/k_norm nodes in the ONNX graph.
+    # Between block starts (input_layernorm): NUM_ATTN_HEADS q_norms
+    # + NUM_KEY_VALUE_HEADS k_norms + 1 post_attention_layernorm = 41 intermediate ops
+    ada_scale_num_rmsnorm_per_blk: int | None = NUM_ATTN_HEADS + NUM_KEY_VALUE_HEADS + 1
 
     @classmethod
     def attention_mask_min_clip_and_multiplier(
         cls,
         precision: Precision,
     ) -> tuple[float | None, float]:
-        # Some layers have per-layer scaling
-        # defined in _shared/qwen2_vl/model.py.
-        return (-250.0, 1.0)
+        return (-100, 1.0)
 
     def get_output_spec(self) -> OutputSpec:
-        return Qwen2VLTextBase._get_output_spec(NUM_LAYERS)
+        return Qwen3VLTextBase._get_output_spec(NUM_LAYERS)
 
     def get_input_spec(
         self,
@@ -364,9 +378,10 @@ class Qwen2_5_VL_7B_QuantizablePreSplit(  # type: ignore[misc]
         sequence_length: int = DEFAULT_SEQUENCE_LENGTH,
         context_length: int = DEFAULT_CONTEXT_LENGTH,
         llm_io_type: LLMIOType = LLMIOType.genie_input_embeds,
+        image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
     ) -> InputSpec:
         return self.get_static_input_spec(
-            llm_config, sequence_length, context_length, llm_io_type
+            llm_config, sequence_length, context_length, llm_io_type, image_size
         )
 
     @classmethod
@@ -376,43 +391,27 @@ class Qwen2_5_VL_7B_QuantizablePreSplit(  # type: ignore[misc]
         sequence_length: int = DEFAULT_SEQUENCE_LENGTH,
         context_length: int = DEFAULT_CONTEXT_LENGTH,
         llm_io_type: LLMIOType = LLMIOType.genie_input_embeds,
+        image_size: tuple[int, int] = DEFAULT_IMAGE_SIZE,
     ) -> InputSpec:
-        """
-        Parameters
-        ----------
-        llm_config
-            Model configuration dictionary.
-        sequence_length
-            Sequence length for the model.
-        context_length
-            Context length for the model.
-        llm_io_type
-            Input/output type for the LLM.
-
-        Returns
-        -------
-        InputSpec
-            Input specification for the model.
-        """
         return cls.FPModel.get_static_input_spec(
             llm_config=llm_config,
             sequence_length=sequence_length,
             context_length=context_length,
             llm_io_type=llm_io_type,
+            image_size=image_size,
         )
 
     def save_calibrated_checkpoint(
         self,
         output_checkpoint: str | os.PathLike | Path,
-        fp_model: Qwen2_5_VL_7B_PreSplit | None = None,
+        fp_model: Qwen3_VL_4B_PreSplit | None = None,
     ) -> None:
         """Save calibrated checkpoint with ONNX, encodings, and embedding weights."""
         if fp_model is None:
-            fp_model = Qwen2_5_VL_7B_PreSplit.from_pretrained()
+            fp_model = Qwen3_VL_4B_PreSplit.from_pretrained()
         super().save_calibrated_checkpoint(output_checkpoint, fp_model)
 
         # VLM-specific: embedding table is needed for on-device LUT encoder
-        # and for token-to-embedding conversion during evaluation.
         export_embedding_weights_from_tensor(
             fp_model.get_embedding_weights().float(), Path(output_checkpoint)
         )
@@ -423,25 +422,22 @@ class Qwen2_5_VL_7B_QuantizablePreSplit(  # type: ignore[misc]
 # ---------------------------------------------------------------------------
 
 
-class Qwen2_5_VL_7B_VisionEncoder(Qwen2VLVisionEncoder):
+class Qwen3_VL_4B_VisionEncoder(Qwen3VLVisionEncoder):
     """
-    Vision encoder for Qwen2.5-VL-7B (adapted VEG for on-device deployment).
+    Vision encoder for Qwen3-VL-4B (adapted VEG for on-device deployment).
 
-    Supports both FP inference (via PyTorch VEG) and quantized inference
-    (via AIMET-ONNX QuantSim). Used as a Collection component.
-
-    During export, loads the pre-quantized ONNX from the checkpoint
-    (vision_encoder.{onnx,data,encodings}) instead of re-exporting.
+    Returns multiple outputs: image_embeddings + deepstack features.
+    Supports both FP inference and quantized inference (via AIMET-ONNX QuantSim).
     """
+
+    DEFAULT_IMAGE_SIZE = (DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH)
+    _hf_repo_name: str = HF_REPO_NAME
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._checkpoint: str | None = None
         self._precision: Precision = Precision.float
         self._quantized_session: Any | None = None
-
-    def component_precision(self) -> Precision:
-        return self._precision
 
     @classmethod
     def from_pretrained(
@@ -452,49 +448,20 @@ class Qwen2_5_VL_7B_VisionEncoder(Qwen2VLVisionEncoder):
         image_width: int = DEFAULT_IMAGE_WIDTH,
         precision: Precision = Precision.float,
         **kwargs: Any,
-    ) -> Qwen2_5_VL_7B_VisionEncoder:
-        """
-        Load the vision encoder.
-
-        Parameters
-        ----------
-        checkpoint
-            Path to checkpoint or "DEFAULT" to download.
-        device
-            Device for computation.
-        image_height
-            Height of input image in pixels. Must be divisible by
-            patch_size * spatial_merge_size (14 * 2 = 28).
-        image_width
-            Width of input image in pixels. Must be divisible by
-            patch_size * spatial_merge_size (14 * 2 = 28).
-        precision
-            Model precision (float for FP, w4a16 for quantized).
-        **kwargs
-            Additional keyword arguments.
-
-        Returns
-        -------
-        Qwen2_5_VL_7B_VisionEncoder
-            Loaded vision encoder instance.
-        """
+    ) -> Qwen3_VL_4B_VisionEncoder:
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # For quantized inference, resolve DEFAULT to the downloaded asset
-        # checkpoint (which contains vision_encoder.onnx/encodings alongside
-        # the text model artifacts). FP inference does not need the asset.
         if precision != Precision.float and (
             isinstance(checkpoint, str) and checkpoint.startswith("DEFAULT")
         ):
-            checkpoint = Qwen2_5_VL_7B_QuantizablePreSplit.fetch_default_checkpoint(
+            checkpoint = Qwen3_VL_4B_QuantizablePreSplit.fetch_default_checkpoint(
                 precision
             )
 
-        # Load FP VEG (provides model weights for FP, buffers for quantized)
         load_device = device if precision == Precision.float else torch.device("cpu")
-        instance: Qwen2_5_VL_7B_VisionEncoder = super().from_pretrained(  # type: ignore[assignment]
-            checkpoint=HF_REPO_NAME,
+        instance: Qwen3_VL_4B_VisionEncoder = super().from_pretrained(  # type: ignore[assignment]
+            checkpoint=cls._hf_repo_name,
             device=load_device,
             image_height=image_height,
             image_width=image_width,
@@ -512,12 +479,7 @@ class Qwen2_5_VL_7B_VisionEncoder(Qwen2VLVisionEncoder):
         ckpt_path: Path,
         device: torch.device,
     ) -> None:
-        """Create an AIMET-ONNX QuantSim session for quantized inference.
-
-        Loads the pre-quantized ONNX from *ckpt_path* and creates a
-        QuantSim session. The FP VEG buffers (RoPE, attention masks)
-        are already on ``self`` from ``from_pretrained``.
-        """
+        """Create an AIMET-ONNX QuantSim session for quantized inference."""
         import logging
 
         from aimet_onnx.common.defs import QuantScheme
@@ -550,6 +512,9 @@ class Qwen2_5_VL_7B_VisionEncoder(Qwen2VLVisionEncoder):
 
         self._quantized_session = quant_sim
 
+    def component_precision(self) -> Precision:
+        return self._precision
+
     @property
     def _is_quantized(self) -> bool:
         return self._precision != Precision.float
@@ -561,7 +526,7 @@ class Qwen2_5_VL_7B_VisionEncoder(Qwen2VLVisionEncoder):
         position_ids_sin: torch.Tensor | None = None,
         window_attention_mask: torch.Tensor | None = None,
         full_attention_mask: torch.Tensor | None = None,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, ...]:
         if self._is_quantized:
             return self._forward_quantized(pixel_values)
         return super().forward(
@@ -572,19 +537,22 @@ class Qwen2_5_VL_7B_VisionEncoder(Qwen2VLVisionEncoder):
             full_attention_mask=full_attention_mask,
         )
 
-    def _forward_quantized(self, pixel_values: torch.Tensor) -> torch.Tensor:
+    def _forward_quantized(
+        self, pixel_values: torch.Tensor
+    ) -> tuple[torch.Tensor, ...]:
         """Run inference through the AIMET-ONNX QuantSim session."""
         assert self._quantized_session is not None
-        # Pass all 5 VEG inputs positionally — mock_torch_onnx_inference
-        # maps them by position to ONNX input names.
-        return mock_torch_onnx_inference(  # type: ignore[return-value]
+        results = mock_torch_onnx_inference(
             self._quantized_session.session,
             pixel_values,
-            self._pos_emb_cos,  # type: ignore[arg-type]
-            self._pos_emb_sin,  # type: ignore[arg-type]
-            self._window_attention_mask,  # type: ignore[arg-type]
-            self._full_attention_mask,  # type: ignore[arg-type]
+            cast(torch.Tensor, self._pos_emb_cos),
+            cast(torch.Tensor, self._pos_emb_sin),
+            cast(torch.Tensor, self._window_attention_mask),
+            cast(torch.Tensor, self._full_attention_mask),
         )
+        if isinstance(results, torch.Tensor):
+            return (results,)
+        return tuple(results)
 
     def get_input_spec(
         self,
@@ -598,229 +566,11 @@ class Qwen2_5_VL_7B_VisionEncoder(Qwen2VLVisionEncoder):
         image_height: int = DEFAULT_IMAGE_HEIGHT,
         image_width: int = DEFAULT_IMAGE_WIDTH,
     ) -> InputSpec:
-        """
-        Get input spec for the vision encoder.
-
-        Parameters
-        ----------
-        image_height
-            Height of input image in pixels. Must be divisible by
-            patch_size * spatial_merge_size (14 * 2 = 28).
-        image_width
-            Width of input image in pixels. Must be divisible by
-            patch_size * spatial_merge_size (14 * 2 = 28).
-
-        Returns
-        -------
-        InputSpec
-            Input specification dictionary.
-        """
-        return Qwen2VLVisionEncoder.get_static_input_spec(
+        return Qwen3VLVisionEncoder.get_static_input_spec(
             image_height=image_height,
             image_width=image_width,
             patch_size=VISION_PATCH_SIZE,
         )
-
-    def get_output_spec(self) -> OutputSpec:
-        return {
-            "image_features": TensorSpec(),
-        }
-
-    # ------------------------------------------------------------------
-    # VEG Quantization Lifecycle (classmethods)
-    # ------------------------------------------------------------------
-
-    @classmethod
-    def get_calibration_data(
-        cls,
-        num_samples: int,
-        image_height: int = DEFAULT_IMAGE_HEIGHT,
-        image_width: int = DEFAULT_IMAGE_WIDTH,
-    ) -> list[np.ndarray]:
-        """Load real images from imagenette for VEG calibration.
-
-        Returns a list of pixel_values numpy arrays, each shaped
-        (seq_len, patch_dim) as expected by the VEG ONNX model.
-        """
-        from PIL import Image
-        from transformers import AutoProcessor
-
-        IMAGENETTE_ASSET.fetch(extract=True)
-        img_root = IMAGENETTE_ASSET.extracted_path
-
-        train_dir = img_root / "train"
-        image_paths: list[Path] = []
-        for class_dir in sorted(train_dir.iterdir()):
-            if class_dir.is_dir():
-                image_paths.extend(
-                    img_path
-                    for img_path in sorted(class_dir.iterdir())
-                    if img_path.suffix.lower() in (".jpeg", ".jpg", ".png")
-                )
-        if len(image_paths) < num_samples:
-            raise RuntimeError(
-                f"Imagenette has {len(image_paths)} images but "
-                f"{num_samples} calibration samples requested."
-            )
-
-        step = max(1, len(image_paths) // num_samples)
-        selected = image_paths[: step * num_samples : step]
-
-        from qai_hub_models.models._shared.qwen2_vl.model import Qwen2VLTextBase
-
-        proc = AutoProcessor.from_pretrained(HF_REPO_NAME)
-        tokenizer = get_tokenizer(HF_REPO_NAME)
-        dummy_text = Qwen2VLTextBase.get_input_prompt_with_tags(
-            user_input_prompt="", include_image=True, tokenizer=tokenizer
-        )
-
-        pixel_values_list: list[np.ndarray] = []
-        for i, img_path in enumerate(selected):
-            img = Image.open(img_path).convert("RGB")
-            img_resized = img.resize((image_width, image_height))
-            processed = proc(
-                text=[dummy_text], images=[img_resized], return_tensors="pt"
-            )
-            pv = processed["pixel_values"].detach().numpy().astype(np.float32)
-            pixel_values_list.append(pv)
-            if (i + 1) % 10 == 0 or i == 0:
-                print(f"    Loaded calibration image {i + 1}/{num_samples}")
-
-        return pixel_values_list
-
-    @classmethod
-    def create_quantsim(
-        cls,
-        veg_model: Qwen2_5_VL_7B_VisionEncoder,
-        host_device: torch.device,
-    ) -> tuple[Any, dict[str, np.ndarray]]:
-        """Export VEG to ONNX and create an AIMET-ONNX QuantSim.
-
-        Returns ``(quant_sim, fixed_inputs_np)`` where *fixed_inputs_np*
-        contains the resolution-dependent inputs (RoPE, masks) needed
-        during calibration.
-        """
-        import aimet_onnx.common.quantsim as qs
-        import aimet_onnx.quantsim as quantsim_mod
-        import onnx as onnx_lib
-        import torch as _torch
-        from aimet_onnx.common.defs import QuantScheme
-        from aimet_onnx.quantsim import QuantizationSimModel
-
-        from qai_hub_models.utils.aimet.config_loader import get_aimet_config_path
-        from qai_hub_models.utils.onnx.helpers import safe_torch_onnx_export
-
-        sample_inputs = veg_model.get_sample_inputs()
-        input_names = list(sample_inputs.keys())
-        dummy_args = tuple(v.to(host_device) for v in sample_inputs.values())
-
-        tmp_dir = tempfile.TemporaryDirectory()
-        onnx_path = str(Path(tmp_dir.name) / "vision_encoder.onnx")
-
-        seq_len_dim = _torch.export.Dim("seq_len", min=1)
-        dynamic_shapes = (
-            {0: seq_len_dim},  # pixel_values
-            {0: seq_len_dim},  # position_ids_cos
-            {0: seq_len_dim},  # position_ids_sin
-            {1: seq_len_dim, 2: seq_len_dim},  # window_attention_mask
-            {1: seq_len_dim, 2: seq_len_dim},  # full_attention_mask
-        )
-
-        safe_torch_onnx_export(
-            veg_model,
-            dummy_args,
-            onnx_path,
-            input_names=input_names,
-            output_names=["image_features"],
-            opset_version=18,
-            dynamo=True,
-            optimize=False,
-            dynamic_shapes=dynamic_shapes,
-        )
-
-        onnx_model = onnx_lib.load(onnx_path)
-        tmp_dir.cleanup()
-        onnx_model = optimize_onnx_model(onnx_model)
-
-        default_config = get_aimet_config_path("default_config_llama")
-        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
-        if host_device.type != "cuda":
-            providers = ["CPUExecutionProvider"]
-
-        quantsim_mod.op_types_to_tie_qtzrs = ["Concat"]
-        quantsim_mod._tie_qtzrs = True
-        quantsim_mod.op_outputs_to_ignore.append("Constant")
-        qs.encoding_version = "1.0.0"
-
-        quant_sim = QuantizationSimModel(
-            model=onnx_model,
-            param_type="int8",
-            activation_type="int16",
-            quant_scheme=QuantScheme.min_max,
-            config_file=default_config,
-            providers=providers,
-        )
-
-        Qwen2VLVisionEncoder._configure_quant_sim(quant_sim)
-
-        fixed_inputs_np = {
-            name: tensor.cpu().detach().numpy().astype(np.float32)
-            for name, tensor in sample_inputs.items()
-            if name != "pixel_values"
-        }
-
-        return quant_sim, fixed_inputs_np
-
-    @classmethod
-    def calibrate(
-        cls,
-        quant_sim: Any,
-        calibration_data: list[np.ndarray],
-        fixed_inputs: dict[str, np.ndarray],
-    ) -> None:
-        """Calibrate the QuantSim with real images."""
-        num_samples = len(calibration_data)
-
-        def _forward_pass(session: Any, _unused: Any) -> None:
-            for i, pv in enumerate(calibration_data):
-                feed = {"pixel_values": pv, **fixed_inputs}
-                session.run(None, feed)
-                if (i + 1) % 10 == 0:
-                    print(f"    Calibration forward pass {i + 1}/{num_samples}")
-
-        quant_sim.compute_encodings(_forward_pass, None)
-
-    @classmethod
-    def save_quantized_checkpoint(
-        cls,
-        quant_sim: Any,
-        output_dir: str | Path,
-    ) -> None:
-        """Save calibrated VEG artifacts (ONNX + encodings) to *output_dir*."""
-        from aimet_onnx.utils import save_model_with_external_weights
-
-        out_dir = Path(output_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
-
-        tmp_dir = tempfile.TemporaryDirectory()
-        tmp = Path(tmp_dir.name)
-
-        quant_sim.export(str(tmp), "vision_encoder", export_model=False)
-
-        shutil.copy2(
-            str(tmp / "vision_encoder.encodings"),
-            str(out_dir / "vision_encoder.encodings"),
-        )
-
-        with quant_sim._remove_quantization_nodes():
-            save_model_with_external_weights(
-                quant_sim.model.model,
-                str(out_dir / "vision_encoder.onnx"),
-                location="vision_encoder.data",
-                all_tensors_to_one_file=True,
-            )
-
-        tmp_dir.cleanup()
 
     def _get_onnx_bundle(self) -> ONNXBundle:
         if self._checkpoint is None:
@@ -842,7 +592,7 @@ class Qwen2_5_VL_7B_VisionEncoder(Qwen2VLVisionEncoder):
         output_dir: str | os.PathLike,
         input_spec: InputSpec | None = None,
     ) -> Path:
-        model_name = "Qwen2_5_VL_7B_VisionEncoder"
+        model_name = "Qwen3_VL_4B_VisionEncoder"
 
         ext = ".aimet" if self._is_quantized else ".onnx"
         out_dir = Path(output_dir) / f"{model_name}{ext}"
@@ -874,42 +624,41 @@ class Qwen2_5_VL_7B_VisionEncoder(Qwen2VLVisionEncoder):
 # ---------------------------------------------------------------------------
 
 
-class Qwen2_5_VL_7B_PartBase(LLMPartBase, torch.nn.Module, MultiGraphWorkbenchModel):
+class Qwen3_VL_4B_PartBase(LLMPartBase, torch.nn.Module, MultiGraphWorkbenchModel):
     """
     Unified Part base: handles both FP and Quantizable modes based on precision.
 
-    Each Part represents one split of the ONNX model for deployment.
-    VLM Parts use inputs_embeds instead of input_ids (the FP model's
-    ``llm_io_type`` is ``genie_input_embeds``), so there is no embedding split.
-    ``get_graph_input_spec`` / ``get_graph_output_spec`` come from ``LLMPartBase``.
+    Spec derivation is inherited from ``LLMPartBase`` (head_dim attribute +
+    ``_extra_graph_inputs`` hook); this class carries the family deploy/session
+    plumbing (mirroring ``LlamaPartBase`` for text LLMs) plus the qwen3
+    architecture constants and the deepstack graph-input override.
     """
 
+    # Architecture dims (LLMPartBase attribute names; head_dim is explicit
+    # because 2560 / 32 != 128).
+    hidden_size = HIDDEN_SIZE
+    num_attention_heads = NUM_ATTN_HEADS
+    num_key_value_heads = NUM_KEY_VALUE_HEADS
+    head_dim = HEAD_DIM
     part_id: int = 0
-    hidden_size: int = HIDDEN_SIZE
-    num_attention_heads: int = NUM_ATTN_HEADS
-    num_key_value_heads: int = NUM_KEY_VALUE_HEADS
 
     def __init__(
         self,
-        presplit: Qwen2_5_VL_7B_PreSplit | Qwen2_5_VL_7B_QuantizablePreSplit,
+        presplit: Qwen3_VL_4B_PreSplit | Qwen3_VL_4B_QuantizablePreSplit,
         precision: Precision = DEFAULT_PRECISION,
-        context_lengths: list[int] = DEFAULT_EXPORT_CONTEXT_LENGTHS,
-        sequence_lengths: list[int] = DEFAULT_EXPORT_SEQUENCE_LENGTHS,
     ) -> None:
         super().__init__()
         self._presplit = presplit
         self._precision = precision
         self._quant_sim: QuantizationSimModel | None = None
         self._fp_session: onnxruntime.InferenceSession | None = None
-        self._context_lengths = context_lengths
-        self._sequence_lengths = sequence_lengths
         self._graph_names: dict[str, tuple[int, int]] = {
             f"ar{seq_len}_cl{ctx_len}_{self.part_id}_of_{NUM_SPLITS}": (
                 seq_len,
                 ctx_len,
             )
             for seq_len, ctx_len in itertools.product(
-                self._sequence_lengths, self._context_lengths
+                DEFAULT_EXPORT_SEQUENCE_LENGTHS, DEFAULT_EXPORT_CONTEXT_LENGTHS
             )
         }
 
@@ -934,15 +683,13 @@ class Qwen2_5_VL_7B_PartBase(LLMPartBase, torch.nn.Module, MultiGraphWorkbenchMo
         checkpoint: str | Path = "DEFAULT",
         host_device: torch.device | None = None,
         _skip_quantsim_creation: bool = True,
-        context_lengths: list[int] = DEFAULT_EXPORT_CONTEXT_LENGTHS,
-        sequence_lengths: list[int] = DEFAULT_EXPORT_SEQUENCE_LENGTHS,
         **kwargs: Any,
     ) -> Self:
         """Create Part by getting or creating the appropriate PreSplit (cached)."""
         checkpoint_type = CheckpointType.from_checkpoint(checkpoint)
         if not checkpoint_type.is_aimet_onnx():
-            presplit: Qwen2_5_VL_7B_PreSplit | Qwen2_5_VL_7B_QuantizablePreSplit = (
-                Qwen2_5_VL_7B_PreSplit.from_pretrained(
+            presplit: Qwen3_VL_4B_PreSplit | Qwen3_VL_4B_QuantizablePreSplit = (
+                Qwen3_VL_4B_PreSplit.from_pretrained(
                     host_device=host_device,
                 )
             )
@@ -951,63 +698,25 @@ class Qwen2_5_VL_7B_PartBase(LLMPartBase, torch.nn.Module, MultiGraphWorkbenchMo
             precision = checkpoint_type.precision(
                 DEFAULT_PRECISION, checkpoint=checkpoint
             )
-            presplit = Qwen2_5_VL_7B_QuantizablePreSplit.from_pretrained(
+            presplit = Qwen3_VL_4B_QuantizablePreSplit.from_pretrained(
                 precision=precision,
                 checkpoint=checkpoint,
                 host_device=host_device,
                 _skip_quantsim_creation=_skip_quantsim_creation,
             )
-        return cls(
-            presplit,
-            precision=precision,
-            sequence_lengths=sequence_lengths,
-            context_lengths=context_lengths,
-        )
+        return cls(presplit, precision=precision)
 
-    @staticmethod
-    def get_default_input_spec(
-        llm_config: dict | None = None,
-        sequence_length: int = 1,
-        context_length: int = DEFAULT_CONTEXT_LENGTH,
-        llm_io_type: LLMIOType = LLMIOType.genie_input_embeds,
-    ) -> InputSpec:
-        """Get default input spec for the full model (class-level convenience)."""
-        return Qwen2_5_VL_7B_PreSplit.get_static_input_spec(
-            llm_config=llm_config,
-            sequence_length=sequence_length,
-            context_length=context_length,
-            llm_io_type=llm_io_type,
-        )
-
-    def _sample_inputs_impl(
-        self, input_spec: InputSpec | None = None
-    ) -> SampleInputsType:
-        """Get sample inputs for this specific part only.
-
-        Uses actual ONNX input names read from the split model at runtime.
-        When called from the multi-graph sample_inputs path, input_spec
-        carries the per-graph shapes so we derive seq_len from it.
-        """
-        seq_len = self._presplit.sequence_length
-        if input_spec is not None and "inputs_embeds" in input_spec:
-            seq_len = input_spec["inputs_embeds"][0][1]  # shape (1, seq_len, hidden)
-
-        full_inputs = self._presplit._sample_inputs_impl()
-        onnx_input_names = self._get_onnx_input_names()
-
-        result: SampleInputsType = {}
-        for name in onnx_input_names:
-            if name in full_inputs:
-                result[name] = full_inputs[name]
-            else:
-                # Intermediate hidden state
-                result[name] = [np.zeros((1, seq_len, HIDDEN_SIZE), dtype=np.float32)]
-
-        return result
-
-    # -------------------------------------------------------------------
-    # Methods that branch on self._is_quantized
-    # -------------------------------------------------------------------
+    def _extra_graph_inputs(
+        self, name: str, sequence_length: int, context_length: int
+    ) -> TensorSpec | None:
+        # Deepstack-specific inputs (qwen3 VL only).
+        if name == "visual_pos_masks":
+            return TensorSpec(shape=(1, sequence_length), dtype="bool")
+        if name.startswith("deepstack_visual_embeds_"):
+            return TensorSpec(
+                shape=(DEFAULT_NUM_VISUAL_TOKENS, HIDDEN_SIZE), dtype="float32"
+            )
+        return None
 
     def _get_onnx_input_names(self) -> list[str]:
         onnx_bundle = self._get_onnx_bundle()
@@ -1026,6 +735,15 @@ class Qwen2_5_VL_7B_PartBase(LLMPartBase, torch.nn.Module, MultiGraphWorkbenchMo
     def _get_onnx_bundle(self) -> ONNXBundle:
         return self._presplit.convert_to_onnx_and_split(part_id=self.part_id)
 
+    def forward(
+        self, *args: torch.Tensor, **kwargs: Any
+    ) -> torch.Tensor | Collection[torch.Tensor]:
+        if self._is_quantized:
+            quant_sim = self._get_quant_sim()
+            return mock_torch_onnx_inference(quant_sim.session, *args, **kwargs)
+        session = self._get_fp_session()
+        return mock_torch_onnx_inference(session, *args, **kwargs)
+
     def _get_quant_sim(self) -> QuantizationSimModel:
         if self._quant_sim is not None:
             return self._quant_sim
@@ -1036,7 +754,7 @@ class Qwen2_5_VL_7B_PartBase(LLMPartBase, torch.nn.Module, MultiGraphWorkbenchMo
         )
         onnx_model.ir_version = min(onnx_model.ir_version, 11)
 
-        assert isinstance(self._presplit, Qwen2_5_VL_7B_QuantizablePreSplit)
+        assert isinstance(self._presplit, Qwen3_VL_4B_QuantizablePreSplit)
         _hd = self._presplit.host_device
         host_device = _hd if isinstance(_hd, torch.device) else torch.device("cpu")
         providers = self._presplit.get_ort_providers(host_device)
@@ -1064,9 +782,6 @@ class Qwen2_5_VL_7B_PartBase(LLMPartBase, torch.nn.Module, MultiGraphWorkbenchMo
         if "CUDAExecutionProvider" in onnxruntime.get_available_providers():
             providers.insert(0, "CUDAExecutionProvider")
 
-        # Dynamo export (opset 18) produces IR version 11, but ORT 1.x
-        # only supports up to 10.  Patch the file in-place (graph-only
-        # load keeps external weight references intact).
         onnx_path = str(onnx_bundle.onnx_graph_path)
         onnx_model = onnx.load(onnx_path, load_external_data=False)
         if onnx_model.ir_version > 10:
@@ -1075,15 +790,6 @@ class Qwen2_5_VL_7B_PartBase(LLMPartBase, torch.nn.Module, MultiGraphWorkbenchMo
 
         self._fp_session = onnxruntime.InferenceSession(onnx_path, providers=providers)
         return self._fp_session
-
-    def forward(
-        self, *args: torch.Tensor, **kwargs: Any
-    ) -> torch.Tensor | Collection[torch.Tensor]:
-        if self._is_quantized:
-            quant_sim = self._get_quant_sim()
-            return mock_torch_onnx_inference(quant_sim.session, *args, **kwargs)
-        session = self._get_fp_session()
-        return mock_torch_onnx_inference(session, *args, **kwargs)
 
     def serialize_graph(
         self,
@@ -1109,109 +815,130 @@ class Qwen2_5_VL_7B_PartBase(LLMPartBase, torch.nn.Module, MultiGraphWorkbenchMo
 
         return out_dir
 
-    def get_hub_compile_options(
-        self,
-        target_runtime: TargetRuntime,
-        precision: Precision,
-        other_compile_options: str = "",
-        device: Device | None = None,
-    ) -> MultiGraphGroup[str]:
-        other_compile_options += " --quantize_full_type w8a16 --quantize_io"
-        return super().get_hub_compile_options(
-            target_runtime, precision, other_compile_options, device
-        )
 
-    def get_hub_profile_options(
-        self,
-        target_runtime: TargetRuntime,
-        other_profile_options: str = "",
-    ) -> MultiGraphGroup[str]:
-        """Get profile options keyed by graph name."""
-        if self._is_quantized:
-            out: MultiGraphGroup[str] = MultiGraphGroup()
-            for graph_name in self.graph_names:
-                out[graph_name] = self._presplit.get_hub_profile_options(
-                    target_runtime=target_runtime,
-                    other_profile_options=other_profile_options,
-                    context_graph_name=graph_name,
-                )
-            return out
-        return super().get_hub_profile_options(
-            target_runtime=target_runtime,
-            other_profile_options=other_profile_options,
-        )
-
-
-class Qwen2_5_VL_7B_Part1_Of_5(Qwen2_5_VL_7B_PartBase):
-    """Part 1: Layers 0-5."""
-
+# Concrete Part classes
+class Qwen3_VL_4B_Part1_Of_4(Qwen3_VL_4B_PartBase):
     part_id = 1
 
 
-class Qwen2_5_VL_7B_Part2_Of_5(Qwen2_5_VL_7B_PartBase):
-    """Part 2: Layers 6-11."""
-
+class Qwen3_VL_4B_Part2_Of_4(Qwen3_VL_4B_PartBase):
     part_id = 2
 
 
-class Qwen2_5_VL_7B_Part3_Of_5(Qwen2_5_VL_7B_PartBase):
-    """Part 3: Layers 12-17."""
-
+class Qwen3_VL_4B_Part3_Of_4(Qwen3_VL_4B_PartBase):
     part_id = 3
 
 
-class Qwen2_5_VL_7B_Part4_Of_5(Qwen2_5_VL_7B_PartBase):
-    """Part 4: Layers 18-23."""
-
+class Qwen3_VL_4B_Part4_Of_4(Qwen3_VL_4B_PartBase):
     part_id = 4
 
 
-class Qwen2_5_VL_7B_Part5_Of_5(Qwen2_5_VL_7B_PartBase):
-    """Part 5: Layers 24-27 + LM head."""
+# ---------------------------------------------------------------------------
+# Split-Forward Wrappers (for ONNX-based evaluation)
+# ---------------------------------------------------------------------------
 
-    part_id = 5
+
+class _Qwen3VLSplitForwardMixin(SplitForwardMixin):
+    def get_split_part_classes(self) -> list[type]:
+        return [
+            Qwen3_VL_4B_Part1_Of_4,
+            Qwen3_VL_4B_Part2_Of_4,
+            Qwen3_VL_4B_Part3_Of_4,
+            Qwen3_VL_4B_Part4_Of_4,
+        ]
+
+    def forward(
+        self,
+        input_tokens: torch.Tensor,
+        attention_mask: torch.Tensor,
+        *args: torch.Tensor,
+    ) -> list[torch.Tensor]:
+        if self._exporting_onnx or torch.compiler.is_compiling():
+            return super(SplitForwardMixin, self).forward(  # type: ignore[misc]
+                input_tokens, attention_mask, *args
+            )
+        self._ensure_parts()
+        assert self._parts is not None
+        assert self._input_names_for_parts is not None
+
+        full_names = list(
+            self.get_input_spec(  # type: ignore[attr-defined]
+                sequence_length=DEFAULT_SEQUENCE_LENGTH,
+                context_length=DEFAULT_CONTEXT_LENGTH,
+            ).keys()
+        )
+        # Total positional args = input_tokens + attention_mask + *args
+        num_provided = 2 + len(args)
+        num_expected = len(full_names)
+
+        # Pad missing deepstack inputs with zeros using actual runtime shapes.
+        # visual_pos_masks=0 means no visual tokens, so deepstack is a no-op.
+        if num_provided < num_expected:
+            actual_seq_len = input_tokens.shape[1]
+            device = input_tokens.device
+            extra = []
+            for name in full_names[num_provided:]:
+                if name == "visual_pos_masks":
+                    extra.append(
+                        torch.zeros(1, actual_seq_len, dtype=torch.bool, device=device)
+                    )
+                elif name.startswith("deepstack_visual_embeds_"):
+                    extra.append(
+                        torch.zeros(1, DEFAULT_NUM_VISUAL_TOKENS, device=device)
+                    )
+                else:
+                    extra.append(torch.zeros(1, device=device))
+            args = (*args, *extra)
+
+        return self._split_forward(
+            self._parts,
+            self._input_names_for_parts,
+            input_tokens,
+            attention_mask,
+            *args,
+        )
+
+
+class FPSplitModelWrapper(_Qwen3VLSplitForwardMixin, Qwen3_VL_4B_PreSplit):
+    """FP eval via split Parts instead of monolithic torch model."""
+
+
+class QuantizedSplitModelWrapper(  # type: ignore[misc]
+    _Qwen3VLSplitForwardMixin, Qwen3_VL_4B_QuantizablePreSplit
+):
+    """Quantized eval via split Parts instead of monolithic QuantSim."""
 
 
 # ---------------------------------------------------------------------------
-# Collection Class
+# Collection
 # ---------------------------------------------------------------------------
-class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
+
+
+class Qwen3_VL_4B_Collection(MultiGraphWorkbenchModelCollection):
     """
-    Unified Collection with 5 text Parts + 1 Vision Encoder for Qwen2.5-VL-7B.
+    Collection model for Qwen3-VL-4B deployment.
 
-    Supports both FP and Quantizable modes based on precision parameter.
-    All Parts share the same PreSplit via class-level cache for memory efficiency.
+    Combines 6 text parts + 1 vision encoder for full VLM deployment.
     """
 
     _checkpoint: str
 
     def __init__(
         self,
-        vision_encoder: Qwen2_5_VL_7B_VisionEncoder,
-        part1: Qwen2_5_VL_7B_Part1_Of_5,
-        part2: Qwen2_5_VL_7B_Part2_Of_5,
-        part3: Qwen2_5_VL_7B_Part3_Of_5,
-        part4: Qwen2_5_VL_7B_Part4_Of_5,
-        part5: Qwen2_5_VL_7B_Part5_Of_5,
+        vision_encoder: Qwen3_VL_4B_VisionEncoder,
+        part1: Qwen3_VL_4B_Part1_Of_4,
+        part2: Qwen3_VL_4B_Part2_Of_4,
+        part3: Qwen3_VL_4B_Part3_Of_4,
+        part4: Qwen3_VL_4B_Part4_Of_4,
     ) -> None:
         super().__init__(
             {
                 "vision_encoder": vision_encoder,
-                "part1_of_5": part1,
-                "part2_of_5": part2,
-                "part3_of_5": part3,
-                "part4_of_5": part4,
-                "part5_of_5": part5,
+                "part1_of_4": part1,
+                "part2_of_4": part2,
+                "part3_of_4": part3,
+                "part4_of_4": part4,
             }
-        )
-
-    def get_input_spec(
-        self,
-        image_height: int = DEFAULT_IMAGE_HEIGHT,
-        image_width: int = DEFAULT_IMAGE_WIDTH,
-    ) -> MultiGraphComponentGroup[InputSpec]:
-        return super().get_input_spec(
-            image_height=image_height, image_width=image_width
         )
 
     @classmethod
@@ -1219,35 +946,8 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
         cls,
         checkpoint: str | Path = "DEFAULT",
         host_device: torch.device | None = None,
-        _skip_quantsim_creation: bool = True,
-        sequence_lengths: list[int] = DEFAULT_EXPORT_SEQUENCE_LENGTHS,
-        context_lengths: list[int] = DEFAULT_EXPORT_CONTEXT_LENGTHS,
         **kwargs: Any,
-    ) -> Self:
-        """
-        Create Collection with all parts + Vision Encoder.
-
-        Parameters
-        ----------
-        checkpoint
-            Path to checkpoint with ONNX + encodings, or ``"DEFAULT"``
-            to create from HuggingFace.
-        host_device
-            Device for computation.
-        _skip_quantsim_creation
-            Skip QuantSim creation (for testing).
-        sequence_lengths
-            Sequence lengths to compile for.
-        context_lengths
-            Context lengths to compile for.
-        **kwargs
-            Additional keyword arguments passed to parent.
-
-        Returns
-        -------
-        Self
-            The Collection with all Parts.
-        """
+    ) -> Qwen3_VL_4B_Collection:
         checkpoint_type = CheckpointType.from_checkpoint(checkpoint)
         precision = (
             checkpoint_type.precision(DEFAULT_PRECISION, checkpoint=checkpoint)
@@ -1258,32 +958,26 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
         part_kwargs: dict[str, Any] = dict(
             checkpoint=checkpoint,
             host_device=host_device,
-            _skip_quantsim_creation=_skip_quantsim_creation,
         )
         parts: list[BaseModel | MultiGraphWorkbenchModel] = []
         for part_cls in [
-            Qwen2_5_VL_7B_VisionEncoder,
-            Qwen2_5_VL_7B_Part1_Of_5,
-            Qwen2_5_VL_7B_Part2_Of_5,
-            Qwen2_5_VL_7B_Part3_Of_5,
-            Qwen2_5_VL_7B_Part4_Of_5,
-            Qwen2_5_VL_7B_Part5_Of_5,
+            Qwen3_VL_4B_VisionEncoder,
+            Qwen3_VL_4B_Part1_Of_4,
+            Qwen3_VL_4B_Part2_Of_4,
+            Qwen3_VL_4B_Part3_Of_4,
+            Qwen3_VL_4B_Part4_Of_4,
         ]:
-            if issubclass(part_cls, Qwen2_5_VL_7B_VisionEncoder):
+            if issubclass(part_cls, Qwen3_VL_4B_VisionEncoder):
                 parts.append(
                     part_cls.from_pretrained(
                         checkpoint=checkpoint,
                         device=host_device,
                         precision=precision,
-                        sequence_lengths=sequence_lengths,
-                        context_lengths=context_lengths,
                     )
                 )
             else:
                 parts.append(part_cls.from_pretrained(**part_kwargs))  # type: ignore[attr-defined]
         instance = cls(*parts)  # type: ignore[arg-type]
-        # Use the resolved checkpoint path (not the "DEFAULT" sentinel) so
-        # downstream supplementary-file copies find tokenizer.json etc.
         resolved_checkpoint: str | Path = checkpoint
         if isinstance(checkpoint, str) and checkpoint.startswith("DEFAULT"):
             for comp in parts:
@@ -1301,12 +995,6 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
         metadata: ModelMetadata,
     ) -> None:
         """Write genie-app assets: genie config, embedding table, tokenizer, HTP config, app script."""
-        from qai_hub_models.models._shared.llm.llm_helpers import (
-            create_genie_config,
-            generate_genie_app_script,
-            save_htp_config_for_genie_bundle,
-        )
-
         output_dir = Path(output_dir)
         checkpoint_path = Path(self._checkpoint)
 
@@ -1316,7 +1004,7 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
             shutil.copy(embed_src, output_dir / "embedding_weights.raw")
             print("Copied embedding table from checkpoint")
         else:
-            fp_model = Qwen2_5_VL_7B_PreSplit.from_pretrained()
+            fp_model = Qwen3_VL_4B_PreSplit.from_pretrained()
             export_embedding_weights_from_tensor(
                 fp_model.get_embedding_weights().float(), output_dir
             )
@@ -1324,13 +1012,8 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
             "Embedding table (float32) for token-to-embedding conversion."
         )
 
-        for name in [
-            "tokenizer.json",
-            "tokenizer_config.json",
-            "config.json",
-            "chat_template.json",
-            "chat_template.jinja",
-        ]:
+        # --- Tokenizer files ---
+        for name in ["tokenizer.json", "tokenizer_config.json", "config.json"]:
             src = checkpoint_path / name
             if src.exists():
                 shutil.copy(src, output_dir / name)
@@ -1338,8 +1021,9 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
 
         # --- Sample prompt (text-only; vision prompt is assembled at runtime) ---
         tokenizer = get_tokenizer(HF_REPO_NAME)
-        sample_prompt = Qwen2VLTextBase.get_input_prompt_with_tags(
-            include_image=False, tokenizer=tokenizer
+        sample_prompt = Qwen3VLTextBase.get_input_prompt_with_tags(
+            include_image=False,
+            tokenizer=tokenizer,  # type: ignore[arg-type]
         )
         with open(output_dir / "sample_prompt.txt", "w") as f:
             f.write(sample_prompt)
@@ -1369,21 +1053,16 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
 
         image_processor = None
         llm_config = None
-        all_context_lengths: list[int] = [context_length]
         for comp in self.components.values():
-            if isinstance(comp, Qwen2_5_VL_7B_PartBase):
+            if isinstance(comp, Qwen3_VL_4B_PartBase):
                 presplit = comp._presplit
                 image_processor = getattr(presplit, "_image_processor", None)
                 llm_config = getattr(
                     presplit, "_original_llm_config", presplit.llm_config
                 )
-                all_context_lengths = sorted(comp._context_lengths)
                 break
 
-        # Quantized presplit doesn't cache the image_processor — load from HF.
         if image_processor is None:
-            from transformers import AutoProcessor
-
             image_processor = AutoProcessor.from_pretrained(
                 HF_REPO_NAME
             ).image_processor
@@ -1406,10 +1085,15 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
         if hasattr(llm_config, "text_config"):
             text_config = llm_config.text_config
 
-        # Build VLM MRoPE config from the HF config
-        rope_scaling = getattr(text_config, "rope_scaling", None)
+        # Build VLM MRoPE config from the HF config. transformers 5.x nests
+        # rope settings (incl. mrope_section) under rope_parameters; get_rope_scaling
+        # reads either layout.
+        rope_scaling = get_rope_scaling(text_config)
+        # Qwen3-VL uses *interleaved* MRoPE (mrope_interleaved=True), which Genie
+        # implements only under "qwen3vl-mrope" (nsp-model.cpp). "qwen2vl-mrope"
+        # applies a different, contiguous sectioning and would corrupt positions.
         vlm_rope_config: dict[str, Any] = {
-            "rope-type": "qwen2vl-mrope",
+            "rope-type": "qwen3vl-mrope",
             "time-step": 50,
         }
         vlm_rope_config["spatial-merge-size"] = image_processor.merge_size
@@ -1450,13 +1134,13 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
             "Genie SDK config for genie-t2t-run (text-only LLM testing)."
         )
 
-        # --- Image encoder config (img-enc-htp.json equivalent) ---
+        # --- Image encoder config (img-enc-htp.json) ---
         veg_bins = sorted(
             fn
             for fn in metadata.model_files
             if fn.startswith("vision_encoder") and fn.endswith(".bin")
         )
-        img_enc_config = {
+        img_enc_config: dict[str, Any] = {
             "image-encoder": {
                 "version": 1,
                 "engine": {
@@ -1516,18 +1200,7 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
         )
 
         # --- Genie metadata & genie-app-script.txt ---
-        # Define pipeline topology once; use it for both metadata.genie
-        # and the genie-app-script.txt that genie-app consumes at runtime.
-        from qai_hub_models.configs.model_metadata import (
-            GenieChatTemplate,
-            GenieMetadata,
-            GeniePipeline,
-            GeniePipelineConnection,
-            GenieSampleInput,
-            GenieVisionPreprocessing,
-        )
-
-        chat_spec = Qwen2_5_VL_7B_PreSplit.get_chat_template()
+        chat_spec = Qwen3VLTextBase.get_chat_template()
 
         pipeline_nodes = {
             "imageEncoder": "img-enc-htp.json",
@@ -1549,6 +1222,25 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
                 consumer_node_io="GENIE_NODE_TEXT_GENERATOR_EMBEDDING_INPUT",
             ),
         ]
+
+        # Deepstack connection: a single GENIE_NODE_WILDCARD <-> GENIE_NODE_WILDCARD
+        # connection. Genie has no dedicated deepstack node-IO enums; instead its
+        # InjectiveConnector auto-routes every tensor whose name appears in BOTH
+        # the producer's outputs and the consumer's inputs. The VEG outputs
+        # ``deepstack_visual_embeds_{0..N-1}`` (+ ``visual_pos_masks``) and the
+        # text generator consumes the same names, so one wildcard connection
+        # carries all deepstack features by name. This must come AFTER the primary
+        # EMBEDDING_OUTPUT->EMBEDDING_INPUT connection above (Genie requires a
+        # primary connection before a wildcard), and only one wildcard per node.
+        if NUM_DEEPSTACK_LAYERS > 0:
+            pipeline_connections.append(
+                GeniePipelineConnection(
+                    producer_node="imageEncoder",
+                    producer_node_io="GENIE_NODE_WILDCARD",
+                    consumer_node="textGenerator",
+                    consumer_node_io="GENIE_NODE_WILDCARD",
+                )
+            )
 
         sample_inputs = [
             GenieSampleInput(
@@ -1590,7 +1282,7 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
 
         metadata.genie = GenieMetadata(
             chat_template=GenieChatTemplate(**chat_spec),
-            context_lengths=sorted(set(all_context_lengths)),
+            context_lengths=[context_length],
             supports_streaming=True,
             supports_vision=True,
             supports_thinking=False,
@@ -1607,9 +1299,7 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
                 spatial_merge_size=image_processor.merge_size,
                 normalize_mean=image_processor.image_mean,
                 normalize_std=image_processor.image_std,
-            )
-            if image_processor is not None
-            else None,
+            ),
         )
 
         # Generate genie-app-script.txt from the same pipeline data.
@@ -1622,37 +1312,30 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
             "Genie-app pipeline script for VLM inference."
         )
 
-        # --- Sample VEG inputs (inputs/ directory) ---
+        # --- Sample VEG inputs (sample_inputs/ directory) ---
         self._write_sample_veg_inputs(output_dir)
 
     @staticmethod
     def _write_sample_veg_inputs(output_dir: str | os.PathLike) -> None:
-        """Generate sample VEG input .raw files in inputs/ for genie-app."""
-        from transformers import AutoProcessor
-
+        """Generate sample VEG input .raw files in sample_inputs/ for genie-app."""
         inputs_dir = Path(output_dir) / "sample_inputs"
         inputs_dir.mkdir(exist_ok=True)
-
-        # Fetch sample image from S3 asset store
-        from qai_hub_models.utils.asset_loaders import load_image
 
         img = load_image(SAMPLE_IMAGE)
         img_resized = img.resize((DEFAULT_IMAGE_WIDTH, DEFAULT_IMAGE_HEIGHT))
 
         # Patchify + normalize via HF processor
-        from qai_hub_models.models._shared.qwen2_vl.model import Qwen2VLTextBase
-
         proc = AutoProcessor.from_pretrained(HF_REPO_NAME)
         tokenizer = get_tokenizer(HF_REPO_NAME)
-        dummy_text = Qwen2VLTextBase.get_input_prompt_with_tags(
-            user_input_prompt="", include_image=True, tokenizer=tokenizer
+        dummy_text = Qwen3VLTextBase.get_input_prompt_with_tags(
+            user_input_prompt="",
+            include_image=True,
+            tokenizer=tokenizer,  # type: ignore[arg-type]
         )
         processed = proc(text=[dummy_text], images=[img_resized], return_tensors="pt")
 
-        # RoPE and attention masks from VisionEncoder
-        from qai_hub_models.models.qwen2_5_vl_7b_instruct import VisionEncoder
-
-        veg = VisionEncoder.from_pretrained(device=torch.device("cpu"))
+        # Instantiate VEG to get pre-computed position/attention buffers
+        veg = Qwen3_VL_4B_VisionEncoder.from_pretrained(device=torch.device("cpu"))
         veg.eval()
 
         raw_files = {
@@ -1666,7 +1349,7 @@ class Qwen2_5_VL_7B_Collection(MultiGraphWorkbenchModelCollection):
             tensor.detach().numpy().astype(np.float32).tofile(inputs_dir / name)
         del veg
 
-        # Prompt text files (real newlines required for tokenizer)
+        # Prompt text files
         prompt_prefix = (
             "<|im_start|>system\n"
             "You are a helpful assistant.<|im_end|>\n"

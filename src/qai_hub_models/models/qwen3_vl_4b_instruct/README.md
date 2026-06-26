@@ -10,6 +10,11 @@ This repository contains scripts for optimized on-device export suitable to run 
 
 Qualcomm AI Hub Models uses [Qualcomm AI Hub Workbench](https://workbench.aihub.qualcomm.com) to compile, profile, and evaluate this model. [Sign up](https://myaccount.qualcomm.com/signup) to run these models on a hosted Qualcomm® device.
 
+## Deploying Qwen3-VL-4B-Instruct on-device
+
+Please follow the [LLM on-device deployment](https://github.com/qualcomm/ai-hub-apps/tree/main/tutorials/llm_on_genie) tutorial.
+
+
 ## License
 * The license for the original implementation of Qwen3-VL-4B-Instruct can be found
   [here](https://www.apache.org/licenses/LICENSE-2.0).

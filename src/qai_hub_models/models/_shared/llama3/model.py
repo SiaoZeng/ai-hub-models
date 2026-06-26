@@ -113,7 +113,7 @@ class RopeEmbedding(Embedding):
             if hasattr(config, "head_dim")
             else config.hidden_size // config.num_attention_heads
         )
-        self.cos, self.sin = self.precompute(head_dim, max_length, config)
+        self.cos, self.sin = self.precompute(head_dim, max_length, config)  # type: ignore[arg-type, unused-ignore]
 
     def precompute(
         self, head_dim: int, max_length: int, config: LlamaConfig

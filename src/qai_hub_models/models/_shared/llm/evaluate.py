@@ -234,6 +234,12 @@ def _evaluate_impl(
             checkpoint_path = kwargs.get("checkpoint")
             if checkpoint_path is not None:
                 veg_kwargs["checkpoint"] = checkpoint_path
+                # Load the quantized VEG (vision_encoder.onnx/.encodings) from
+                # the checkpoint instead of FP weights. Precision is recovered
+                # from the checkpoint's args.json; if absent it stays float.
+                veg_kwargs["precision"] = checkpoint_type.precision(
+                    Precision.float, checkpoint=checkpoint_path
+                )
 
         print("Loading vision encoder for evaluation...")
         vision_model = vision_encoder_cls.from_pretrained(

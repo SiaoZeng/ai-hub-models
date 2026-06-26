@@ -905,6 +905,11 @@ def _parse_int_list(value: str) -> list[int]:
     return [int(v.strip()) for v in value.split(",")]
 
 
+def _parse_int_tuple(value: str) -> tuple[int, ...]:
+    """Parse a CLI value as a comma-separated tuple of ints."""
+    return tuple(int(v.strip()) for v in value.split(","))
+
+
 def _resolve_param_type(
     param: inspect.Parameter,
     model_cls: type[WorkbenchModel | PrecompiledWorkbenchModel | CollectionModel],
@@ -930,6 +935,8 @@ def _resolve_param_type(
     type_ = locate(anno.split(" | ", 1)[0])
     if anno == "list[int]":
         return _parse_int_list
+    if anno.split(" | ", 1)[0] in ("tuple[int, int]", "tuple[int, ...]"):
+        return _parse_int_tuple
     if type_ is None:
         type_ = locate(f"{model_cls.__module__}.{anno}")
     if not isinstance(type_, type):

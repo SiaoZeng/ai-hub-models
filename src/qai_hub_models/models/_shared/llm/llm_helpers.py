@@ -20,6 +20,38 @@ if TYPE_CHECKING:
     from transformers import PretrainedConfig
 
 
+def get_rope_theta(llm_config: PretrainedConfig) -> float:
+    """Read RoPE theta across transformers layouts.
+
+    transformers <5 exposed ``llm_config.rope_theta`` directly; 5.x nests RoPE
+    settings under a single ``rope_parameters`` dict (e.g. Qwen3-VL). Prefer the
+    top-level attribute when present, else fall back to ``rope_parameters``.
+    """
+    theta = getattr(llm_config, "rope_theta", None)
+    if theta is not None:
+        return theta
+    rope_parameters = getattr(llm_config, "rope_parameters", None) or {}
+    if "rope_theta" in rope_parameters:
+        return rope_parameters["rope_theta"]
+    raise AttributeError(
+        "Could not find rope_theta on llm_config (checked top-level attribute "
+        "and rope_parameters)."
+    )
+
+
+def get_rope_scaling(llm_config: PretrainedConfig) -> dict[str, Any] | None:
+    """Read RoPE scaling/parameters across transformers layouts.
+
+    Returns the top-level ``rope_scaling`` dict (transformers <5) when present,
+    else the 5.x ``rope_parameters`` dict, else None. Both carry ``mrope_section``
+    and ``rope_type`` so downstream lookups work on either.
+    """
+    rope_scaling = getattr(llm_config, "rope_scaling", None)
+    if rope_scaling is not None:
+        return rope_scaling
+    return getattr(llm_config, "rope_parameters", None)
+
+
 def log_evaluate_test_result(
     model_name: str, checkpoint: str, metric: str, value: float
 ) -> None:
@@ -211,16 +243,16 @@ def create_genie_config(
         inner["engine"]["model"]["positional-encoding"] = {
             "type": embedding_type,
             "rope-dim": rope_dim,
-            "rope-theta": int(llm_config.rope_theta),
+            "rope-theta": int(get_rope_theta(llm_config)),
             "rope-scaling": vlm_rope_config,
         }
     else:
         # Standard LLM: put rope-theta and pos-id-dim in QnnHtp backend
         qnn_htp["pos-id-dim"] = rope_dim
-        qnn_htp["rope-theta"] = int(llm_config.rope_theta)
+        qnn_htp["rope-theta"] = int(get_rope_theta(llm_config))
 
         # Add rope-scaling for models like Llama 3.x that have full scaling params
-        rope_scaling = getattr(llm_config, "rope_scaling", None)
+        rope_scaling = get_rope_scaling(llm_config)
         if rope_scaling is not None and all(
             k in rope_scaling
             for k in [
@@ -233,7 +265,7 @@ def create_genie_config(
             inner["engine"]["model"]["positional-encoding"] = {
                 "type": embedding_type,
                 "rope-dim": rope_dim,
-                "rope-theta": int(llm_config.rope_theta),
+                "rope-theta": int(get_rope_theta(llm_config)),
                 "rope-scaling": {
                     "rope-type": rope_scaling["rope_type"],
                     "factor": 8.0,

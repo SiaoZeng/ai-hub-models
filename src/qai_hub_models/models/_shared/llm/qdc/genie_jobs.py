@@ -95,7 +95,7 @@ def _prepare_eval_prompts_in_bundle(
             )
         prompt_file = os.path.join(prompts_dir, f"prompt_{idx:03d}.txt")
         with open(prompt_file, "w", encoding="utf-8") as f:
-            f.write(formatted)
+            f.write(formatted)  # type: ignore[arg-type, unused-ignore]
 
 
 class GenieArtifactHandler(ABC):

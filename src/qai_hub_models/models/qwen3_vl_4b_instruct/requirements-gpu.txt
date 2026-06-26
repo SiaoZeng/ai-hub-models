@@ -1,0 +1,12 @@
+--extra-index-url https://download.pytorch.org/whl/cu121
+onnxruntime-gpu==1.23.2
+https://github.com/quic/aimet/releases/download/2.33.0/aimet_onnx-2.33.0+cu121-cp310-cp310-manylinux_2_34_x86_64.whl; sys_platform == 'linux' and python_version == "3.10"
+transformers==5.7.0
+sentencepiece==0.2.1
+psutil==6.1.1; sys_platform != 'win32'
+wmi==1.5.1; sys_platform == 'win32'
+onnx==1.17.0
+onnxscript==0.7.0
+onnx-ir==0.2.1
+torch==2.10.0
+torchvision==0.25.0

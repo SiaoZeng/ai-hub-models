@@ -288,7 +288,7 @@ class FromPretrainedMixin:
             )
 
         # 3) move to target device
-        model = model.to(torch.device(host_device)).eval()
+        model = model.to(torch.device(host_device)).eval()  # type: ignore[arg-type, unused-ignore]
 
         # 4) if subclass provides adapt_torch_model, call it
         if hasattr(cls, "adapt_torch_model"):

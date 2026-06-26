@@ -58,13 +58,13 @@ class SHAQwen3Attention(Qwen3Attention):
             )
             self.k_proj_conv = nn.Conv2d(
                 self.config.hidden_size,
-                self.config.num_key_value_heads * self.head_dim,
+                self.config.num_key_value_heads * self.head_dim,  # type: ignore[operator, unused-ignore]
                 1,
                 bias=self.k_proj.bias is not None,
             )
             self.v_proj_conv = nn.Conv2d(
                 self.config.hidden_size,
-                self.config.num_key_value_heads * self.head_dim,
+                self.config.num_key_value_heads * self.head_dim,  # type: ignore[operator, unused-ignore]
                 1,
                 bias=self.v_proj.bias is not None,
             )
@@ -133,7 +133,7 @@ class SHAQwen3Attention(Qwen3Attention):
                         1,
                         bias=self.k_proj_conv.bias is not None,
                     )
-                    for _ in range(num_kv_heads)
+                    for _ in range(num_kv_heads)  # type: ignore[arg-type, unused-ignore]
                 ]
             )
             self.v_proj_sha = nn.ModuleList(
@@ -144,7 +144,7 @@ class SHAQwen3Attention(Qwen3Attention):
                         1,
                         bias=self.v_proj_conv.bias is not None,
                     )
-                    for _ in range(num_kv_heads)
+                    for _ in range(num_kv_heads)  # type: ignore[arg-type, unused-ignore]
                 ]
             )
 
@@ -159,7 +159,7 @@ class SHAQwen3Attention(Qwen3Attention):
             self.k_norm_sha = nn.ModuleList(
                 [
                     Qwen3RMSNorm(self.head_dim, eps=self.config.rms_norm_eps)
-                    for _ in range(num_kv_heads)
+                    for _ in range(num_kv_heads)  # type: ignore[arg-type, unused-ignore]
                 ]
             )
 
@@ -168,7 +168,7 @@ class SHAQwen3Attention(Qwen3Attention):
                 q_norm = self.q_norm_sha[i]
                 assert isinstance(q_norm, Qwen3RMSNorm)
                 q_norm.weight.data.copy_(self.q_norm.weight.data)
-            for i in range(num_kv_heads):
+            for i in range(num_kv_heads):  # type: ignore[arg-type, unused-ignore]
                 k_norm = self.k_norm_sha[i]
                 assert isinstance(k_norm, Qwen3RMSNorm)
                 k_norm.weight.data.copy_(self.k_norm.weight.data)
@@ -203,7 +203,7 @@ class SHAQwen3Attention(Qwen3Attention):
             if self.q_proj_conv.bias is not None and q_proj.bias is not None:
                 q_proj.bias.data.copy_(self.q_proj_conv.bias[start_idx:end_idx])
 
-        for i in range(num_kv_heads):
+        for i in range(num_kv_heads):  # type: ignore[arg-type, unused-ignore]
             start_idx = i * self.head_dim
             end_idx = (i + 1) * self.head_dim
             k_proj = self.k_proj_sha[i]
@@ -228,17 +228,20 @@ class SHAQwen3Attention(Qwen3Attention):
         hidden_states: torch.Tensor,
         attention_mask: torch.Tensor | None = None,
         position_ids: torch.LongTensor | None = None,
-        past_key_value: Cache | None = None,
+        past_key_value: Cache | None = None,  # transformers<4.55
+        past_key_values: Cache | None = None,  # transformers>=4.55
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: torch.LongTensor | None = None,
         position_embeddings: tuple[torch.Tensor, torch.Tensor]
         | None = None,  # will become mandatory in v4.45
     ) -> tuple[torch.Tensor, list[torch.Tensor] | None]:
+        if past_key_values is not None and past_key_value is None:
+            past_key_value = past_key_values
         bsz, q_len, _ = hidden_states.size()
         hidden_size = self.config.hidden_size
         num_kv_groups = (
-            self.config.num_attention_heads // self.config.num_key_value_heads
+            self.config.num_attention_heads // self.config.num_key_value_heads  # type: ignore[operator, unused-ignore]
         )
 
         if TORCH_SUPPORTS_DYNAMIC_SHAPE:
@@ -303,11 +306,13 @@ class SHAQwen3Attention(Qwen3Attention):
         key_states = list(repeat_kv(key_states, num_kv_groups))
         value_states = list(repeat_kv(value_states, num_kv_groups))
 
+        # Scale before the matmul (not after) to avoid fp16 overflow in the
+        # QK^T product. Scale the query rather than the key: key tensor contains
+        # all context since this is after past_key_value concatenation, but
+        # query only contains the new tokens.
+        inv_sqrt_head_dim = 1.0 / math.sqrt(self.head_dim)
         attn_weights = [
-            # Note: The original divides with sqrt after the matmul. However,
-            # the matmul overflows in fp16, so moving this division into one of
-            # the operands is key modification.
-            torch.matmul(q, k / math.sqrt(self.head_dim))
+            torch.matmul(q * inv_sqrt_head_dim, k)
             for q, k in zip(query_states, key_states, strict=False)
         ]
         if attn_weights[0].size() != (bsz, 1, q_len, kv_seq_len):

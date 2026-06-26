@@ -794,7 +794,7 @@ class LLM_Generator(GenerationMixin, torch.nn.Module):
                 []
                 if past_key_values is None or past_key_values.get_seq_length() == 0
                 else list(
-                    itertools.chain.from_iterable(past_key_values.to_legacy_cache())
+                    itertools.chain.from_iterable(past_key_values.to_legacy_cache())  # type: ignore[attr-defined, unused-ignore]
                 )
             )
         }
@@ -887,7 +887,7 @@ class LLM_Generator(GenerationMixin, torch.nn.Module):
                 []
                 if past_key_values is None or past_key_values.get_seq_length() == 0
                 else list(
-                    itertools.chain.from_iterable(past_key_values.to_legacy_cache())
+                    itertools.chain.from_iterable(past_key_values.to_legacy_cache())  # type: ignore[attr-defined, unused-ignore]
                 )
             )
         }

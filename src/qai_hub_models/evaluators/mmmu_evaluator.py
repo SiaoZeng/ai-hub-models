@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 import torch
 from tqdm import tqdm
-from transformers import AutoConfig, PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from qai_hub_models.evaluators.llm_evaluator import LLMEvaluator
@@ -22,7 +22,7 @@ from qai_hub_models.utils.metrics import (
 )
 
 if TYPE_CHECKING:
-    from qai_hub_models.models._shared.llm.generator import LLM_Generator
+    from transformers import GenerationMixin
 
 # MMMU has variable-length options (up to ~9), so include A-I.
 NUM_CHOICES = 9
@@ -82,12 +82,13 @@ class MMMUEvaluator(LLMEvaluator):
         assert output.logits is not None
         logits = output.logits[0]
 
-        answers = logits[:, self.choices]
+        choices = self.choices.to(logits.device)
+        answers = logits[:, choices]
         index = answers[-1].argmax()
-        prediction = self.choices[index]
+        prediction = choices[index]
 
         top_token_id = logits[-1].argmax()
-        self.top_is_valid += int(top_token_id in self.choices)
+        self.top_is_valid += int(top_token_id in choices)
 
         # gt may be a (1,1) tensor with answer token ID (text-only samples)
         # or a string letter like "A"/"B"/"C"/"D" (multimodal samples).
@@ -121,7 +122,7 @@ class MMMUEvaluator(LLMEvaluator):
 
     def for_each_batch(
         self,
-        generator: LLM_Generator,
+        generator: GenerationMixin,
         data: _DataLoader,
         num_samples: int | None = None,
         callback: (
@@ -132,31 +133,6 @@ class MMMUEvaluator(LLMEvaluator):
         total_samples = 0
         batch_size = 1
         num_samples = num_samples or len(data)
-        # NOTE: Do not wrap the forward pass in torch.autocast("cuda"). Its
-        # default dtype is float16, and Qwen2.5-VL activations exceed fp16's
-        # range, which corrupts the logits (the top token is frequently not
-        # even an answer letter). The FP weights are already float32, so
-        # autocast saves little memory but tanks accuracy. Run in full fp32.
-
-        # Resolve image_token_id and the VEG device once; neither the vision
-        # encoder nor its device changes across samples.
-        image_token_id = None
-        if (
-            getattr(generator, "vision_encoder", None) is not None
-            and generator.hf_repo_name is not None
-        ):
-            config = AutoConfig.from_pretrained(
-                generator.hf_repo_name, trust_remote_code=True
-            )
-            image_token_id = config.image_token_id
-
-        # Send pixel_values to the VEG's device (may differ from the evaluator
-        # device for quantized LLM + FP VEG).
-        veg_device = self.device
-        if generator.vision_encoder is not None and hasattr(
-            generator.vision_encoder, "parameters"
-        ):
-            veg_device = next(generator.vision_encoder.parameters()).device
 
         with tqdm(
             total=num_samples,
@@ -169,32 +145,20 @@ class MMMUEvaluator(LLMEvaluator):
                 pixel_values = rest[0] if len(rest) > 0 else None
                 image_grid_thw = rest[1] if len(rest) > 1 else None
 
-                # For VLM samples with images, run the generator's VEG
-                # and merge vision + text embeddings, then feed inputs_embeds.
-                if (
-                    pixel_values is not None
-                    and generator.vision_encoder is not None
-                    and image_token_id is not None
-                ):
-                    inputs_embeds = self._prepare_vlm_inputs(
-                        generator,
-                        image_token_id,
-                        input_ids.to(veg_device),
-                        pixel_values.to(veg_device),
-                        image_grid_thw=image_grid_thw,
-                    ).to(self.device)
-                    attention_mask = attention_mask.to(self.device)
-                    with torch.no_grad():
-                        outputs = generator(
-                            inputs_embeds=inputs_embeds,
-                            attention_mask=attention_mask,
-                        )
-                    inputs = [inputs_embeds, attention_mask]
-                else:
-                    inputs = [input_ids, attention_mask]
-                    inputs = [inp.to(self.device) for inp in inputs]
-                    with torch.no_grad():
-                        outputs = generator(*inputs)
+                input_ids = input_ids.to(self.device)
+                attention_mask = attention_mask.to(self.device)
+                if pixel_values is not None:
+                    pixel_values = pixel_values.to(self.device)
+                if image_grid_thw is not None:
+                    image_grid_thw = image_grid_thw.to(self.device)
+
+                inputs = [input_ids, attention_mask]
+                outputs = generator(  # type: ignore[operator, unused-ignore]
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    pixel_values=pixel_values,
+                    image_grid_thw=image_grid_thw,
+                )
 
                 if callback:
                     callback(inputs, outputs, ground_truth)
@@ -205,63 +169,6 @@ class MMMUEvaluator(LLMEvaluator):
                 pbar.update(batch_size)
                 if total_samples >= num_samples:
                     break
-
-    @staticmethod
-    def _prepare_vlm_inputs(
-        generator: LLM_Generator,
-        image_token_id: int,
-        input_ids: torch.Tensor,
-        pixel_values: torch.Tensor,
-        image_grid_thw: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        """Run the generator's VEG and merge with text embeddings.
-
-        Uses the same VEG (quantized or FP) that was loaded in evaluate.py,
-        so MMMU evaluation reflects the actual VEG quality.
-        """
-        veg = generator.vision_encoder
-        assert veg is not None
-
-        # The VEG bakes its RoPE / attention-mask / window buffers in __init__
-        # for one fixed grid, so it only accepts a single image whose patch
-        # count equals veg.seq_len. This holds because vlm_image_size is
-        # mandatory and the dataset resizes every image to exactly it; we call
-        # the VEG once per image (no grid_thw argument) rather than batching.
-        # The per-image assert below turns a future image-size change into a
-        # clear error instead of a confusing buffer/shape mismatch deeper in.
-        with torch.no_grad():
-            if image_grid_thw is not None:
-                # Use image_grid_thw to split pixel_values per image.
-                # Each row is (t, h, w); t*h*w = number of patches for that image.
-                per_image_patches = [
-                    int(thw[0] * thw[1] * thw[2]) for thw in image_grid_thw
-                ]
-                assert all(p == veg.seq_len for p in per_image_patches), (
-                    f"VEG expects {veg.seq_len} patches per image (fixed grid), "
-                    f"got {per_image_patches}; every image must be resized to "
-                    "vlm_image_size."
-                )
-                chunks = pixel_values.split(per_image_patches, dim=0)
-                vision_embeddings = torch.cat(
-                    [veg(pixel_values=c) for c in chunks], dim=0
-                )
-            else:
-                # Fallback: assume all patches belong to a single image
-                vision_embeddings = veg(pixel_values=pixel_values)
-
-        # Convert input_ids to text embeddings
-        text_embeddings = generator.selected_model.convert_input_ids_to_embeddings(
-            input_ids
-        )
-
-        # Merge: replace image token positions with vision embeddings
-        image_mask = input_ids == image_token_id
-        image_mask_expanded = image_mask.unsqueeze(-1).expand_as(text_embeddings)
-        merged = text_embeddings.clone()
-        return merged.masked_scatter(
-            image_mask_expanded,
-            vision_embeddings.to(merged.dtype),
-        )
 
     def get_metric_metadata(self) -> MetricMetadata:
         return MMMU

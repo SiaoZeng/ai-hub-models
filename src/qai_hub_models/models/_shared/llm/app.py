@@ -237,7 +237,7 @@ class ChatApp:
                 input_prompt=input_prompt,
                 image=image_path,  # type: ignore[arg-type]
             )
-            inferencer.generate(  # type: ignore[operator, unused-ignore]
+            inferencer.generate(  # type: ignore[operator, misc, unused-ignore]
                 inputs_embeds=inputs_embeds,
                 attention_mask=input_tokens["attention_mask"],
                 generation_config=inferencer.generation_config,
@@ -256,7 +256,7 @@ class ChatApp:
                 return_tensors="pt",
                 add_special_tokens=False,
             ).to(host_device)
-            inferencer.generate(  # type: ignore[operator, unused-ignore]
+            inferencer.generate(  # type: ignore[operator, misc, unused-ignore]
                 inputs=input_tokens["input_ids"],
                 attention_mask=input_tokens["attention_mask"],
                 generation_config=inferencer.generation_config,
