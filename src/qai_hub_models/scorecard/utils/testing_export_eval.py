@@ -2148,7 +2148,7 @@ def torch_accuracy_on_dataset(
     evaluator = model.get_evaluator()
 
     torch_call_patch = mock.patch(
-        "qai_hub_models.utils.evaluate.BaseModel.__call__",
+        "qai_hub_models.utils.evaluate.WorkbenchModel.__call__",
         side_effect=torch_evaluate_mock_outputs,
     )
     scorecard_path = ScorecardProfilePath.ONNX
