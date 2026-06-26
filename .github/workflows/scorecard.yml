@@ -116,6 +116,10 @@ on:
           default: true
           type: boolean
 
+        skip_llm_perf:
+          default: false
+          type: boolean
+
         tableau_branch_name:
           default: ''
           type: string
@@ -202,7 +206,7 @@ jobs:
   scorecard_llm_device_run:
     name: LLM On-Device Run (asset upload, perf, accuracy)
     needs: submit_split_jobs
-    if: ${{ !cancelled() && needs.submit_split_jobs.result != 'skipped' }}
+    if: ${{ !cancelled() && needs.submit_split_jobs.result != 'skipped' && !inputs.skip_llm_perf }}
     secrets: inherit
     uses: ./.github/workflows/scorecard_llm_device_run.yml
     with:

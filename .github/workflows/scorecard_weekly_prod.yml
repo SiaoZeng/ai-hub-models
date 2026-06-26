@@ -21,4 +21,5 @@ jobs:
           test_scope: perf_and_accuracy
           release_scope: upload_export_assets_and_create_pr
           ignore_job_cache: false
+          skip_llm_perf: true
           tableau_branch_name: weekly-prod
