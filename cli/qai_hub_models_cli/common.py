@@ -60,12 +60,12 @@ def parse_sdk_version_filters(queries: list[str]) -> dict[str, str]:
 
 
 # The CLI is invoked as both ``qai_hub_models`` and ``qai-hub-models``; sample
-# commands shown to the user consistently use the underscore form.
-CLI_NAME = "qai_hub_models"
+# commands shown to the user consistently use the dash form.
+CLI_NAME = "qai-hub-models"
 
 
 def sample_command(*parts: str) -> str:
-    """Join *parts* after the ``qai_hub_models`` program name, dropping empties.
+    """Join *parts* after the ``qai-hub-models`` program name, dropping empties.
 
     The single source of truth for the program name. Pass ``version_flag(version)``
     as a part to pin a release (it is ``""`` for the installed version, and empty
@@ -95,7 +95,7 @@ def build_filter_command(
     devices: list[str] | None = None,
     show_chipset_placeholder: bool = True,
 ) -> str:
-    """Build a full ``qai_hub_models <command> <model> -r ... -p ... [-c/-d ...]``.
+    """Build a full ``qai-hub-models <command> <model> -r ... -p ... [-c/-d ...]``.
 
     Echoes the given filter values (or placeholders) for the ``fetch`` download
     hint and the ``perf``/``numerics`` "filter these results" hint. Callers append

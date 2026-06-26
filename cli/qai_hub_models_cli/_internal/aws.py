@@ -18,6 +18,7 @@ from typing import TypeVar
 
 import tqdm
 
+from qai_hub_models_cli.common import sample_command
 from qai_hub_models_cli.envvars import bool_envvar_value
 
 try:
@@ -44,7 +45,7 @@ class NoAWSCredsError(ValueError):
     def __init__(self) -> None:
         super().__init__(
             f"S3 credentials not found or expired. "
-            f"Run `qai_hub_models validate_aws_credentials` to refresh credentials, "
+            f"Run `{sample_command('validate_aws_credentials')}` to refresh credentials, "
             f"or see {SETUP_DOCS_URL} for setup instructions."
         )
 

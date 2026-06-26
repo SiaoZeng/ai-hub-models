@@ -23,6 +23,7 @@ from qai_hub_models_cli.args import (
 )
 from qai_hub_models_cli.common import (
     AIHUB_MODELS_URL,
+    CLI_NAME,
     build_filter_command,
     format_command_sections,
     model_repo_url,
@@ -725,14 +726,14 @@ def add_list_models_parser(
         default=None,
         type=str.lower,
         help="Filter by a chipset the model has been profiled on. "
-        "Run `qai-hub-models chipsets` to see supported chipsets.",
+        f"Run `{sample_command('chipsets')}` to see supported chipsets.",
     )
     target_group.add_argument(
         "-d",
         "--device",
         default=None,
         help="Filter by a device the model has been profiled on. "
-        "Run `qai-hub-models devices` to see supported devices. "
+        f"Run `{sample_command('devices')}` to see supported devices. "
         "Cannot be combined with --chipset.",
     )
     tag_values = ", ".join(
@@ -803,7 +804,7 @@ def _run_list_devices(args: argparse.Namespace) -> None:
             "are likely to run on the device, though performance and accuracy metrics may differ."
         )
 
-    print("\nSee all supported chipsets using `qai-hub-models chipsets`.")
+    print(f"\nSee all supported chipsets using `{sample_command('chipsets')}`.")
 
     print_upgrade_notice()
 
@@ -889,7 +890,7 @@ def _run_list_chipsets(args: argparse.Namespace) -> None:
             "are likely to run on the chipset, though performance and accuracy metrics may differ."
         )
 
-    print("\nSee all supported devices using `qai-hub-models devices`.")
+    print(f"\nSee all supported devices using `{sample_command('devices')}`.")
     print_upgrade_notice()
 
 
@@ -1182,7 +1183,7 @@ def main(args: list[str] | None = None) -> None:
     _check_version_match()
 
     parser = argparse.ArgumentParser(
-        prog="qai_hub_models",
+        prog=CLI_NAME,
         description="Qualcomm AI Hub Models CLI.",
     )
     parser.add_argument(
