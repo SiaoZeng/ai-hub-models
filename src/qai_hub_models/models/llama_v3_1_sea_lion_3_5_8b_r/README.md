@@ -9,11 +9,17 @@ Qualcomm AI Hub Models uses [Qualcomm AI Hub Workbench](https://workbench.aihub.
 
 ## Deploying Llama-SEA-LION-v3.5 8B-R on-device
 
-Please follow the [LLM on-device deployment](https://github.com/qualcomm/ai-hub-apps/tree/main/tutorials/llm_on_genie) tutorial.
+To run this model locally, you need:
+
+1. **An exported context binary** — produced by the [Export](#export) step below.
+2. **GenieX**, AI Hub's on-device Gen AI inference runtime — runs the exported model on device.
+   See [Run a Local Model with GenieX](https://geniex.aihub.qualcomm.com/en/run/cli/quickstart/#run-a-local-model) for installation and usage.
 
 
-## Setup
-### 1. Install the package
+## Export
+
+### Setup
+#### 1. Install the package
 Install the package via pip:
 ```bash
 # NOTE: 3.10 <= PYTHON_VERSION < 3.14 is supported.
@@ -38,7 +44,7 @@ Install the GPU package via pip:
 pip install "qai-hub-models[llama-v3-1-sea-lion-3-5-8b-r]" onnxruntime-gpu==1.23.2 https://github.com/quic/aimet/releases/download/2.26.0/aimet_onnx-2.26.0+cu121-cp310-cp310-manylinux_2_34_x86_64.whl -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
-### 2. Configure Qualcomm® AI Hub Workbench
+#### 2. Configure Qualcomm® AI Hub Workbench
 Sign-in to [Qualcomm® AI Hub Workbench](https://workbench.aihub.qualcomm.com/) with your
 Qualcomm® ID. Once signed in navigate to `Account -> Settings -> API Token`.
 
@@ -49,7 +55,7 @@ qai-hub configure --api_token API_TOKEN
 ```
 Navigate to [docs](https://workbench.aihub.qualcomm.com/docs/) for more information.
 
-## Run CLI Demo
+### Verify with CLI Demo
 Run the following simple CLI demo to verify the model is working end to end:
 
 ```bash
@@ -60,7 +66,7 @@ More details on the CLI tool can be found with the `--help` option. See
 scripts. Please refer to our [general instructions on using
 models](../../../#getting-started) for more usage instructions.
 
-## Export for on-device deployment
+### Export the model artifact
 To run the model on Qualcomm® devices, you must export the model for use with an edge runtime such as
 TensorFlow Lite, ONNX Runtime, or Qualcomm AI Engine Direct. Use the following command to export the model:
 ```bash

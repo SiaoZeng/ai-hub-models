@@ -7,9 +7,9 @@ This repository contains scripts for optimized on-device export suitable to run 
 
 Qualcomm AI Hub Models uses [Qualcomm AI Hub Workbench](https://workbench.aihub.qualcomm.com) to compile, profile, and evaluate this model. [Sign up](https://myaccount.qualcomm.com/signup) to run these models on a hosted Qualcomm® device.
 
-## Deploying Mistral 7B Instruct v0.3 on-device
+## Getting Started
 
-Please follow the [LLM on-device deployment](https://github.com/qualcomm/ai-hub-apps/tree/main/tutorials/llm_on_genie) tutorial.
+This model is available for purchase. Please [contact us](mailto:ai-hub-support@qti.qualcomm.com) to learn more about licensing options.
 
 
 ## License

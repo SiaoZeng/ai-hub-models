@@ -176,6 +176,13 @@ class QAIHMModelCodeGen(BaseQAIHMConfig):
     # If set, omits the "Example Usage" section from the HuggingFace readme.
     skip_example_usage: bool = False
 
+    # If set, the repo README groups Setup / Verify with CLI Demo / Export the
+    # model artifact under a single "## Export" parent (instead of the default
+    # top-level "## Setup", "## Run CLI Demo", "## Export for on-device
+    # deployment" sections). Used by genie LLM models whose local-device
+    # deployment section links to the "#export" anchor.
+    local_device_deployment: bool = False
+
     # By default inference tests are done using 8gen1 chipset to avoid overloading
     # newer devices. Some models don't work on 8gen1, so use 8gen3 for those.
     inference_on_8gen3: bool = False

@@ -178,6 +178,11 @@ Navigate to [docs](https://workbench.aihub.qualcomm.com/docs/) for more informat
         When set, appends ``--device "<value>"`` to the export command. Resolved
         from the global default device when ``requires_aot_prepare`` is set in
         code-gen.yaml.
+    local_device_deployment : bool, optional
+        When set, the Setup / Verify with CLI Demo / Export the model artifact
+        sections are nested (one level deeper) under a single "## Export"
+        parent. Used by genie LLM models whose local-device deployment section
+        links to the "#export" anchor.
 #}
 {%- macro example_and_usage(
     model_id,
@@ -192,25 +197,35 @@ Navigate to [docs](https://workbench.aihub.qualcomm.com/docs/) for more informat
     python_version_lt=None,
     readme_install_system_deps=None,
     is_hf_readme=False,
-    readme_export_device=None
+    readme_export_device=None,
+    local_device_deployment=False
 ) -%}
 {%- set precisions_str = "{ --quantize " ~ (supported_precisions | reject('equalto', 'float') | join(', ')) ~ " }" if supported_precisions and supported_precisions|length > 1 else "" -%}
 {%- set step = namespace(num=1) -%}
-## Setup
+{# Header levels shift one deeper when nesting under a single "## Export" parent. #}
+{%- set h_setup = "###" if local_device_deployment else "##" -%}
+{%- set h_step = "####" if local_device_deployment else "###" -%}
+{% if local_device_deployment %}
+## Export
+
+{{ h_setup }} Setup
+{% else %}
+{{ h_setup }} Setup
+{% endif %}
 {% if readme_install_system_deps %}
-### {{ step.num }}. Install System-Level Dependencies
+{{ h_step }} {{ step.num }}. Install System-Level Dependencies
 {%- set step.num = step.num + 1 %}
 
 {{ readme_install_system_deps }}
 {% endif %}
-### {{ step.num }}. Install the package
+{{ h_step }} {{ step.num }}. Install the package
 {% set step.num = step.num + 1 %}
 {{ package_instructions(model_id, has_model_requirements, pip_pre_build_reqs, pip_install_flags, pip_install_flags_gpu, python_version_gte, python_version_lt) }}
 
-### {{ step.num }}. Configure Qualcomm® AI Hub Workbench
+{{ h_step }} {{ step.num }}. Configure Qualcomm® AI Hub Workbench
 {{ configure_aihub() }}
 
-## Run CLI Demo
+{{ h_setup }} {{ "Verify with CLI Demo" if local_device_deployment else "Run CLI Demo" }}
 Run the following simple CLI demo to verify the model is working end to end:
 
 ```bash
@@ -226,7 +241,7 @@ models](../../../#getting-started) for more usage instructions.{% endif %}
 By default, the demo will run locally in PyTorch. Pass `--eval-mode on-device` to the demo script to run the model on a cloud-hosted target device.
 {% endif %}
 
-## Export for on-device deployment
+{{ h_setup }} {{ "Export the model artifact" if local_device_deployment else "Export for on-device deployment" }}
 To run the model on Qualcomm® devices, you must export the model for use with an edge runtime such as
 TensorFlow Lite, ONNX Runtime, or Qualcomm AI Engine Direct. Use the following command to export the model:
 ```bash

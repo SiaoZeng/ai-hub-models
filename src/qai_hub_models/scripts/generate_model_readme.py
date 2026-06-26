@@ -45,15 +45,30 @@ def get_shared_template_args(model_info: QAIHMModelInfo) -> dict[str, Any]:
     """
     model_code_gen = model_info.code_gen_config
 
+    # {genie_url} (legacy Genie) and {geniex_url} (GenieX) are distinct
+    # placeholders pointing at different tutorials. A section that mixes both is
+    # almost always a typo (e.g. using {genie_url} while expecting the GenieX
+    # URL), and the wrong link would render silently. Reject it at generation
+    # time instead.
+    additional_readme_section = model_code_gen.additional_readme_section
+    if (
+        "{genie_url}" in additional_readme_section
+        and "{geniex_url}" in additional_readme_section
+    ):
+        raise ValueError(
+            f"{model_info.id}: additional_readme_section mixes the legacy "
+            "{genie_url} and {geniex_url} placeholders. Use only one."
+        )
+
     return {
         # Model info
         "model_id": model_info.id,
         "model_name": model_info.name,
         "model_description": model_info.description,
         "model_url": f"{ASSET_CONFIG.models_website_url}/models/{model_info.id}",
-        "additional_readme_section": model_code_gen.additional_readme_section.replace(
+        "additional_readme_section": additional_readme_section.replace(
             "{genie_url}", ASSET_CONFIG.genie_url
-        ),
+        ).replace("{geniex_url}", ASSET_CONFIG.geniex_url),
         # Source and references
         "source_repo": model_info.source_repo,
         "research_paper_title": model_info.research_paper_title,
@@ -98,6 +113,7 @@ def generate_and_write_model_readme(model_id: str) -> Path:
             "readme_export_device": model_code_gen.default_device
             if model_code_gen.requires_aot_prepare
             else None,
+            "local_device_deployment": model_code_gen.local_device_deployment,
             # System-level dependencies installation instructions
             "readme_install_system_deps": model_code_gen.readme_install_system_deps,
         }

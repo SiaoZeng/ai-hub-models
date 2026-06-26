@@ -5,7 +5,7 @@ skip_hub_tests_and_scorecard: true
 skip_scorecard: true
 skip_export: true
 additional_readme_section: |
-  ## Deploying IBM Granite 3.1 on-device
+  ## Getting Started
 
-  Please follow the [LLM on-device deployment]({genie_url}) tutorial.
+  This model is available for purchase. Please [contact us](mailto:ai-hub-support@qti.qualcomm.com) to learn more about licensing options.
 skip_example_usage: true

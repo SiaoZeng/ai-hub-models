@@ -481,6 +481,7 @@ class ModelZooAssetConfig:
         models_website_url: str,
         models_website_relative_path: str,
         genie_url: str,
+        geniex_url: str,
         voice_ai_url: str,
         global_release_asset_folder: str,
         released_asset_folder: str,
@@ -500,6 +501,7 @@ class ModelZooAssetConfig:
         self.models_website_url = models_website_url
         self.models_website_relative_path = models_website_relative_path
         self.genie_url = genie_url
+        self.geniex_url = geniex_url
         self.voice_ai_url = voice_ai_url
         self.global_release_asset_folder = global_release_asset_folder
         self.released_asset_folder = released_asset_folder
@@ -706,6 +708,7 @@ class ModelZooAssetConfig:
             asset_cfg["models_website_url"],
             asset_cfg["models_website_relative_path"],
             asset_cfg["genie_url"],
+            asset_cfg["geniex_url"],
             asset_cfg["voice_ai_url"],
             asset_cfg["global_release_asset_folder"],
             asset_cfg["released_asset_folder"],
@@ -730,6 +733,7 @@ class ModelZooAssetConfig:
                 "models_website_relative_path": str,
                 "email_template": str,
                 "genie_url": str,
+                "geniex_url": str,
                 "voice_ai_url": str,
                 "global_release_asset_folder": str,
                 "released_asset_folder": str,

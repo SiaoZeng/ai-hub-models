@@ -10,10 +10,15 @@ orchestrator_runtimes:
 only_allow_orchestrator_runtimes: true
 global_requirements_incompatible: true
 pip_install_flags_gpu: onnxruntime-gpu==1.23.2 https://github.com/quic/aimet/releases/download/2.26.0/aimet_onnx-2.26.0+cu121-cp310-cp310-manylinux_2_34_x86_64.whl -f https://download.pytorch.org/whl/torch_stable.html
+local_device_deployment: true
 additional_readme_section: |
   ## Deploying Falcon3-7B-Instruct on-device
 
-  Please follow the [LLM on-device deployment]({genie_url}) tutorial.
+  To run this model locally, you need:
+
+  1. **An exported context binary** — produced by the [Export](#export) step below.
+  2. **GenieX**, AI Hub's on-device Gen AI inference runtime — runs the exported model on device.
+     See [Run a Local Model with GenieX]({geniex_url}) for installation and usage.
 has_multi_graph: true
 separate_quantize_script: true
 test_split: llm
